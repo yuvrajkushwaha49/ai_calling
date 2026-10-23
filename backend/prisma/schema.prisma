@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CALLBACK_REQUESTED
+  SITE_VISIT_INTERESTED
+  NEGOTIATION
+  CONVERTED
+  NOT_INTERESTED
+  LOST
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  SOCIAL_MEDIA
+  COLD_CALL
+  WALK_IN
+  OTHER
+}
+
+enum PropertyType {
+  APARTMENT
+  VILLA
+  PLOT
+  COMMERCIAL
+  PENTHOUSE
+}
+
+enum CallOutcome {
+  CONNECTED
+  NO_ANSWER
+  VOICEMAIL
+  CALLBACK_REQUESTED
+  QUALIFIED
+  SITE_VISIT_INTERESTED
+  NOT_INTERESTED
+}
+
+enum CallStatus {
+  QUEUED
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  SKIPPED
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum KnowledgeSourceType {
+  PDF
+  TEXT
+  FAQ
+  WEBSITE
+  PRICE_SHEET
+  RERA
+  FLOOR_PLAN
+  PAYMENT_PLAN
+  AMENITIES
+  OTHER
+}
+
+enum KnowledgeStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum QueueItemStatus {
+  QUEUED
+  CALLING
+  COMPLETED
+  FAILED
+  CALLBACK
+  SKIPPED
+  CANCELLED
+}
+
+enum FeedbackRating {
+  HELPFUL
+  NEUTRAL
+  POOR
+}
+
+enum FeedbackStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(AGENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leadNotes          LeadNote[]
+  activities         Activity[]
+  feedbackSubmitted  CallFeedback[]  @relation("FeedbackSubmitter")
+  feedbackApproved   CallFeedback[]  @relation("FeedbackApprover")
+  auditLogs          AuditLog[]
+}
+
+model Project {
+  id             String       @id @default(cuid())
+  name           String
+  companyName    String       @default("")
+  location       String
+  builder        String
+  propertyType   PropertyType
+  startingPrice  Float
+  endingPrice    Float
+  possessionDate DateTime?
+  reraNumber     String?
+  amenities      Json?
+  description    String?
+  websiteUrl     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  leads            Lead[]
+  appointments     Appointment[]
+  knowledgeSources ProjectKnowledgeSource[]
+  knowledgeChunks  ProjectKnowledgeChunk[]
+  calls            Call[]
+  campaigns        CallCampaign[]
+  feedback         CallFeedback[]
+}
+
+model Lead {
+  id                 String        @id @default(cuid())
+  name               String
+  phone              String
+  email              String?
+  source             LeadSource    @default(OTHER)
+  budget             Float?
+  propertyType       PropertyType?
+  status             LeadStatus    @default(NEW)
+  notes              String?
+  projectId          String?
+  aiSummary          String?
+  preferredLanguage  String?
+  preferredLocation  String?
+  bhkPreference      String?
+  purchaseTimeline   String?
+  interestLevel      String?
+  interestScore      Int?
+  objections         String?
+  siteVisitInterest  Boolean       @default(false)
+  callbackAt         DateTime?
+  doNotCall          Boolean       @default(false)
+  consentToCall      Boolean       @default(true)
+  suggestedNextAction String?
+  lastQualifiedAt    DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  calls        Call[]
+  appointments Appointment[]
+  leadNotes    LeadNote[]
+  activities   Activity[]
+  queueItems   CampaignQueueItem[]
+  feedback     CallFeedback[]
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  leadId      String
+  userId      String?
+  type        String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Call {
+  id                String      @id @default(cuid())
+  leadId            String
+  projectId         String?
+  campaignId        String?
+  duration          Int         @default(0)
+  interestScore     Int?
+  transcript        String?
+  summary           String?
+  recordingUrl      String?
+  outcome           CallOutcome @default(CONNECTED)
+  status            CallStatus  @default(INITIATED)
+  provider          String      @default("twilio")
+  providerCallId    String?
+  greetingText      String?
+  languageDetected  String?
+  qualificationJson Json?
+  sourcesJson       Json?
+  suggestedNextAction String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  lead     Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project  Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  campaign CallCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  feedback CallFeedback[]
+  queueItems CampaignQueueItem[]
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  leadId        String
+  projectId     String?
+  date          DateTime
+  time          String
+  status        AppointmentStatus @default(SCHEDULED)
+  notes         String?
+  googleEventId String?
+  googleLink    String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+model AiAgentSettings {
+  id                String   @id @default(cuid())
+  agentName         String   @default("Real Estate AI Agent")
+  agentVoice        String   @default("shubh")
+  language          String   @default("en-IN")
+  tone              String   @default("friendly")
+  llmModel          String   @default("gemini-flash-lite-latest")
+  systemPrompt      String   @default("")
+  companyName       String   @default("")
+  workingHours      Json?
+  knowledgeBase     Json?
+  approvedPlaybook  Json?
+  retryRules        Json?
+  timezone          String   @default("Asia/Kolkata")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ProjectKnowledgeSource {
+  id           String              @id @default(cuid())
+  projectId    String
+  title        String
+  sourceType   KnowledgeSourceType @default(OTHER)
+  status       KnowledgeStatus     @default(PENDING)
+  fileName     String?
+  filePath     String?
+  sourceUrl    String?
+  mimeType     String?
+  rawText      String?
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  project Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chunks  ProjectKnowledgeChunk[]
+}
+
+model ProjectKnowledgeChunk {
+  id         String   @id @default(cuid())
+  projectId  String
+  sourceId   String
+  chunkIndex Int
+  content    String
+  tokenCount Int      @default(0)
+  embedding  Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  project Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source  ProjectKnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([sourceId])
+}
+
+model CallCampaign {
+  id              String         @id @default(cuid())
+  name            String
+  projectId       String?
+  status          CampaignStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  timezone        String         @default("Asia/Kolkata")
+  workingHours    Json?
+  maxRetries      Int            @default(2)
+  retryDelayMins  Int            @default(60)
+  filterJson      Json?
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  project    Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  queueItems CampaignQueueItem[]
+  calls      Call[]
+}
+
+model CampaignQueueItem {
+  id          String          @id @default(cuid())
+  campaignId  String
+  leadId      String
+  callId      String?
+  status      QueueItemStatus @default(QUEUED)
+  attempts    Int             @default(0)
+  nextAttempt DateTime?
+  lastError   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  campaign CallCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call     Call?        @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, status])
+  @@index([leadId])
+}
+
+model CallFeedback {
+  id                 String          @id @default(cuid())
+  callId             String
+  leadId             String?
+  projectId          String?
+  rating             FeedbackRating
+  status             FeedbackStatus  @default(PENDING)
+  category           String?
+  comment            String?
+  correctedSummary   String?
+  correctedReply     String?
+  correctedFactsJson Json?
+  aiReplySnapshot    String?
+  transcriptSnapshot String?
+  approvedAt         DateTime?
+  createdById        String?
+  approvedById       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  call       Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy  User?    @relation("FeedbackSubmitter", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy User?    @relation("FeedbackApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

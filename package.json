@@ -1,0 +1,13 @@
+{
+  "name": "realestate-crm",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run start:dev",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "db:up": "docker compose up -d",
+    "db:setup": "cd backend && npx prisma migrate dev && npm run prisma:seed",
+    "ai:context": "node scripts/generate-ai-context.cjs"
+  }
+}
