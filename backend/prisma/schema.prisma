@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -151,7 +151,7 @@ model Project {
   possessionDate DateTime?
   reraNumber     String?
   amenities      Json?
-  description    String?
+  description    String?      @db.Text
   websiteUrl     String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -166,32 +166,32 @@ model Project {
 }
 
 model Lead {
-  id                 String        @id @default(cuid())
-  name               String
-  phone              String
-  email              String?
-  source             LeadSource    @default(OTHER)
-  budget             Float?
-  propertyType       PropertyType?
-  status             LeadStatus    @default(NEW)
-  notes              String?
-  projectId          String?
-  aiSummary          String?
-  preferredLanguage  String?
-  preferredLocation  String?
-  bhkPreference      String?
-  purchaseTimeline   String?
-  interestLevel      String?
-  interestScore      Int?
-  objections         String?
-  siteVisitInterest  Boolean       @default(false)
-  callbackAt         DateTime?
-  doNotCall          Boolean       @default(false)
-  consentToCall      Boolean       @default(true)
-  suggestedNextAction String?
-  lastQualifiedAt    DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  name                String
+  phone               String
+  email               String?
+  source              LeadSource    @default(OTHER)
+  budget              Float?
+  propertyType        PropertyType?
+  status              LeadStatus    @default(NEW)
+  notes               String?       @db.Text
+  projectId           String?
+  aiSummary           String?       @db.Text
+  preferredLanguage   String?
+  preferredLocation   String?
+  bhkPreference       String?
+  purchaseTimeline    String?
+  interestLevel       String?
+  interestScore       Int?
+  objections          String?       @db.Text
+  siteVisitInterest   Boolean       @default(false)
+  callbackAt          DateTime?
+  doNotCall           Boolean       @default(false)
+  consentToCall       Boolean       @default(true)
+  suggestedNextAction String?       @db.Text
+  lastQualifiedAt     DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   project      Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   calls        Call[]
@@ -206,7 +206,7 @@ model LeadNote {
   id        String   @id @default(cuid())
   leadId    String
   userId    String
-  content   String
+  content   String   @db.Text
   createdAt DateTime @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -218,7 +218,7 @@ model Activity {
   leadId      String
   userId      String?
   type        String
-  description String
+  description String   @db.Text
   metadata    Json?
   createdAt   DateTime @default(now())
 
@@ -227,31 +227,31 @@ model Activity {
 }
 
 model Call {
-  id                String      @id @default(cuid())
-  leadId            String
-  projectId         String?
-  campaignId        String?
-  duration          Int         @default(0)
-  interestScore     Int?
-  transcript        String?
-  summary           String?
-  recordingUrl      String?
-  outcome           CallOutcome @default(CONNECTED)
-  status            CallStatus  @default(INITIATED)
-  provider          String      @default("twilio")
-  providerCallId    String?
-  greetingText      String?
-  languageDetected  String?
-  qualificationJson Json?
-  sourcesJson       Json?
-  suggestedNextAction String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id                  String      @id @default(cuid())
+  leadId              String
+  projectId           String?
+  campaignId          String?
+  duration            Int         @default(0)
+  interestScore       Int?
+  transcript          String?     @db.LongText
+  summary             String?     @db.Text
+  recordingUrl        String?     @db.Text
+  outcome             CallOutcome @default(CONNECTED)
+  status              CallStatus  @default(INITIATED)
+  provider            String      @default("twilio")
+  providerCallId      String?
+  greetingText        String?     @db.Text
+  languageDetected    String?
+  qualificationJson   Json?
+  sourcesJson         Json?
+  suggestedNextAction String?     @db.Text
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
-  lead     Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  project  Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  campaign CallCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  feedback CallFeedback[]
+  lead       Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project    Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  campaign   CallCampaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  feedback   CallFeedback[]
   queueItems CampaignQueueItem[]
 }
 
@@ -262,9 +262,9 @@ model Appointment {
   date          DateTime
   time          String
   status        AppointmentStatus @default(SCHEDULED)
-  notes         String?
+  notes         String?           @db.Text
   googleEventId String?
-  googleLink    String?
+  googleLink    String?           @db.Text
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -273,22 +273,22 @@ model Appointment {
 }
 
 model AiAgentSettings {
-  id                String   @id @default(cuid())
-  agentName         String   @default("Real Estate AI Agent")
-  agentVoice        String   @default("shubh")
-  language          String   @default("en-IN")
-  tone              String   @default("friendly")
-  llmModel          String   @default("gemini-flash-lite-latest")
-  systemPrompt      String   @default("")
-  companyName       String   @default("")
-  workingHours      Json?
-  knowledgeBase     Json?
-  approvedPlaybook  Json?
-  retryRules        Json?
-  timezone          String   @default("Asia/Kolkata")
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(cuid())
+  agentName        String   @default("Real Estate AI Agent")
+  agentVoice       String   @default("shubh")
+  language         String   @default("en-IN")
+  tone             String   @default("friendly")
+  llmModel         String   @default("gemini-flash-lite-latest")
+  systemPrompt     String   @default("") @db.Text
+  companyName      String   @default("")
+  workingHours     Json?
+  knowledgeBase    Json?
+  approvedPlaybook Json?
+  retryRules       Json?
+  timezone         String   @default("Asia/Kolkata")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model ProjectKnowledgeSource {
@@ -298,11 +298,11 @@ model ProjectKnowledgeSource {
   sourceType   KnowledgeSourceType @default(OTHER)
   status       KnowledgeStatus     @default(PENDING)
   fileName     String?
-  filePath     String?
-  sourceUrl    String?
+  filePath     String?             @db.Text
+  sourceUrl    String?             @db.Text
   mimeType     String?
-  rawText      String?
-  errorMessage String?
+  rawText      String?             @db.LongText
+  errorMessage String?             @db.Text
   metadata     Json?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -316,7 +316,7 @@ model ProjectKnowledgeChunk {
   projectId  String
   sourceId   String
   chunkIndex Int
-  content    String
+  content    String   @db.Text
   tokenCount Int      @default(0)
   embedding  Json?
   metadata   Json?
@@ -330,23 +330,23 @@ model ProjectKnowledgeChunk {
 }
 
 model CallCampaign {
-  id              String         @id @default(cuid())
-  name            String
-  projectId       String?
-  status          CampaignStatus @default(DRAFT)
-  scheduledAt     DateTime?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  timezone        String         @default("Asia/Kolkata")
-  workingHours    Json?
-  maxRetries      Int            @default(2)
-  retryDelayMins  Int            @default(60)
-  filterJson      Json?
-  createdById     String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  projectId      String?
+  status         CampaignStatus @default(DRAFT)
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  timezone       String         @default("Asia/Kolkata")
+  workingHours   Json?
+  maxRetries     Int            @default(2)
+  retryDelayMins Int            @default(60)
+  filterJson     Json?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  project    Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project    Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
   queueItems CampaignQueueItem[]
   calls      Call[]
 }
@@ -359,7 +359,7 @@ model CampaignQueueItem {
   status      QueueItemStatus @default(QUEUED)
   attempts    Int             @default(0)
   nextAttempt DateTime?
-  lastError   String?
+  lastError   String?         @db.Text
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -372,24 +372,24 @@ model CampaignQueueItem {
 }
 
 model CallFeedback {
-  id                 String          @id @default(cuid())
+  id                 String         @id @default(cuid())
   callId             String
   leadId             String?
   projectId          String?
   rating             FeedbackRating
-  status             FeedbackStatus  @default(PENDING)
+  status             FeedbackStatus @default(PENDING)
   category           String?
-  comment            String?
-  correctedSummary   String?
-  correctedReply     String?
+  comment            String?        @db.Text
+  correctedSummary   String?        @db.Text
+  correctedReply     String?        @db.Text
   correctedFactsJson Json?
-  aiReplySnapshot    String?
-  transcriptSnapshot String?
+  aiReplySnapshot    String?        @db.Text
+  transcriptSnapshot String?        @db.LongText
   approvedAt         DateTime?
   createdById        String?
   approvedById       String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   call       Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
   lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
