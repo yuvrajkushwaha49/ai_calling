@@ -1,0 +1,395 @@
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateCallDto, UpdateCallDto } from './dto/call.dto';
+import { AiService } from '../ai/ai.service';
+import { VoiceService } from '../voice/voice.service';
+import { ExotelService } from './exotel.service';
+import { TwilioService } from './twilio.service';
+import { McubeService } from './mcube.service';
+import { ConversationService } from '../conversation/conversation.service';
+import { AppointmentsService } from '../appointments/appointments.service';
+export declare class CallsService {
+    private prisma;
+    private aiService;
+    private voice;
+    private exotel;
+    private twilio;
+    private mcube;
+    private conversation;
+    private appointments;
+    private readonly logger;
+    constructor(prisma: PrismaService, aiService: AiService, voice: VoiceService, exotel: ExotelService, twilio: TwilioService, mcube: McubeService, conversation: ConversationService, appointments: AppointmentsService);
+    private elapsedSeconds;
+    findAll(): Prisma.PrismaPromise<({
+        lead: {
+            email: string | null;
+            name: string;
+            id: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    })[]>;
+    findOne(id: string): Promise<{
+        lead: {
+            project: {
+                name: string;
+                id: string;
+                companyName: string;
+                location: string;
+                builder: string;
+                startingPrice: number;
+                endingPrice: number;
+                possessionDate: Date | null;
+                reraNumber: string | null;
+                amenities: Prisma.JsonValue;
+                description: string | null;
+            } | null;
+        } & {
+            email: string | null;
+            name: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string;
+            source: import("@prisma/client").$Enums.LeadSource;
+            budget: number | null;
+            propertyType: import("@prisma/client").$Enums.PropertyType | null;
+            status: import("@prisma/client").$Enums.LeadStatus;
+            notes: string | null;
+            projectId: string | null;
+            aiSummary: string | null;
+            preferredLanguage: string | null;
+            preferredLocation: string | null;
+            bhkPreference: string | null;
+            purchaseTimeline: string | null;
+            interestLevel: string | null;
+            interestScore: number | null;
+            objections: string | null;
+            siteVisitInterest: boolean;
+            callbackAt: Date | null;
+            doNotCall: boolean;
+            consentToCall: boolean;
+            suggestedNextAction: string | null;
+            lastQualifiedAt: Date | null;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+    create(dto: CreateCallDto): Promise<{
+        lead: {
+            name: string;
+            id: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+    update(id: string, dto: UpdateCallDto): Promise<{
+        lead: {
+            name: string;
+            id: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+    remove(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+    startOutboundCall(leadId: string, options?: {
+        browserDemo?: boolean;
+        campaignId?: string;
+        provider?: 'twilio' | 'exotel' | 'mcube' | 'browser-demo';
+    }): Promise<({
+        project: {
+            name: string;
+            id: string;
+        } | null;
+        lead: {
+            name: string;
+            id: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }) | {
+        status: "COMPLETED";
+        demoMode: boolean;
+        audioUrl: string;
+        audioBase64: string;
+        mimeType: string;
+        greetingText: string;
+        agentName: string;
+        agentVoice: string;
+        project: {
+            name: string;
+            id: string;
+            companyName: string;
+            location: string;
+            builder: string;
+            startingPrice: number;
+            endingPrice: number;
+            possessionDate: Date | null;
+            reraNumber: string | null;
+            amenities: Prisma.JsonValue;
+            description: string | null;
+        } | null;
+        knowledgeSources: {
+            id: string;
+            fileName: string | null;
+            title: string;
+            sourceType: import("@prisma/client").$Enums.KnowledgeSourceType;
+            sourceUrl: string | null;
+        }[];
+        message: string;
+        lead: {
+            name: string;
+            id: string;
+            phone: string;
+            projectId: string | null;
+        };
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+    private resolveExotelCallId;
+    getExotelGreetingPayload(callId: string, params?: Record<string, string>): Promise<{
+        type: string;
+        value: string;
+    }>;
+    handleExotelPassthru(params: Record<string, string>): Promise<{
+        ok: boolean;
+    }>;
+    getTwilioVoiceTwiml(callId: string, params?: Record<string, string>): Promise<string>;
+    handleTwilioStatusWebhook(callId: string, body: Record<string, string>): Promise<{
+        ok: boolean;
+    }>;
+    handleExotelStatusWebhook(callId: string, body: Record<string, string>): Promise<{
+        ok: boolean;
+    }>;
+    private processExotelRecording;
+    demoTurn(body: {
+        callId: string;
+        message?: string;
+        audioBase64?: string;
+        fileName?: string;
+    }, onEvent?: (event: Record<string, unknown>) => void | Promise<void>): Promise<{
+        callId: string;
+        userMessage: string;
+        replyText: string;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        audioBase64: string;
+        mimeType: string;
+        transcript: string | null;
+        languageDetected: string;
+        sources: never[];
+        qualification: string | number | true | Prisma.JsonObject | Prisma.JsonArray;
+        usedLlm: boolean;
+        ignoredEcho: boolean;
+    } | {
+        callId: string;
+        userMessage: string;
+        replyText: string;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        audioBase64: string;
+        mimeType: string;
+        transcript: string;
+        languageDetected: "hinglish" | "hi-IN" | "en-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";
+        sources: {
+            chunkId: string;
+            score: number;
+            title: string;
+            sourceType: import("@prisma/client").$Enums.KnowledgeSourceType;
+            fileName: string | null;
+            sourceUrl: string | null;
+            excerpt: string;
+        }[];
+        qualification: {
+            interestScore: number;
+            interestLevel: string;
+            openerStyle: unknown;
+            openerWinRecorded: {};
+            meetingBooked: {};
+            meetingAt: {} | null;
+            googleCalendarSynced: {};
+            googleLink: {} | null;
+            language: string;
+            budgetLabel: string | null;
+            preferredLocation: string | null;
+            bhkPreference: string | null;
+            purchaseTimeline: string | null;
+            objections: string | null;
+            siteVisitInterest: boolean;
+            callbackAt: string | null;
+            outcome: string;
+            summary: string;
+            suggestedNextAction: string;
+        };
+        interestScore: number;
+        duration: number;
+        meetingBooked: boolean;
+        googleCalendarSynced: boolean | undefined;
+        googleLink: string | null;
+        usedLlm: boolean;
+        streamed: boolean;
+    }>;
+    endDemo(callId: string): Promise<{
+        lead: {
+            email: string | null;
+            name: string;
+            id: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.CallStatus;
+        projectId: string | null;
+        interestScore: number | null;
+        suggestedNextAction: string | null;
+        leadId: string;
+        campaignId: string | null;
+        duration: number;
+        transcript: string | null;
+        summary: string | null;
+        recordingUrl: string | null;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
+        provider: string;
+        providerCallId: string | null;
+        greetingText: string | null;
+        languageDetected: string | null;
+        qualificationJson: Prisma.JsonValue | null;
+        sourcesJson: Prisma.JsonValue | null;
+    }>;
+}

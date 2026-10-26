@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 */node_modules/
 
@@ -12,6 +12,7 @@ frontend/.env.local
 
 # Build outputs
 dist/
+!backend/dist/**
 build/
 .next/
 out/
