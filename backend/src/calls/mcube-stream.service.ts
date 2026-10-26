@@ -449,7 +449,7 @@ export class McubeStreamService {
               'Saya Group',
             defaultLanguage: call?.languageDetected || 'hi-IN',
             tone: (settings as { tone?: string })?.tone || 'friendly',
-            systemPrompt: settings?.systemPrompt,
+            systemPrompt: settings?.systemPrompt || undefined,
             llmModel:
               (settings as { llmModel?: string })?.llmModel ||
               'gemini-flash-lite-latest',

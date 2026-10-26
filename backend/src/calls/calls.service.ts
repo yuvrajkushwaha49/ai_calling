@@ -748,7 +748,7 @@ export class CallsService {
             defaultLanguage:
               call.languageDetected || settings.language || 'hi-IN',
             tone: (settings as { tone?: string }).tone || 'friendly',
-            systemPrompt: settings.systemPrompt,
+            systemPrompt: settings.systemPrompt || undefined,
             llmModel:
               (settings as { llmModel?: string }).llmModel ||
               'gemini-3.5-flash-lite',
@@ -1033,7 +1033,7 @@ export class CallsService {
         settings.language ||
         'hi-IN',
       tone: (settings as { tone?: string }).tone || 'friendly',
-      systemPrompt: settings.systemPrompt,
+      systemPrompt: settings.systemPrompt || undefined,
       llmModel:
         (settings as { llmModel?: string }).llmModel ||
         'gemini-3.5-flash-lite',

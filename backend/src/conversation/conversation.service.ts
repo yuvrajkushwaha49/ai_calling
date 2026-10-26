@@ -361,7 +361,7 @@ export class ConversationService {
     companyName?: string;
     defaultLanguage?: string;
     tone?: string;
-    systemPrompt?: string;
+    systemPrompt?: string | null;
     llmModel?: string;
     approvedPlaybook?: unknown;
     agentVoice?: string;
