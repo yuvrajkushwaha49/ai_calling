@@ -279,7 +279,7 @@ model AiAgentSettings {
   language         String   @default("en-IN")
   tone             String   @default("friendly")
   llmModel         String   @default("gemini-flash-lite-latest")
-  systemPrompt     String   @default("") @db.Text
+  systemPrompt     String?  @db.Text
   companyName      String   @default("")
   workingHours     Json?
   knowledgeBase    Json?
