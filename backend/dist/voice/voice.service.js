@@ -77,7 +77,8 @@ let VoiceService = VoiceService_1 = class VoiceService {
     async textToSpeech(options) {
         this.getTtsProvider();
         const text = this.formatSpeechText(options.text, options.language);
-        const voiceId = (this.config.get('ELEVENLABS_DEFAULT_VOICE_ID') || '').trim();
+        const rawVoiceId = (this.config.get('ELEVENLABS_DEFAULT_VOICE_ID') || '').trim();
+        const voiceId = /^[a-zA-Z0-9]{20,}$/.test(rawVoiceId) ? rawVoiceId : '';
         this.logger.log(`TTS via ElevenLabs voice_id=${voiceId || options.speaker || 'default'} lang=${options.language || '-'} format=${options.outputFormat || 'default'}`);
         return this.elevenlabs.textToSpeech({
             text,

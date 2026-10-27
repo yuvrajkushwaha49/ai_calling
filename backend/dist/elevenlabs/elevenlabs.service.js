@@ -262,7 +262,11 @@ let ElevenLabsService = ElevenLabsService_1 = class ElevenLabsService {
         const text = this.formatForElevenLabs(raw, options.language, modelId);
         if (!text)
             throw new common_1.BadRequestException('Text is required for TTS');
-        let voiceId = this.config.get('ELEVENLABS_DEFAULT_VOICE_ID')?.trim() || '';
+        let voiceId = '';
+        const envVoice = this.config.get('ELEVENLABS_DEFAULT_VOICE_ID')?.trim();
+        if (envVoice && /^[a-zA-Z0-9]{20,}$/.test(envVoice)) {
+            voiceId = envVoice;
+        }
         const speaker = (options.speaker || '').trim();
         if (!voiceId && /^[a-zA-Z0-9]{20,}$/.test(speaker)) {
             voiceId = speaker;
