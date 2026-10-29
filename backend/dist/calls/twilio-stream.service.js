@@ -177,14 +177,15 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
                     }
                     session.lastVoiceAt = now;
                     session.mulawChunks.push(mulaw);
-                    scheduleFlush(480);
+                    scheduleFlush(420);
                     if (now - session.speechStartedAt > 6500) {
                         void this.flushTurn(ws, session);
                     }
                 }
                 else if (session.speaking) {
-                    session.mulawChunks.push(mulaw);
-                    scheduleFlush(520);
+                    if (now - session.lastVoiceAt < 300) {
+                        session.mulawChunks.push(mulaw);
+                    }
                 }
                 return;
             }

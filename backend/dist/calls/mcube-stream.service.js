@@ -258,14 +258,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         }
                         session.lastVoiceAt = now;
                         session.rawChunks.push(chunk);
-                        scheduleFlush(320);
+                        scheduleFlush(420);
                         if (now - session.speechStartedAt > 6500) {
                             void this.flushTurn(ws, session);
                         }
                     }
                     else if (session.speaking) {
-                        session.rawChunks.push(chunk);
-                        scheduleFlush(350);
+                        if (now - session.lastVoiceAt < 300) {
+                            session.rawChunks.push(chunk);
+                        }
                     }
                     return;
                 }
