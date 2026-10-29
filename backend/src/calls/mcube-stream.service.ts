@@ -461,7 +461,7 @@ export class McubeStreamService {
           systemPrompt: settings?.systemPrompt || undefined,
           llmModel:
             (settings as { llmModel?: string })?.llmModel ||
-            'gemini-2.0-flash',
+            'gemini-3.8-flash',
           approvedPlaybook: (settings as { approvedPlaybook?: unknown })
             ?.approvedPlaybook,
           agentVoice: settings?.agentVoice || 'rachel',

@@ -23,18 +23,15 @@ import {
 } from './playbook';
 
 const GEMINI_MODELS = new Set([
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-flash-lite-latest',
-  'gemini-flash-latest',
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.6-flash',
+  'gemini-3.8-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.5-pro',
-  'gemini-3-flash-preview',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-flash-lite-latest',
+  'gemini-flash-latest',
 ]);
 
 const CHATGPT_MODELS = new Set([
@@ -193,15 +190,9 @@ export class AiService {
     const value = (model || '').trim();
     const provider = this.llm.getProvider();
     if (provider === 'gemini') {
-      if (
-        value === 'gemini-3.8-flash' ||
-        value === 'gemini-2.5-flash-lite' ||
-        value === 'gemini-3.5-flash-lite'
-      ) {
-        return 'gemini-2.0-flash';
-      }
+      if (value === 'gemini-3.8-flash') return 'gemini-3.8-flash';
       if (GEMINI_MODELS.has(value)) return value;
-      return 'gemini-2.0-flash';
+      return 'gemini-3.8-flash';
     }
     if (CHATGPT_MODELS.has(value)) return value;
     return 'gpt-4o-mini';

@@ -59,9 +59,9 @@ export class LlmService {
 
   private getDefaultModel() {
     const configured = this.config.get<string>('LLM_MODEL')?.trim();
-    if (configured && configured !== 'gemini-3.8-flash') return configured;
+    if (configured) return configured;
     return this.getProvider() === 'gemini'
-      ? 'gemini-2.0-flash'
+      ? 'gemini-3.8-flash'
       : 'gpt-4o-mini';
   }
 
@@ -397,7 +397,7 @@ export class LlmService {
     if (primary) return primary;
     // Overloaded flash-lite → quick fallback models
     if (options?.lowLatency) {
-      for (const alt of ['gemini-2.0-flash', 'gemini-2.5-flash']) {
+      for (const alt of ['gemini-3.8-flash', 'gemini-2.5-flash']) {
         if (alt === model) continue;
         const hit = await this.chatGeminiOnce(messages, alt, {
           ...options,

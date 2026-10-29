@@ -293,7 +293,7 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
                         tone: settings.tone || 'friendly',
                         systemPrompt: settings.systemPrompt || undefined,
                         llmModel: settings.llmModel ||
-                            'gemini-flash-lite-latest',
+                            'gemini-3.8-flash',
                         approvedPlaybook: settings
                             .approvedPlaybook,
                         agentVoice: settings.agentVoice || 'custom',
