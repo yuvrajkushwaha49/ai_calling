@@ -59,7 +59,7 @@ let LlmService = LlmService_1 = class LlmService {
         if (configured)
             return configured;
         return this.getProvider() === 'gemini'
-            ? 'gemini-2.5-flash'
+            ? 'gemini-3.8-flash'
             : 'gpt-4o-mini';
     }
     getEmbedModel() {
@@ -116,9 +116,10 @@ let LlmService = LlmService_1 = class LlmService {
         if (this.getProvider() === 'gemini') {
             const candidates = [
                 model,
-                'gemini-2.5-flash',
-                'gemini-flash-latest',
                 'gemini-3.8-flash',
+                'gemini-3.7-flash',
+                'gemini-3.5-flash',
+                'gemini-flash-latest',
             ].filter((m, idx, arr) => arr.indexOf(m) === idx);
             for (const m of candidates) {
                 let yielded = false;
@@ -166,12 +167,17 @@ let LlmService = LlmService_1 = class LlmService {
             maxOutputTokens: options?.maxOutputTokens ?? (options?.json ? 400 : 120),
             ...(options?.json ? { responseMimeType: 'application/json' } : {}),
         };
-        if (!isGemini3) {
+        if (isGemini3) {
+            if (options?.lowLatency) {
+                generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+            }
+        }
+        else {
             generationConfig.temperature = options?.temperature ?? 0.4;
             generationConfig.candidateCount = 1;
-        }
-        if (options?.lowLatency) {
-            generationConfig.thinkingConfig = { thinkingBudget: 0 };
+            if (options?.lowLatency) {
+                generationConfig.thinkingConfig = { thinkingBudget: 0 };
+            }
         }
         const body = {
             contents: merged,

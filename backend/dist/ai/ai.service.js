@@ -163,7 +163,7 @@ let AiService = class AiService {
         if (provider === 'gemini') {
             if (GEMINI_MODELS.has(value))
                 return value;
-            return 'gemini-2.5-flash';
+            return 'gemini-3.8-flash';
         }
         if (CHATGPT_MODELS.has(value))
             return value;

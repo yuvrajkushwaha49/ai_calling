@@ -497,12 +497,12 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
                     : `Recent call:\n${recentTranscript || '(start)'}\n\nCustomer just said: "${options.userMessage}"\n\nFirst understand them. If they asked something, answer it. Then reply in 1–2 short sentences.`,
             },
         ];
-        const voiceModel = options.llmModel || 'gemini-2.5-flash';
+        const voiceModel = options.llmModel || 'gemini-3.8-flash';
         const llmOpts = {
             temperature: 0.45,
             model: voiceModel,
             maxOutputTokens: options.phoneLatency || options.stream ? 60 : 120,
-            timeoutMs: options.phoneLatency || options.stream ? 5000 : 8000,
+            timeoutMs: options.phoneLatency || options.stream ? 9000 : 10000,
             lowLatency: true,
         };
         let llmOut = null;
