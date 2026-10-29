@@ -418,7 +418,27 @@ If they have not named a project yet, ask ONE short question: which project / pr
             ? 'Female Hindi: बोल रही हूँ / समझ गई. Never male forms.'
             : 'Male Hindi: बोल रहा हूँ / समझ गया. Never female forms.';
         const system = options.phoneLatency
-            ? `You are ${options.agentName}, live RE telecaller for ${company}.
+            ? options.isInbound
+                ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
+${genderLines}
+Speak ${replyLang}. ${this.languageInstruction(replyLang)}
+The caller dialed your helpline to ask questions about properties, projects, locations, prices, or general information.
+Rules:
+1) GREETING / IDENTITY / LIVENESS:
+   - If caller says "Hello" / "Haan ji" at start: "Haan ji Namaste! ${company} real estate helpline me aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
+   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+2) ANSWER FIRST: The customer called you. If they ask about property, 2BHK/3BHK, price, location, builder, or RERA, ANSWER directly from Knowledge. Never ignore their question.
+3) If checking details: "Ji main dekh rahi hoon, ek second..."
+4) If wrong number or not interested: polite thank-you and end.
+5) Guide interested buyers toward a site visit.
+Facts: ${JSON.stringify(known)}
+Project: ${resolvedProject?.name || 'unknown'} ${resolvedProject?.location || ''}
+${ragBlock ? `Knowledge:\n${ragBlock.slice(0, 500)}` : ''}
+${playbook ? playbook : ''}
+${previousAgent ? `Do not repeat: ${previousAgent.slice(0, 100)}` : ''}
+Answer thoughtfully in 1–2 short spoken sentences.`
+                : `You are ${options.agentName}, live RE telecaller for ${company}.
 ${genderLines}
 Speak ${replyLang}. ${this.languageInstruction(replyLang)}
 THINK about what the customer just said, then reply.
@@ -436,14 +456,16 @@ ${playbook ? playbook : ''}
 ${previousAgent ? `Do not repeat: ${previousAgent.slice(0, 100)}` : ''}
 Answer thoughtfully in one short spoken reply.`
             : `${(() => {
-                const salesTemplate = (0, sales_agent_prompt_1.isSalesAgentPrompt)(options.systemPrompt)
-                    ? String(options.systemPrompt)
-                    : (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)();
-                return (0, sales_agent_prompt_1.fillSalesAgentPrompt)(salesTemplate, {
+                const template = options.isInbound
+                    ? (0, sales_agent_prompt_1.buildDefaultInboundAgentPrompt)()
+                    : (0, sales_agent_prompt_1.isSalesAgentPrompt)(options.systemPrompt)
+                        ? String(options.systemPrompt)
+                        : (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)();
+                return (0, sales_agent_prompt_1.fillSalesAgentPrompt)(template, {
                     company_name: company,
                     customer_name: options.lead.name || 'ji',
                     product_name: productName,
-                    lead_source: 'enquiry',
+                    lead_source: options.isInbound ? 'helpline call' : 'enquiry',
                     previous_interaction: recentTranscript
                         ? recentTranscript.slice(0, 280)
                         : 'none',
@@ -503,8 +525,12 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
             {
                 role: 'user',
                 content: options.phoneLatency
-                    ? `Customer said: "${options.userMessage}"\nUnderstand their intent, then reply in one short spoken line:`
-                    : `Recent call:\n${recentTranscript || '(start)'}\n\nCustomer just said: "${options.userMessage}"\n\nFirst understand them. If they asked something, answer it. Then reply in 1–2 short sentences.`,
+                    ? options.isInbound
+                        ? `Customer called helpline and said: "${options.userMessage}"\nUnderstand their query, then reply helpfully in one short spoken line:`
+                        : `Customer said: "${options.userMessage}"\nUnderstand their intent, then reply in one short spoken line:`
+                    : options.isInbound
+                        ? `Recent call:\n${recentTranscript || '(start)'}\n\nCaller just said: "${options.userMessage}"\n\nAnswer their query helpfully and guide them naturally in 1–2 short sentences.`
+                        : `Recent call:\n${recentTranscript || '(start)'}\n\nCustomer just said: "${options.userMessage}"\n\nFirst understand them. If they asked something, answer it. Then reply in 1–2 short sentences.`,
             },
         ];
         const voiceModel = options.llmModel || 'gemini-flash-lite-latest';
