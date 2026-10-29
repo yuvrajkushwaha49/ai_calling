@@ -318,7 +318,7 @@ export class TwilioStreamService {
             systemPrompt: settings.systemPrompt || undefined,
             llmModel:
               (settings as { llmModel?: string }).llmModel ||
-              'gemini-3.8-flash',
+              'gemini-2.5-flash',
             approvedPlaybook: (settings as { approvedPlaybook?: unknown })
               .approvedPlaybook,
             agentVoice: settings.agentVoice || 'custom',

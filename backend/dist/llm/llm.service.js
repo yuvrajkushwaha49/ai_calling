@@ -59,7 +59,7 @@ let LlmService = LlmService_1 = class LlmService {
         if (configured)
             return configured;
         return this.getProvider() === 'gemini'
-            ? 'gemini-3.8-flash'
+            ? 'gemini-2.5-flash'
             : 'gpt-4o-mini';
     }
     getEmbedModel() {
@@ -114,7 +114,22 @@ let LlmService = LlmService_1 = class LlmService {
             return;
         const model = this.resolveChatModel(options?.model);
         if (this.getProvider() === 'gemini') {
-            yield* this.streamGemini(messages, model, options);
+            const candidates = [
+                model,
+                'gemini-2.5-flash',
+                'gemini-flash-latest',
+                'gemini-3.8-flash',
+            ].filter((m, idx, arr) => arr.indexOf(m) === idx);
+            for (const m of candidates) {
+                let yielded = false;
+                for await (const chunk of this.streamGemini(messages, m, options)) {
+                    yielded = true;
+                    yield chunk;
+                }
+                if (yielded)
+                    return;
+                this.logger.warn(`Gemini stream via ${m} had no tokens, trying fallback...`);
+            }
             return;
         }
         yield* this.streamOpenAi(messages, model, options);

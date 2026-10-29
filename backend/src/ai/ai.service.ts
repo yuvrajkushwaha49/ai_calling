@@ -190,9 +190,8 @@ export class AiService {
     const value = (model || '').trim();
     const provider = this.llm.getProvider();
     if (provider === 'gemini') {
-      if (value === 'gemini-3.8-flash') return 'gemini-3.8-flash';
       if (GEMINI_MODELS.has(value)) return value;
-      return 'gemini-3.8-flash';
+      return 'gemini-2.5-flash';
     }
     if (CHATGPT_MODELS.has(value)) return value;
     return 'gpt-4o-mini';
