@@ -68,7 +68,7 @@ let AiService = class AiService {
                     agentVoice: 'custom',
                     language: 'hi-IN',
                     tone: 'friendly',
-                    llmModel: 'gemini-3.5-flash-lite',
+                    llmModel: 'gemini-flash-latest',
                     systemPrompt: (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)(),
                 },
             });
@@ -161,9 +161,9 @@ let AiService = class AiService {
         const value = (model || '').trim();
         const provider = this.llm.getProvider();
         if (provider === 'gemini') {
-            if (GEMINI_MODELS.has(value))
+            if (value === 'gemini-flash-latest')
                 return value;
-            return 'gemini-3.8-flash';
+            return 'gemini-flash-latest';
         }
         if (CHATGPT_MODELS.has(value))
             return value;

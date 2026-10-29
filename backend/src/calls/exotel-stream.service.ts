@@ -466,7 +466,7 @@ export class ExotelStreamService {
           systemPrompt: settings.systemPrompt || undefined,
           llmModel:
             (settings as { llmModel?: string }).llmModel ||
-            'gemini-3.5-flash-lite',
+            'gemini-flash-latest',
           approvedPlaybook: (settings as { approvedPlaybook?: unknown })
             .approvedPlaybook,
           agentVoice: settings.agentVoice || 'custom',

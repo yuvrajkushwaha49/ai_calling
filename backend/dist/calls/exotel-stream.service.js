@@ -401,7 +401,7 @@ let ExotelStreamService = ExotelStreamService_1 = class ExotelStreamService {
                     tone: settings.tone || 'friendly',
                     systemPrompt: settings.systemPrompt || undefined,
                     llmModel: settings.llmModel ||
-                        'gemini-3.5-flash-lite',
+                        'gemini-flash-latest',
                     approvedPlaybook: settings
                         .approvedPlaybook,
                     agentVoice: settings.agentVoice || 'custom',

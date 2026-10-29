@@ -378,7 +378,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     tone: settings?.tone || 'friendly',
                     systemPrompt: settings?.systemPrompt || undefined,
                     llmModel: settings?.llmModel ||
-                        'gemini-2.5-flash',
+                        'gemini-flash-latest',
                     approvedPlaybook: settings
                         ?.approvedPlaybook,
                     agentVoice: settings?.agentVoice || 'rachel',

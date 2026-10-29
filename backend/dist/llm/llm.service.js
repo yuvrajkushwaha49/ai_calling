@@ -59,7 +59,7 @@ let LlmService = LlmService_1 = class LlmService {
         if (configured)
             return configured;
         return this.getProvider() === 'gemini'
-            ? 'gemini-3.8-flash'
+            ? 'gemini-flash-latest'
             : 'gpt-4o-mini';
     }
     getEmbedModel() {
@@ -115,12 +115,10 @@ let LlmService = LlmService_1 = class LlmService {
         const model = this.resolveChatModel(options?.model);
         if (this.getProvider() === 'gemini') {
             const candidates = [
+                'gemini-flash-latest',
                 model,
                 'gemini-3.8-flash',
-                'gemini-3.7-flash',
-                'gemini-3.5-flash',
-                'gemini-flash-latest',
-            ].filter((m, idx, arr) => arr.indexOf(m) === idx);
+            ].filter((m, idx, arr) => Boolean(m) && arr.indexOf(m) === idx);
             for (const m of candidates) {
                 let yielded = false;
                 for await (const chunk of this.streamGemini(messages, m, options)) {
@@ -162,23 +160,11 @@ let LlmService = LlmService_1 = class LlmService {
         if (merged.length && merged[0].role !== 'user') {
             merged.unshift({ role: 'user', parts: [{ text: 'Continue.' }] });
         }
-        const isGemini3 = /gemini-3/i.test(model);
         const generationConfig = {
             maxOutputTokens: options?.maxOutputTokens ?? (options?.json ? 400 : 120),
             ...(options?.json ? { responseMimeType: 'application/json' } : {}),
+            temperature: options?.temperature ?? 0.4,
         };
-        if (isGemini3) {
-            if (options?.lowLatency) {
-                generationConfig.thinkingConfig = { thinkingLevel: 'low' };
-            }
-        }
-        else {
-            generationConfig.temperature = options?.temperature ?? 0.4;
-            generationConfig.candidateCount = 1;
-            if (options?.lowLatency) {
-                generationConfig.thinkingConfig = { thinkingBudget: 0 };
-            }
-        }
         const body = {
             contents: merged,
             generationConfig,
@@ -312,12 +298,14 @@ let LlmService = LlmService_1 = class LlmService {
         let model = (requested || this.getDefaultModel()).trim();
         if (this.getProvider() === 'gemini') {
             if (model.startsWith('gpt-') || model.startsWith('o4-')) {
-                return this.getDefaultModel().startsWith('gemini')
-                    ? this.getDefaultModel()
-                    : 'gemini-3.5-flash-lite';
+                return 'gemini-flash-latest';
             }
-            if (model === 'gemini-2.5-flash-lite' || model === 'gemini-3.5-flash-lite') {
-                model = 'gemini-flash-lite-latest';
+            if (model === 'gemini-flash-lite-latest' ||
+                model === 'gemini-2.5-flash-lite' ||
+                model === 'gemini-3.5-flash-lite' ||
+                model === 'gemini-2.5-flash' ||
+                model === 'gemini-2.0-flash') {
+                return 'gemini-flash-latest';
             }
         }
         return model;
@@ -327,7 +315,7 @@ let LlmService = LlmService_1 = class LlmService {
         if (primary)
             return primary;
         if (options?.lowLatency) {
-            for (const alt of ['gemini-3.8-flash', 'gemini-2.5-flash']) {
+            for (const alt of ['gemini-flash-latest', 'gemini-3.8-flash']) {
                 if (alt === model)
                     continue;
                 const hit = await this.chatGeminiOnce(messages, alt, {
