@@ -172,7 +172,10 @@ let LlmService = LlmService_1 = class LlmService {
     async *streamGemini(messages, model, options) {
         const apiKey = this.getGeminiKey();
         const body = this.buildGeminiBody(messages, model, options);
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+        const legacyQueryKey = apiKey.startsWith('AIza')
+            ? `&key=${encodeURIComponent(apiKey)}`
+            : '';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse${legacyQueryKey}`;
         try {
             const res = await fetch(url, {
                 method: 'POST',
@@ -321,7 +324,10 @@ let LlmService = LlmService_1 = class LlmService {
     async chatGeminiOnce(messages, model, options) {
         const apiKey = this.getGeminiKey();
         const body = this.buildGeminiBody(messages, model, options);
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const legacyQueryKey = apiKey.startsWith('AIza')
+            ? `?key=${encodeURIComponent(apiKey)}`
+            : '';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent${legacyQueryKey}`;
         try {
             const res = await fetch(url, {
                 method: 'POST',
@@ -407,9 +413,12 @@ let LlmService = LlmService_1 = class LlmService {
             ? configured
             : 'gemini-embedding-001';
         const out = [];
+        const legacyQueryKey = apiKey.startsWith('AIza')
+            ? `?key=${encodeURIComponent(apiKey)}`
+            : '';
         try {
             for (const text of texts) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(apiKey)}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent${legacyQueryKey}`;
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: {
