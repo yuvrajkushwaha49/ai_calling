@@ -37,16 +37,18 @@ let LlmService = LlmService_1 = class LlmService {
             : Boolean(this.getOpenAiKey());
     }
     getGeminiKey() {
-        const raw = (this.config.get('GEMINI_API_KEY')?.trim() ||
+        let raw = (this.config.get('GEMINI_API_KEY')?.trim() ||
             this.config.get('GOOGLE_API_KEY')?.trim() ||
             '');
-        return raw.replace(/^["']|["']$/g, '').trim();
+        raw = raw.split(/\s+#/)[0].trim();
+        return raw.replace(/^["'\s]+|["'\s;]+$/g, '').trim();
     }
     getOpenAiKey() {
-        const raw = (this.config.get('OPENAI_API_KEY')?.trim() ||
+        let raw = (this.config.get('OPENAI_API_KEY')?.trim() ||
             this.config.get('LLM_API_KEY')?.trim() ||
             '');
-        return raw.replace(/^["']|["']$/g, '').trim();
+        raw = raw.split(/\s+#/)[0].trim();
+        return raw.replace(/^["'\s]+|["'\s;]+$/g, '').trim();
     }
     getOpenAiBaseUrl() {
         return (this.config.get('LLM_BASE_URL')?.trim() ||
@@ -174,7 +176,10 @@ let LlmService = LlmService_1 = class LlmService {
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                },
                 body: JSON.stringify(body),
                 signal: options?.timeoutMs
                     ? AbortSignal.timeout(Math.max(800, options.timeoutMs))
@@ -182,7 +187,10 @@ let LlmService = LlmService_1 = class LlmService {
             });
             if (!res.ok || !res.body) {
                 const errText = res.ok ? 'no body' : await res.text();
-                this.logger.warn(`Gemini stream (${model}) failed: ${res.status} ${String(errText).slice(0, 400)}`);
+                const maskedKey = apiKey
+                    ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (len ${apiKey.length})`
+                    : 'EMPTY';
+                this.logger.warn(`Gemini stream (${model}) failed: ${res.status} [key: ${maskedKey}] ${String(errText).slice(0, 400)}`);
                 return;
             }
             const reader = res.body.getReader();
@@ -317,7 +325,10 @@ let LlmService = LlmService_1 = class LlmService {
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                },
                 body: JSON.stringify(body),
                 signal: options?.timeoutMs
                     ? AbortSignal.timeout(Math.max(500, options.timeoutMs))
@@ -325,7 +336,10 @@ let LlmService = LlmService_1 = class LlmService {
             });
             if (!res.ok) {
                 const errText = await res.text();
-                this.logger.warn(`Gemini (${model}) failed: ${res.status} ${errText.slice(0, 400)}`);
+                const maskedKey = apiKey
+                    ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (len ${apiKey.length})`
+                    : 'EMPTY';
+                this.logger.warn(`Gemini (${model}) failed: ${res.status} [key: ${maskedKey}] ${errText.slice(0, 400)}`);
                 return null;
             }
             const data = (await res.json());
@@ -398,7 +412,10 @@ let LlmService = LlmService_1 = class LlmService {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(apiKey)}`;
                 const res = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey,
+                    },
                     body: JSON.stringify({
                         model: `models/${model}`,
                         content: { parts: [{ text: text.slice(0, 8000) }] },

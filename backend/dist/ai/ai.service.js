@@ -19,6 +19,8 @@ const elevenlabs_service_1 = require("../elevenlabs/elevenlabs.service");
 const sales_agent_prompt_1 = require("../conversation/sales-agent-prompt");
 const playbook_1 = require("./playbook");
 const GEMINI_MODELS = new Set([
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
     'gemini-flash-lite-latest',
     'gemini-flash-latest',
     'gemini-3.1-flash-lite',
@@ -162,12 +164,14 @@ let AiService = class AiService {
         const value = (model || '').trim();
         const provider = this.llm.getProvider();
         if (provider === 'gemini') {
-            if (value === 'gemini-2.5-flash-lite' || value === 'gemini-3.5-flash-lite') {
-                return 'gemini-flash-lite-latest';
+            if (value === 'gemini-3.8-flash' ||
+                value === 'gemini-2.5-flash-lite' ||
+                value === 'gemini-3.5-flash-lite') {
+                return 'gemini-2.0-flash';
             }
             if (GEMINI_MODELS.has(value))
                 return value;
-            return 'gemini-flash-lite-latest';
+            return 'gemini-2.0-flash';
         }
         if (CHATGPT_MODELS.has(value))
             return value;

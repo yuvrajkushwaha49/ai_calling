@@ -23,6 +23,8 @@ import {
 } from './playbook';
 
 const GEMINI_MODELS = new Set([
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
   'gemini-flash-lite-latest',
   'gemini-flash-latest',
   'gemini-3.1-flash-lite',
@@ -191,12 +193,15 @@ export class AiService {
     const value = (model || '').trim();
     const provider = this.llm.getProvider();
     if (provider === 'gemini') {
-      // Retired for new API keys — Google redirects; prefer latest alias under load
-      if (value === 'gemini-2.5-flash-lite' || value === 'gemini-3.5-flash-lite') {
-        return 'gemini-flash-lite-latest';
+      if (
+        value === 'gemini-3.8-flash' ||
+        value === 'gemini-2.5-flash-lite' ||
+        value === 'gemini-3.5-flash-lite'
+      ) {
+        return 'gemini-2.0-flash';
       }
       if (GEMINI_MODELS.has(value)) return value;
-      return 'gemini-flash-lite-latest';
+      return 'gemini-2.0-flash';
     }
     if (CHATGPT_MODELS.has(value)) return value;
     return 'gpt-4o-mini';

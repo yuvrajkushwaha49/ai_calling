@@ -31,21 +31,23 @@ export class LlmService {
   }
 
   private getGeminiKey() {
-    const raw = (
+    let raw = (
       this.config.get<string>('GEMINI_API_KEY')?.trim() ||
       this.config.get<string>('GOOGLE_API_KEY')?.trim() ||
       ''
     );
-    return raw.replace(/^["']|["']$/g, '').trim();
+    raw = raw.split(/\s+#/)[0].trim();
+    return raw.replace(/^["'\s]+|["'\s;]+$/g, '').trim();
   }
 
   private getOpenAiKey() {
-    const raw = (
+    let raw = (
       this.config.get<string>('OPENAI_API_KEY')?.trim() ||
       this.config.get<string>('LLM_API_KEY')?.trim() ||
       ''
     );
-    return raw.replace(/^["']|["']$/g, '').trim();
+    raw = raw.split(/\s+#/)[0].trim();
+    return raw.replace(/^["'\s]+|["'\s;]+$/g, '').trim();
   }
 
   private getOpenAiBaseUrl() {
@@ -236,7 +238,10 @@ export class LlmService {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify(body),
         signal: options?.timeoutMs
           ? AbortSignal.timeout(Math.max(800, options.timeoutMs))
@@ -244,8 +249,11 @@ export class LlmService {
       });
       if (!res.ok || !res.body) {
         const errText = res.ok ? 'no body' : await res.text();
+        const maskedKey = apiKey
+          ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (len ${apiKey.length})`
+          : 'EMPTY';
         this.logger.warn(
-          `Gemini stream (${model}) failed: ${res.status} ${String(errText).slice(0, 400)}`,
+          `Gemini stream (${model}) failed: ${res.status} [key: ${maskedKey}] ${String(errText).slice(0, 400)}`,
         );
         return;
       }
@@ -419,7 +427,10 @@ export class LlmService {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify(body),
         // Prefer low latency over thoroughness for voice turns
         signal: options?.timeoutMs
@@ -428,8 +439,11 @@ export class LlmService {
       });
       if (!res.ok) {
         const errText = await res.text();
+        const maskedKey = apiKey
+          ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (len ${apiKey.length})`
+          : 'EMPTY';
         this.logger.warn(
-          `Gemini (${model}) failed: ${res.status} ${errText.slice(0, 400)}`,
+          `Gemini (${model}) failed: ${res.status} [key: ${maskedKey}] ${errText.slice(0, 400)}`,
         );
         return null;
       }
@@ -525,7 +539,10 @@ export class LlmService {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(apiKey)}`;
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             model: `models/${model}`,
             content: { parts: [{ text: text.slice(0, 8000) }] },
