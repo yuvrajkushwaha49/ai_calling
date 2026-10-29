@@ -31,19 +31,21 @@ export class LlmService {
   }
 
   private getGeminiKey() {
-    return (
+    const raw = (
       this.config.get<string>('GEMINI_API_KEY')?.trim() ||
       this.config.get<string>('GOOGLE_API_KEY')?.trim() ||
       ''
     );
+    return raw.replace(/^["']|["']$/g, '').trim();
   }
 
   private getOpenAiKey() {
-    return (
+    const raw = (
       this.config.get<string>('OPENAI_API_KEY')?.trim() ||
       this.config.get<string>('LLM_API_KEY')?.trim() ||
       ''
     );
+    return raw.replace(/^["']|["']$/g, '').trim();
   }
 
   private getOpenAiBaseUrl() {
@@ -55,9 +57,9 @@ export class LlmService {
 
   private getDefaultModel() {
     const configured = this.config.get<string>('LLM_MODEL')?.trim();
-    if (configured) return configured;
+    if (configured && configured !== 'gemini-3.8-flash') return configured;
     return this.getProvider() === 'gemini'
-      ? 'gemini-flash-lite-latest'
+      ? 'gemini-2.0-flash'
       : 'gpt-4o-mini';
   }
 

@@ -37,14 +37,16 @@ let LlmService = LlmService_1 = class LlmService {
             : Boolean(this.getOpenAiKey());
     }
     getGeminiKey() {
-        return (this.config.get('GEMINI_API_KEY')?.trim() ||
+        const raw = (this.config.get('GEMINI_API_KEY')?.trim() ||
             this.config.get('GOOGLE_API_KEY')?.trim() ||
             '');
+        return raw.replace(/^["']|["']$/g, '').trim();
     }
     getOpenAiKey() {
-        return (this.config.get('OPENAI_API_KEY')?.trim() ||
+        const raw = (this.config.get('OPENAI_API_KEY')?.trim() ||
             this.config.get('LLM_API_KEY')?.trim() ||
             '');
+        return raw.replace(/^["']|["']$/g, '').trim();
     }
     getOpenAiBaseUrl() {
         return (this.config.get('LLM_BASE_URL')?.trim() ||
@@ -52,10 +54,10 @@ let LlmService = LlmService_1 = class LlmService {
     }
     getDefaultModel() {
         const configured = this.config.get('LLM_MODEL')?.trim();
-        if (configured)
+        if (configured && configured !== 'gemini-3.8-flash')
             return configured;
         return this.getProvider() === 'gemini'
-            ? 'gemini-flash-lite-latest'
+            ? 'gemini-2.0-flash'
             : 'gpt-4o-mini';
     }
     getEmbedModel() {
