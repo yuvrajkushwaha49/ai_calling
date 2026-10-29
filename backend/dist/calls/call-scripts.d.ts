@@ -10,7 +10,7 @@ export declare function resolveSpeechGender(options: {
     agentVoice?: string | null;
 }): SpeechGender;
 export declare function ag(gender: SpeechGender, male: string, female: string): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'price_soft' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'price_soft' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;

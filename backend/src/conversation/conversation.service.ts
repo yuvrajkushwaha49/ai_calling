@@ -403,7 +403,7 @@ export class ConversationService {
         intentEarly.notInterested ||
         intentEarly.askingWhyCall ||
         intentEarly.askingIdentity ||
-        (intentEarly.isGreeting && options.isInbound) ||
+        intentEarly.isGreeting ||
         intentEarly.statingBhk ||
         intentEarly.statingPossession ||
         intentEarly.statingVisitDay ||
@@ -676,9 +676,11 @@ ${speechGender === 'female'
   : 'You are male. Hindi first-person: बोल रहा हूँ, समझ गया, सकता हूँ, चाहता हूँ, बताऊँगा, करूँगा. NEVER female forms.'}
 Tone: ${compactToneGuide(options.tone || 'friendly')}
 CRITICAL HUMAN TELECALLER RULES:
-1) GREETING / IDENTITY HANDLING:
-   - If customer says "Hello" / "Haan ji" / "Namaste" / "Hello?": Greet warmly: "Haan ji Namaste! ${company} real estate helpline mein aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
-   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?" / "Kisne phone kiya?": Clarify directly: "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+1) GREETING / IDENTITY / LIVENESS HANDLING:
+   - If customer says "Hello" / "Haan ji" at start: Greet warmly: "Haan ji Namaste! ${company} real estate helpline mein aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
+   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" mid-call: Reassure immediately: "Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!"
+   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+   - If asked for project/property details: Give facts simply; if looking up: "Ji main dekh rahi hoon, ek second..."
 2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
 3) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.
 4) Never ignore them and jump to possession/BHK/budget.

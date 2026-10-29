@@ -450,6 +450,23 @@ export class McubeStreamService {
       let ttsChain = Promise.resolve();
       let streamedAnyAudio = false;
 
+      let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
+        if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
+        try {
+          const filler = 'Haan ji, main dekh rahi hoon...';
+          const audioBuffer = await this.synthesizeForSession(
+            filler,
+            session,
+            settings,
+          );
+          if (audioBuffer && !streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
+            await this.sendPlayAudio(ws, session, audioBuffer);
+          }
+        } catch {
+          // ignore filler failure
+        }
+      }, 1800);
+
       try {
         const result = await this.conversation.reply({
           lead,
@@ -474,6 +491,10 @@ export class McubeStreamService {
           stream: true,
           isInbound: true,
           onSentence: (sentence) => {
+            if (fillerTimeout) {
+              clearTimeout(fillerTimeout);
+              fillerTimeout = null;
+            }
             const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
             if (!cleaned) return;
             ttsChain = ttsChain
@@ -495,6 +516,11 @@ export class McubeStreamService {
           },
         });
 
+        if (fillerTimeout) {
+          clearTimeout(fillerTimeout);
+          fillerTimeout = null;
+        }
+
         if (aborted()) {
           session.cancelPlay = false;
           session.busy = false;
@@ -509,6 +535,10 @@ export class McubeStreamService {
         // Wait for all queued sentence audio to finish playing
         await ttsChain;
       } catch (err) {
+        if (fillerTimeout) {
+          clearTimeout(fillerTimeout);
+          fillerTimeout = null;
+        }
         this.logger.warn(`[MCube] LLM failed: ${err instanceof Error ? err.message : err}`);
       }
 

@@ -707,7 +707,11 @@ function buildGreetingText(options) {
 function detectIntent(text) {
     const t = text.toLowerCase();
     const wantsCallback = /callback|call\s*back|call\s*later|baad\s*me(?:in)?|बाद\s*में|नंतर|પછી|busy|व्यस्त|abhi\s*(?:nahi|nhi)\s*(?:kar|kr|bol|baat|time)|(?:nahi|nhi)\s*(?:kar|kr)\s*sak|baad\s*me(?:in)?\s*call|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call/i.test(t) && !/weekend|saturday|sunday|friday|site\s*visit/i.test(t);
-    const isGreetingOnly = /^(?:hello|helo|halo|haan\s*ji|ha\s*ji|namaste|pranam|hello\s*ji|suno|boliye|haan|han|ha)[!?.\s]*$/i.test(t.trim()) || /^(?:नमस्ते|हेलो|हाँजी|प्रणाम|हाँ\s*जी|सुनिए|हाँ)[!?.\s]*$/.test(t.trim());
+    const isGreetingOnly = /^(?:hello|helo|halo|haan\s*ji|ha\s*ji|namaste|pranam|hello\s*ji|suno|boliye|haan|han|ha)[!?.\s]*$/i.test(t.trim()) ||
+        /^(?:नमस्ते|हेलो|हाँजी|प्रणाम|हाँ\s*जी|सुनिए|हाँ)[!?.\s]*$/.test(t.trim()) ||
+        /(?:aawaz|awaaz|awaz|voice|sound)\s*(?:aa\s*rahi|nhi|nahi|aarhi|cut|aarahi|gayab)/i.test(t) ||
+        /(?:sun\s*(?:rahe|rahi|pa\s*rahe|sakte)|hear\s*me|koi\s*hai|bolte\s*kyu\s*nahi|kuch\s*bolo)/i.test(t) ||
+        /^(?:hello\s*)+[!?.]*$/i.test(t.trim());
     const askingIdentityOnly = /kaun|कौन|kon|aap kaun|kaha se|kahan se|kisne kiya|kiski company|kis company|kisko lagaya|kahan lag gaya/i.test(t);
     return {
         notInterested: !wantsCallback &&
@@ -777,8 +781,14 @@ function buildFollowUpReply(options) {
         kind = 'not_interested';
         outcome = client_1.CallOutcome.NOT_INTERESTED;
     }
-    else if (intent.isGreeting && options.isInbound) {
-        kind = 'greeting_inbound';
+    else if (intent.isGreeting) {
+        const hasPriorLead = Boolean(priorLeadText && priorLeadText.trim().length > 3);
+        if (options.isInbound && !hasPriorLead) {
+            kind = 'greeting_inbound';
+        }
+        else {
+            kind = 'liveness_ack';
+        }
         outcome = client_1.CallOutcome.CONNECTED;
     }
     else if (intent.askingWhyCall || intent.askingIdentity) {
@@ -877,6 +887,20 @@ function buildFollowUpReply(options) {
             hinglish: `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
             'mr-IN': `नमस्कार! ${options.companyName || 'Saya Group'} हेल्पलाईनमध्ये आपले स्वागत आहे. मी आपली काय मदत करू शकते?`,
             'gu-IN': `નમસ્તે! ${options.companyName || 'Saya Group'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
+        },
+        liveness_ack: {
+            'en-IN': `Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye main aapki kya help kar sakti hoon?`,
+            'hi-IN': `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए मैं आपकी क्या सहायता कर सकती हूँ?`,
+            hinglish: `Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye main aapki kya help kar sakti hoon?`,
+            'mr-IN': `होय, आवाज येतोय! मी ऐकतेय, बोला.`,
+            'gu-IN': `હા, અવાજ આવે છે! હું સાંભળું છું, બોલો.`,
+        },
+        thinking_filler: {
+            'en-IN': `Ji main dekh rahi hoon, ek second...`,
+            'hi-IN': `जी मैं देख रही हूँ, एक सेकंड...`,
+            hinglish: `Ji main dekh rahi hoon, ek second...`,
+            'mr-IN': `हो, मी पाहतेय, एक सेकंद...`,
+            'gu-IN': `હા, હું જોઉં છું, એક સેકન્ડ...`,
         },
         ask_planning: {
             'en-IN': `${leadName} जी, घर / flat देखना अभी चालू है क्या आपके side?`,
