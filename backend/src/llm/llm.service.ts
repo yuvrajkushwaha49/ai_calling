@@ -202,12 +202,7 @@ export class LlmService {
       generationConfig.candidateCount = 1;
     }
     if (options?.lowLatency) {
-      if (isGemini3 || /gemini-flash-lite-latest|gemini-flash-latest/i.test(model)) {
-        // Explicit minimal thinking — default can be slow on 3.x
-        generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
-      } else if (/gemini-2\.[5-9]/i.test(model)) {
-        generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      }
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
     }
 
     const body: Record<string, unknown> = {

@@ -697,13 +697,12 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
           : `Recent call:\n${recentTranscript || '(start)'}\n\nCustomer just said: "${options.userMessage}"\n\nFirst understand them. If they asked something, answer it. Then reply in 1–2 short sentences.`,
       },
     ];
-    const voiceModel = 'gemini-flash-lite-latest';
-    // Gemini from this network often needs 8–15s — don't make user wait that long
+    const voiceModel = options.llmModel || 'gemini-2.0-flash';
     const llmOpts = {
       temperature: 0.45,
       model: voiceModel,
       maxOutputTokens: options.phoneLatency || options.stream ? 60 : 120,
-      timeoutMs: options.phoneLatency || options.stream ? 2500 : 8000,
+      timeoutMs: options.phoneLatency || options.stream ? 5000 : 8000,
       lowLatency: true,
     };
 
