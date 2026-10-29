@@ -44,6 +44,7 @@ type McubeSession = {
     lastAgentText: string;
     lastUserText: string;
     turnCount: number;
+    transcript: string;
     pendingSegments: Set<string>;
 };
 export declare class McubeStreamService {

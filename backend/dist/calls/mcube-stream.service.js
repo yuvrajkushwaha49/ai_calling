@@ -90,9 +90,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             cancelPlay: false,
             bargeHits: 0,
             flushGen: 0,
-            lastAgentText: '',
+            lastAgentText: 'Hello?',
             lastUserText: '',
             turnCount: 0,
+            transcript: 'Agent: Hello?\n',
             pendingSegments: new Set(),
         };
         const clearSilence = () => {
@@ -363,12 +364,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 lead.project?.builder ||
                 'Saya Group';
             const agentName = settings?.agentName || 'Neha';
+            const liveTranscript = session.transcript || call?.transcript || 'Agent: Hello?\n';
             const follow = (0, call_scripts_1.buildFollowUpReply)({
                 transcript: userMessage,
                 leadName: lead.name,
                 language: call?.languageDetected || 'hi-IN',
                 tone: settings.tone || 'friendly',
-                priorTranscript: call?.transcript,
+                priorTranscript: liveTranscript,
                 agentVoice: settings?.agentVoice || 'rachel',
                 agentName,
                 companyName,
@@ -395,7 +397,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 const result = await this.conversation.reply({
                     lead,
                     userMessage,
-                    priorTranscript: call?.transcript,
+                    priorTranscript: liveTranscript,
                     agentName: settings?.agentName || 'Neha',
                     companyName: settings?.companyName ||
                         lead.project?.companyName ||
@@ -468,17 +470,18 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             session.lastUserText = userMessage;
             session.lastAgentText = replyText;
             session.turnCount += 1;
+            session.transcript = [
+                session.transcript || call?.transcript || '',
+                `Lead: ${userMessage}`,
+                `Agent: ${replyText}`,
+            ]
+                .filter(Boolean)
+                .join('\n') + '\n';
             void this.prisma.call
                 .update({
                 where: { id: callId },
                 data: {
-                    transcript: [
-                        call?.transcript || '',
-                        `Lead: ${userMessage}`,
-                        `Agent: ${replyText}`,
-                    ]
-                        .filter(Boolean)
-                        .join('\n'),
+                    transcript: session.transcript,
                     languageDetected,
                     status: client_1.CallStatus.IN_PROGRESS,
                 },

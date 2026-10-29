@@ -779,6 +779,12 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
         options.approvedPlaybook,
         200,
       );
+      const callerKnownName =
+        known.callerName ||
+        (options.lead.name && options.lead.name !== 'Inbound Caller' && options.lead.name !== 'Guest'
+          ? options.lead.name
+          : null);
+
       const quickSystem = options.isInbound
         ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
 ${genderLines}
@@ -788,25 +794,22 @@ The caller dialed your helpline to ask questions about properties, projects, loc
 AVAILABLE PROJECTS & INVENTORY:
 ${projectsOverview}
 
-RULES (HUMAN HELPLINE ADVISOR):
-1) GREETING / IDENTITY / LIVENESS:
-   - If caller says "Hello" / "Haan ji" at start: "Haan ji Namaste! ${company} real estate helpline me aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
-   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
-   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
-2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
-   - If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge. Never ignore or dodge their question!
-3) EXPLAIN PROJECTS WHEN ASKED:
-   - If caller asks what projects are available: introduce Saya Gold Avenue (Indirapuram) & Saya Zion (Greater Noida West) for residential, Saya South X for commercial.
-4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
-   - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
-     * If caller's name is unknown (${options.lead.name === 'Inbound Caller' || !options.lead.name ? 'Name not known yet' : 'Name is ' + options.lead.name}): "Vaise main aapka shubh naam jaan sakti hoon?"
-     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ' + known.bhk}): "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"
-     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ' + known.purpose}): "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"
-     * If location or timeline unknown: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak shift karne ka plan hai?"
-     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ' + known.budgetLabel}): "Aapka approximate budget kya hai?"
-     * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
-5) Max 1-2 short spoken sentences. Never ask multiple questions in one turn. Answer first, then ask ONE question. Never interrogate.
-Facts: ${JSON.stringify(known)}
+CRITICAL ANTI-REPETITION & NATURAL DIALOGUE RULES:
+- YOUR LAST SPOKEN STATEMENT WAS: "${(previousAgent || '').slice(0, 140)}"
+- NEVER repeat your last line! Never ask the same question twice!
+- If you already greeted the caller once in the conversation history below, DO NOT repeat opening greetings ("Namaste! helpline me swagat...")!
+- Move the conversation FORWARD naturally:
+  1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+  2) If caller asks ANY question about project, flat, price, location, amenities, possession: ALWAYS answer their question first from Available Projects & Knowledge.
+  3) PROGRESSIVE DETAIL COLLECTION (Check what is already answered in the transcript):
+     * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'Ask: "Vaise main aapka shubh naam jaan sakti hoon?"'}
+     * Configuration: ${known.bhk ? `Known (${known.bhk}) - DO NOT ask BHK again!` : 'Ask: "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"'}
+     * Purpose: ${known.purpose ? `Known (${known.purpose}) - DO NOT ask purpose again!` : 'Ask: "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"'}
+     * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak lene ka plan hai?"'}
+     * Budget: ${known.budgetLabel ? `Known (${known.budgetLabel})` : 'Ask: "Aapka approximate budget kya hai?"'}
+     * Site Visit: If interested in a project, invite them: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
+- Rule: 1-2 short spoken sentences. Answer their query first + ask ONE next question. Never ask multiple questions. Never interrogate.
+Facts Known: ${JSON.stringify(known)}
 ${resolvedProject ? `Project: ${resolvedProject.name}` : ''}
 ${ragBlock ? `KB:\n${ragBlock.slice(0, 300)}` : ''}`
         : `You are ${options.agentName}, live RE phone agent for ${company}.
@@ -820,13 +823,21 @@ Facts: ${JSON.stringify(known)}
 ${resolvedProject ? `Project: ${resolvedProject.name}` : ''}
 ${ragBlock ? `KB:\n${ragBlock.slice(0, 200)}` : ''}
 ${learned ? learned : ''}`;
+
+      const recentDialog = (options.priorTranscript || '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(-8)
+        .join('\n');
+
       const quickMessages = [
         { role: 'system' as const, content: quickSystem },
         {
           role: 'user' as const,
           content: options.isInbound
-            ? `Customer called helpline and said: "${options.userMessage}"\nReply helpfully:`
-            : `Customer: "${options.userMessage}"\nReply only to that:`,
+            ? `Conversation so far:\n${recentDialog || 'Agent: Hello?'}\n\nCaller just said: "${options.userMessage}"\n\nCRITICAL: DO NOT repeat greetings ("Namaste/swagat hai"), DO NOT re-introduce yourself ("Main Neha hoon"), and DO NOT ask any question that was already asked above! Answer them directly and take the conversation forward:`
+            : `Conversation so far:\n${recentDialog || 'Agent: Hello'}\n\nCustomer: "${options.userMessage}"\nReply only to that:`,
         },
       ];
       const t0 = Date.now();
