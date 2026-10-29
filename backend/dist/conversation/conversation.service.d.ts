@@ -142,6 +142,7 @@ export declare class ConversationService {
         stream?: boolean;
         onTextDelta?: (delta: string) => void;
         onSentence?: (sentence: string) => void | Promise<void>;
+        isInbound?: boolean;
     }): Promise<{
         replyText: string;
         languageDetected: "hinglish" | "hi-IN" | "en-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";

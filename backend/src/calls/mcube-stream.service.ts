@@ -226,8 +226,8 @@ export class McubeStreamService {
                   provider: 'mcube',
                   providerCallId: session.streamId || session.callId,
                   summary: `Incoming call from ${lead.phone}`,
-                  transcript: '',
-                  greetingText: `Namaste! Saya Group real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+                  transcript: 'Agent: Hello?\n',
+                  greetingText: 'Hello?',
                 },
                 include: { lead: { include: { project: true } } },
               });
@@ -245,19 +245,14 @@ export class McubeStreamService {
               });
             }
 
-            // Immediately greet the incoming caller
+            // Natural human telecaller: start with a soft, warm "Hello?"
             const settings = await this.ai.getSettings();
-            const companyName =
-              (settings as { companyName?: string }).companyName ||
-              call.lead?.project?.companyName ||
-              'Saya Group';
-
-            const greeting =
-              call.greetingText ||
-              `Namaste! ${companyName} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`;
+            const initialOpener = 'Hello?';
+            session.lastAgentText = initialOpener;
+            session.turnCount = 1;
 
             const audioBuf = await this.synthesizeForSession(
-              greeting,
+              initialOpener,
               session,
               settings,
             );
@@ -430,6 +425,13 @@ export class McubeStreamService {
         project: null,
       };
 
+      const companyName =
+        (settings as { companyName?: string })?.companyName ||
+        lead.project?.companyName ||
+        lead.project?.builder ||
+        'Saya Group';
+      const agentName = settings?.agentName || 'Neha';
+
       const follow = buildFollowUpReply({
         transcript: userMessage,
         leadName: lead.name,
@@ -437,6 +439,9 @@ export class McubeStreamService {
         tone: (settings as { tone?: string }).tone || 'friendly',
         priorTranscript: call?.transcript,
         agentVoice: settings?.agentVoice || 'rachel',
+        agentName,
+        companyName,
+        isInbound: true,
       });
 
       let replyText = follow.text;
@@ -467,6 +472,7 @@ export class McubeStreamService {
           agentVoice: settings?.agentVoice || 'rachel',
           phoneLatency: true,
           stream: true,
+          isInbound: true,
           onSentence: (sentence) => {
             const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
             if (!cleaned) return;

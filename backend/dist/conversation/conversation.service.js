@@ -262,6 +262,8 @@ let ConversationService = ConversationService_1 = class ConversationService {
             (intentEarly.callback ||
                 intentEarly.notInterested ||
                 intentEarly.askingWhyCall ||
+                intentEarly.askingIdentity ||
+                (intentEarly.isGreeting && options.isInbound) ||
                 intentEarly.statingBhk ||
                 intentEarly.statingPossession ||
                 intentEarly.statingVisitDay ||
@@ -298,6 +300,9 @@ let ConversationService = ConversationService_1 = class ConversationService {
                 },
                 speechGender,
                 agentVoice: options.agentVoice,
+                agentName: options.agentName,
+                companyName: options.companyName,
+                isInbound: options.isInbound,
             });
             let replyText = this.stripBannedPhrases(this.fixGenderedSpeech(fallback.text, speechGender));
             if (options.stream && options.onSentence) {
@@ -471,11 +476,14 @@ ${speechGender === 'female'
                 ? 'You are female. Hindi first-person: बोल रही हूँ, समझ गई, सकती हूँ, चाहती हूँ, बताऊँगी, करूँगी. NEVER male forms (बोल रहा, समझ गया, सकता, चाहता, बताऊँगा, करूँगा). Use "Samajh gayi" not "Samajh gaya".'
                 : 'You are male. Hindi first-person: बोल रहा हूँ, समझ गया, सकता हूँ, चाहता हूँ, बताऊँगा, करूँगा. NEVER female forms.'}
 Tone: ${(0, call_scripts_1.compactToneGuide)(options.tone || 'friendly')}
-CRITICAL UNDERSTANDING RULES:
-1) FIRST understand the customer's last message. If they asked a question (e.g. "kis liye phone kiye"), ANSWER that question before any sales question.
-2) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.
-3) Never ignore them and jump to possession/BHK/budget.
-4) Never repeat your previous line.
+CRITICAL HUMAN TELECALLER RULES:
+1) GREETING / IDENTITY HANDLING:
+   - If customer says "Hello" / "Haan ji" / "Namaste" / "Hello?": Greet warmly: "Haan ji Namaste! ${company} real estate helpline mein aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
+   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?" / "Kisne phone kiya?": Clarify directly: "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
+3) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.
+4) Never ignore them and jump to possession/BHK/budget.
+5) Never repeat your previous line.
 Engagement: React to their exact words. Never open with "Got it" / "Noted" / "Perfect".
 Banned openers: Got it, Got it., Okay okay, Perfect, Noted.
 Known facts so far: ${JSON.stringify(known)}
@@ -587,6 +595,9 @@ ${learned ? learned : ''}`;
                     },
                     speechGender,
                     agentVoice: options.agentVoice,
+                    agentName: options.agentName,
+                    companyName: options.companyName,
+                    isInbound: options.isInbound,
                 });
                 replyText = fallback.text;
                 usedLlm = false;
@@ -606,6 +617,9 @@ ${learned ? learned : ''}`;
                 },
                 speechGender,
                 agentVoice: options.agentVoice,
+                agentName: options.agentName,
+                companyName: options.companyName,
+                isInbound: options.isInbound,
             });
             replyText = fallback.text;
             if (asksDetail && sources[0]) {

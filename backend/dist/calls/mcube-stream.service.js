@@ -190,8 +190,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                                         provider: 'mcube',
                                         providerCallId: session.streamId || session.callId,
                                         summary: `Incoming call from ${lead.phone}`,
-                                        transcript: '',
-                                        greetingText: `Namaste! Saya Group real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+                                        transcript: 'Agent: Hello?\n',
+                                        greetingText: 'Hello?',
                                     },
                                     include: { lead: { include: { project: true } } },
                                 });
@@ -208,12 +208,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                                 });
                             }
                             const settings = await this.ai.getSettings();
-                            const companyName = settings.companyName ||
-                                call.lead?.project?.companyName ||
-                                'Saya Group';
-                            const greeting = call.greetingText ||
-                                `Namaste! ${companyName} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`;
-                            const audioBuf = await this.synthesizeForSession(greeting, session, settings);
+                            const initialOpener = 'Hello?';
+                            session.lastAgentText = initialOpener;
+                            session.turnCount = 1;
+                            const audioBuf = await this.synthesizeForSession(initialOpener, session, settings);
                             if (audioBuf && ws.readyState === ws.OPEN) {
                                 await this.sendPlayAudio(ws, session, audioBuf);
                             }
@@ -352,6 +350,11 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 updatedAt: new Date(),
                 project: null,
             };
+            const companyName = settings?.companyName ||
+                lead.project?.companyName ||
+                lead.project?.builder ||
+                'Saya Group';
+            const agentName = settings?.agentName || 'Neha';
             const follow = (0, call_scripts_1.buildFollowUpReply)({
                 transcript: userMessage,
                 leadName: lead.name,
@@ -359,6 +362,9 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 tone: settings.tone || 'friendly',
                 priorTranscript: call?.transcript,
                 agentVoice: settings?.agentVoice || 'rachel',
+                agentName,
+                companyName,
+                isInbound: true,
             });
             let replyText = follow.text;
             let languageDetected = call?.languageDetected || 'hi-IN';
@@ -384,6 +390,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     agentVoice: settings?.agentVoice || 'rachel',
                     phoneLatency: true,
                     stream: true,
+                    isInbound: true,
                     onSentence: (sentence) => {
                         const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 120);
                         if (!cleaned)

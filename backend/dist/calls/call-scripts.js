@@ -707,17 +707,23 @@ function buildGreetingText(options) {
 function detectIntent(text) {
     const t = text.toLowerCase();
     const wantsCallback = /callback|call\s*back|call\s*later|baad\s*me(?:in)?|बाद\s*में|नंतर|પછી|busy|व्यस्त|abhi\s*(?:nahi|nhi)\s*(?:kar|kr|bol|baat|time)|(?:nahi|nhi)\s*(?:kar|kr)\s*sak|baad\s*me(?:in)?\s*call|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call/i.test(t) && !/weekend|saturday|sunday|friday|site\s*visit/i.test(t);
+    const isGreetingOnly = /^(?:hello|helo|halo|haan\s*ji|ha\s*ji|namaste|pranam|hello\s*ji|suno|boliye|haan|han|ha)[!?.\s]*$/i.test(t.trim()) || /^(?:नमस्ते|हेलो|हाँजी|प्रणाम|हाँ\s*जी|सुनिए|हाँ)[!?.\s]*$/.test(t.trim());
+    const askingIdentityOnly = /kaun|कौन|kon|aap kaun|kaha se|kahan se|kisne kiya|kiski company|kis company|kisko lagaya|kahan lag gaya/i.test(t);
     return {
         notInterested: !wantsCallback &&
             /not interested|no thanks|don't call|do not call|wrong number|nahi chahiye|nahi chaiye|nhi chahiye|nhi chaiye|नहीं चाहिए|नाही पाहिजे|નથી જોઈએ|not looking|not searching|kuch nahi|kuch bhi nahi|khuch bhi|कुछ नहीं|कुछ भी नहीं|नहीं\s*देख|search नहीं|कोई property search नहीं|अभी नहीं देख|mere liye nahi|अपने लिए नहीं|rakho phone|rakh do phone|cut (?:the )?call|mat call|band karo|hang up|phone rakh|nhi chahiye khuch|nahi chahiye kuch/i.test(t),
         callback: wantsCallback,
-        askingWhyCall: /kis liye|kyun (?:call|phone)|kyu (?:call|phone)|why (?:did you |have you )?call|kya baat|kaun (?:ho|hai)|reason for (?:call|calling)|phone kyun|phone kis liye|क्यों\s*फोन|किस\s*लिए\s*फोन|किस लिये/i.test(t),
+        askingWhyCall: askingIdentityOnly ||
+            /kis liye|kyun (?:call|phone)|kyu (?:call|phone)|why (?:did you |have you )?call|kya baat|kaun (?:ho|hai)|reason for (?:call|calling)|phone kyun|phone kis liye|क्यों\s*फोन|किस\s*लिए\s*फोन|किस लिये/i.test(t),
+        askingIdentity: askingIdentityOnly,
+        isGreeting: isGreetingOnly,
         askingPrice: /(?:what(?:'s| is)? (?:the )?price|kitna|कितना|किंमत|કિંમત|pricing|emi|payment plan|cost of)/.test(t) || /^(?:price|cost|emi)\b/.test(t.trim()),
         statingBhk: /\b[1-5]\s*(?:bhk|bedroom|बी\s*एच\s*के|बीएचके)/i.test(t) ||
             /(?:2|3|4|दो|तीन|चार)\s*(?:bhk|बीएचके|बी\s*एच)/i.test(t),
         statingPossession: /ready\s*to\s*move|under\s*construction|uc\b|रेडी|अंडर\s*कंस्ट्रक्शन|निर्माणाधीन/i.test(t),
         statingVisitDay: /(?:next\s*)?(?:weekend|saturday|sunday|friday|monday|tomorrow|kal|कल|शनिवार|रविवार|शुक्रवार)/i.test(t),
-        positive: /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|theek|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(t) &&
+        positive: !isGreetingOnly &&
+            /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|theek|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(t) &&
             !/nahi|nhi|नहीं|rakho phone|kis liye|kyu|kyun/i.test(t),
     };
 }
@@ -771,7 +777,11 @@ function buildFollowUpReply(options) {
         kind = 'not_interested';
         outcome = client_1.CallOutcome.NOT_INTERESTED;
     }
-    else if (intent.askingWhyCall) {
+    else if (intent.isGreeting && options.isInbound) {
+        kind = 'greeting_inbound';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.askingWhyCall || intent.askingIdentity) {
         kind = 'explain_why_call';
         outcome = client_1.CallOutcome.CONNECTED;
     }
@@ -849,11 +859,24 @@ function buildFollowUpReply(options) {
             'gu-IN': `બરાબર, details WhatsApp પર મોકલીશ.`,
         },
         explain_why_call: {
-            'en-IN': `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
-            'hi-IN': `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी घर/flat देखना चालू है क्या?`,
-            hinglish: `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
+            'en-IN': options.isInbound
+                ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
+                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
+            'hi-IN': options.isInbound
+                ? `जी नमस्ते! मैं ${options.companyName || 'Saya Group'} helpline से ${options.agentName || 'नेहा'} बात कर रही हूँ। बताएं मैं आपकी क्या सहायता कर सकती हूँ?`
+                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी घर/flat देखना चालू है क्या?`,
+            hinglish: options.isInbound
+                ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
+                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
             'mr-IN': `${leadName}, property enquiry आली होती म्हणून कॉल — आता पाहत आहात का?`,
             'gu-IN': `${leadName}, property enquiry આવી હતી એટલે કૉલ — અત્યારે જોઈ રહ્યા છો?`,
+        },
+        greeting_inbound: {
+            'en-IN': `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+            'hi-IN': `हाँ जी नमस्ते! ${options.companyName || 'Saya Group'} real estate helpline में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
+            hinglish: `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+            'mr-IN': `नमस्कार! ${options.companyName || 'Saya Group'} हेल्पलाईनमध्ये आपले स्वागत आहे. मी आपली काय मदत करू शकते?`,
+            'gu-IN': `નમસ્તે! ${options.companyName || 'Saya Group'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
         },
         ask_planning: {
             'en-IN': `${leadName} जी, घर / flat देखना अभी चालू है क्या आपके side?`,

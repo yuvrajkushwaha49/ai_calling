@@ -10,7 +10,7 @@ export declare function resolveSpeechGender(options: {
     agentVoice?: string | null;
 }): SpeechGender;
 export declare function ag(gender: SpeechGender, male: string, female: string): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'price_soft' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'price_soft' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;
@@ -84,6 +84,8 @@ export declare function detectIntent(text: string): {
     notInterested: boolean;
     callback: boolean;
     askingWhyCall: boolean;
+    askingIdentity: boolean;
+    isGreeting: boolean;
     askingPrice: boolean;
     statingBhk: boolean;
     statingPossession: boolean;
@@ -99,6 +101,9 @@ export declare function buildFollowUpReply(options: {
     knownFacts?: ConversationFacts;
     speechGender?: SpeechGender;
     agentVoice?: string;
+    agentName?: string;
+    companyName?: string;
+    isInbound?: boolean;
 }): {
     text: string;
     outcome: CallOutcome;
