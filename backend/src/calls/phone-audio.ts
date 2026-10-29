@@ -68,11 +68,28 @@ export function pcm16ToMulaw(pcm: Buffer): Buffer {
   return out;
 }
 
+// Precomputed standard ITU-T G.711 mu-law expansion table (256 entries)
+const MULAW_DECODE_TABLE = new Int16Array(256);
+for (let i = 0; i < 256; i++) {
+  const mu = ~i & 0xff;
+  const sign = mu & 0x80;
+  const exponent = (mu >> 4) & 0x07;
+  const mantissa = mu & 0x0f;
+  let sample = ((mantissa << 3) + 132) << exponent;
+  sample -= 132;
+  MULAW_DECODE_TABLE[i] = sign ? -sample : sample;
+}
+
+export function mulawToLinear(mulawByte: number): number {
+  return MULAW_DECODE_TABLE[mulawByte & 0xff];
+}
+
 export function mulawToPcm16(mulaw: Buffer): Buffer {
   const src = asNodeBuffer(mulaw);
   const out = Buffer.alloc(src.length * 2);
   for (let i = 0; i < src.length; i++) {
-    out.writeInt16LE(mulawToLinear(src[i]), i * 2);
+    const val = MULAW_DECODE_TABLE[src[i]];
+    out.writeInt16LE(val, i * 2);
   }
   return out;
 }
@@ -95,10 +112,11 @@ export function downsamplePcm16(
 }
 
 function linearToMulaw(sample: number): number {
-  const BIAS = 33;
+  const BIAS = 132;
+  const CLIP = 32635;
   const sign = sample < 0 ? 0x80 : 0;
   if (sample < 0) sample = -sample;
-  if (sample > 32635) sample = 32635;
+  if (sample > CLIP) sample = CLIP;
   sample = sample + BIAS;
   let exponent = 7;
   for (
@@ -108,19 +126,6 @@ function linearToMulaw(sample: number): number {
   ) {
     /* find exponent */
   }
-  const mantissa = (sample >> (exponent === 0 ? 4 : exponent + 3)) & 0x0f;
+  const mantissa = (sample >> (exponent + 3)) & 0x0f;
   return ~(sign | (exponent << 4) | mantissa) & 0xff;
-}
-
-function mulawToLinear(mulawByte: number): number {
-  const MULAW_BIAS = 33;
-  let mu = ~mulawByte & 0xff;
-  const sign = mu & 0x80;
-  const exponent = (mu >> 4) & 0x07;
-  const mantissa = mu & 0x0f;
-  let sample =
-    ((mantissa << 3) + MULAW_BIAS) << (exponent === 0 ? 0 : exponent + 2);
-  if (exponent !== 0) sample += MULAW_BIAS << 1;
-  sample -= MULAW_BIAS;
-  return sign !== 0 ? -sample : sample;
 }

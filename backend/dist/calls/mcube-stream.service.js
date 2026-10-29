@@ -122,151 +122,156 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         ws.on('message', (raw) => {
             if (session.closed)
                 return;
-            let msg;
             try {
-                const text = typeof raw === 'string'
-                    ? raw
-                    : Buffer.isBuffer(raw)
-                        ? raw.toString('utf8')
-                        : String(raw);
-                msg = JSON.parse(text);
-            }
-            catch {
-                return;
-            }
-            if (msg.event === 'start' && msg.start) {
-                session.streamId = msg.start.streamId || session.streamId || '';
-                session.callId =
-                    msg.start.callId || callIdHint || session.callId || `inbound_${Date.now()}`;
-                const format = msg.start.mediaFormat;
-                if (format?.encoding?.includes('l16')) {
-                    session.encoding = 'audio/x-l16';
-                    session.sampleRate = format.sampleRate || 16000;
+                let msg;
+                try {
+                    const text = typeof raw === 'string'
+                        ? raw
+                        : Buffer.isBuffer(raw)
+                            ? raw.toString('utf8')
+                            : String(raw);
+                    msg = JSON.parse(text);
                 }
-                else {
-                    session.encoding = 'audio/x-mulaw';
-                    session.sampleRate = format?.sampleRate || 8000;
+                catch {
+                    return;
                 }
-                this.logger.log(`[MCube] Inbound stream started streamId=${session.streamId} callId=${session.callId} format=${session.encoding}@${session.sampleRate}Hz`);
-                void (async () => {
-                    try {
-                        let call = await this.prisma.call.findUnique({
-                            where: { id: session.callId },
-                            include: { lead: { include: { project: true } } },
-                        });
-                        if (!call) {
-                            const callerPhone = queryParams?.from ||
-                                queryParams?.caller ||
-                                queryParams?.callerNumber ||
-                                queryParams?.phone ||
-                                'Inbound Caller';
-                            let lead = callerPhone && callerPhone !== 'Inbound Caller'
-                                ? await this.prisma.lead.findFirst({
-                                    where: { phone: { contains: callerPhone.slice(-10) } },
-                                    include: { project: true },
-                                })
-                                : null;
-                            if (!lead) {
-                                lead = await this.prisma.lead.create({
-                                    data: {
-                                        name: 'Inbound Caller',
-                                        phone: callerPhone !== 'Inbound Caller'
-                                            ? callerPhone
-                                            : 'Unknown',
-                                        source: 'COLD_CALL',
-                                        status: 'NEW',
-                                        notes: 'Incoming call received via MCube telephony',
-                                    },
-                                    include: { project: true },
-                                });
-                            }
-                            call = await this.prisma.call.create({
-                                data: {
-                                    id: session.callId,
-                                    leadId: lead.id,
-                                    status: client_1.CallStatus.IN_PROGRESS,
-                                    outcome: client_1.CallOutcome.CONNECTED,
-                                    provider: 'mcube',
-                                    providerCallId: session.streamId || session.callId,
-                                    summary: `Incoming call from ${lead.phone}`,
-                                    transcript: '',
-                                    greetingText: `Namaste! Saya Group real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
-                                },
+                if (msg.event === 'start' && msg.start) {
+                    session.streamId = msg.start.streamId || session.streamId || '';
+                    session.callId =
+                        msg.start.callId || callIdHint || session.callId || `inbound_${Date.now()}`;
+                    const format = msg.start.mediaFormat;
+                    if (format?.encoding?.includes('l16')) {
+                        session.encoding = 'audio/x-l16';
+                        session.sampleRate = format.sampleRate || 16000;
+                    }
+                    else {
+                        session.encoding = 'audio/x-mulaw';
+                        session.sampleRate = format?.sampleRate || 8000;
+                    }
+                    this.logger.log(`[MCube] Inbound stream started streamId=${session.streamId} callId=${session.callId} format=${session.encoding}@${session.sampleRate}Hz`);
+                    void (async () => {
+                        try {
+                            let call = await this.prisma.call.findUnique({
+                                where: { id: session.callId },
                                 include: { lead: { include: { project: true } } },
                             });
-                            this.logger.log(`[MCube] Created Inbound Call record id=${call.id} for lead=${lead.name}`);
+                            if (!call) {
+                                const callerPhone = queryParams?.from ||
+                                    queryParams?.caller ||
+                                    queryParams?.callerNumber ||
+                                    queryParams?.phone ||
+                                    'Inbound Caller';
+                                let lead = callerPhone && callerPhone !== 'Inbound Caller'
+                                    ? await this.prisma.lead.findFirst({
+                                        where: { phone: { contains: callerPhone.slice(-10) } },
+                                        include: { project: true },
+                                    })
+                                    : null;
+                                if (!lead) {
+                                    lead = await this.prisma.lead.create({
+                                        data: {
+                                            name: 'Inbound Caller',
+                                            phone: callerPhone !== 'Inbound Caller'
+                                                ? callerPhone
+                                                : 'Unknown',
+                                            source: 'COLD_CALL',
+                                            status: 'NEW',
+                                            notes: 'Incoming call received via MCube telephony',
+                                        },
+                                        include: { project: true },
+                                    });
+                                }
+                                call = await this.prisma.call.create({
+                                    data: {
+                                        id: session.callId,
+                                        leadId: lead.id,
+                                        status: client_1.CallStatus.IN_PROGRESS,
+                                        outcome: client_1.CallOutcome.CONNECTED,
+                                        provider: 'mcube',
+                                        providerCallId: session.streamId || session.callId,
+                                        summary: `Incoming call from ${lead.phone}`,
+                                        transcript: '',
+                                        greetingText: `Namaste! Saya Group real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+                                    },
+                                    include: { lead: { include: { project: true } } },
+                                });
+                                this.logger.log(`[MCube] Created Inbound Call record id=${call.id} for lead=${lead.name}`);
+                            }
+                            else {
+                                await this.prisma.call.update({
+                                    where: { id: session.callId },
+                                    data: {
+                                        provider: 'mcube',
+                                        providerCallId: session.streamId || undefined,
+                                        status: client_1.CallStatus.IN_PROGRESS,
+                                    },
+                                });
+                            }
+                            const settings = await this.ai.getSettings();
+                            const companyName = settings.companyName ||
+                                call.lead?.project?.companyName ||
+                                'Saya Group';
+                            const greeting = call.greetingText ||
+                                `Namaste! ${companyName} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`;
+                            const audioBuf = await this.synthesizeForSession(greeting, session, settings);
+                            if (audioBuf && ws.readyState === ws.OPEN) {
+                                await this.sendPlayAudio(ws, session, audioBuf);
+                            }
                         }
-                        else {
-                            await this.prisma.call.update({
-                                where: { id: session.callId },
-                                data: {
-                                    provider: 'mcube',
-                                    providerCallId: session.streamId || undefined,
-                                    status: client_1.CallStatus.IN_PROGRESS,
-                                },
-                            });
+                        catch (err) {
+                            this.logger.warn(`[MCube] Inbound greeting error: ${err}`);
                         }
-                        const settings = await this.ai.getSettings();
-                        const companyName = settings.companyName ||
-                            call.lead?.project?.companyName ||
-                            'Saya Group';
-                        const greeting = call.greetingText ||
-                            `Namaste! ${companyName} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`;
-                        const audioBuf = await this.synthesizeForSession(greeting, session, settings);
-                        if (audioBuf && ws.readyState === ws.OPEN) {
-                            await this.sendPlayAudio(ws, session, audioBuf);
-                        }
-                    }
-                    catch (err) {
-                        this.logger.warn(`[MCube] Inbound greeting error: ${err}`);
-                    }
-                })();
-                return;
-            }
-            if (msg.event === 'playedStream') {
-                const segName = msg.name || '';
-                session.pendingSegments.delete(segName);
-                if (session.pendingSegments.size === 0) {
-                    session.agentPlaying = false;
-                }
-                this.logger.debug(`[MCube] playedStream finished name=${segName} streamId=${msg.streamId}`);
-                return;
-            }
-            if (msg.event === 'media' && msg.media?.payload) {
-                const track = (msg.media.track || 'inbound').toLowerCase();
-                if (track.includes('outbound'))
+                    })();
                     return;
-                if (msg.streamId && !session.streamId) {
-                    session.streamId = msg.streamId;
                 }
-                const chunk = Buffer.from(msg.media.payload, 'base64');
-                const pcm = session.encoding === 'audio/x-l16'
-                    ? (0, phone_audio_1.asNodeBuffer)(chunk)
-                    : (0, phone_audio_1.mulawToPcm16)(chunk);
-                const energy = (0, phone_audio_1.pcmEnergy)(pcm);
-                const now = Date.now();
-                if (session.agentPlaying && energy > 900 && now > session.listenAfter) {
-                    bargeIn();
-                }
-                if (now < session.listenAfter && !session.agentPlaying)
+                if (msg.event === 'playedStream') {
+                    const segName = msg.name || '';
+                    session.pendingSegments.delete(segName);
+                    if (session.pendingSegments.size === 0) {
+                        session.agentPlaying = false;
+                    }
+                    this.logger.debug(`[MCube] playedStream finished name=${segName} streamId=${msg.streamId}`);
                     return;
-                if (energy > 450) {
-                    if (!session.speaking) {
-                        session.speaking = true;
-                        session.speechStartedAt = now;
-                    }
-                    session.lastVoiceAt = now;
-                    session.rawChunks.push(chunk);
-                    scheduleFlush(480);
-                    if (now - session.speechStartedAt > 6500) {
-                        void this.flushTurn(ws, session);
-                    }
                 }
-                else if (session.speaking) {
-                    session.rawChunks.push(chunk);
-                    scheduleFlush(520);
+                if (msg.event === 'media' && msg.media?.payload) {
+                    const track = (msg.media.track || 'inbound').toLowerCase();
+                    if (track.includes('outbound'))
+                        return;
+                    if (msg.streamId && !session.streamId) {
+                        session.streamId = msg.streamId;
+                    }
+                    const chunk = Buffer.from(msg.media.payload, 'base64');
+                    const pcm = session.encoding === 'audio/x-l16'
+                        ? (0, phone_audio_1.asNodeBuffer)(chunk)
+                        : (0, phone_audio_1.mulawToPcm16)(chunk);
+                    const energy = (0, phone_audio_1.pcmEnergy)(pcm);
+                    const now = Date.now();
+                    if (session.agentPlaying && energy > 900 && now > session.listenAfter) {
+                        bargeIn();
+                    }
+                    if (now < session.listenAfter && !session.agentPlaying)
+                        return;
+                    if (energy > 450) {
+                        if (!session.speaking) {
+                            session.speaking = true;
+                            session.speechStartedAt = now;
+                        }
+                        session.lastVoiceAt = now;
+                        session.rawChunks.push(chunk);
+                        scheduleFlush(480);
+                        if (now - session.speechStartedAt > 6500) {
+                            void this.flushTurn(ws, session);
+                        }
+                    }
+                    else if (session.speaking) {
+                        session.rawChunks.push(chunk);
+                        scheduleFlush(520);
+                    }
+                    return;
                 }
-                return;
+            }
+            catch (err) {
+                this.logger.error(`[MCube] Error processing message: ${err instanceof Error ? err.message : err}`);
             }
         });
         ws.on('close', () => {

@@ -143,20 +143,21 @@ export class McubeStreamService {
 
     ws.on('message', (raw) => {
       if (session.closed) return;
-      let msg: McubeInboundMsg;
       try {
-        const text =
-          typeof raw === 'string'
-            ? raw
-            : Buffer.isBuffer(raw)
-              ? raw.toString('utf8')
-              : String(raw);
-        msg = JSON.parse(text) as McubeInboundMsg;
-      } catch {
-        return;
-      }
+        let msg: McubeInboundMsg;
+        try {
+          const text =
+            typeof raw === 'string'
+              ? raw
+              : Buffer.isBuffer(raw)
+                ? raw.toString('utf8')
+                : String(raw);
+          msg = JSON.parse(text) as McubeInboundMsg;
+        } catch {
+          return;
+        }
 
-      // 1. "start" event
+        // 1. "start" event
       if (msg.event === 'start' && msg.start) {
         session.streamId = msg.start.streamId || session.streamId || '';
         session.callId =
@@ -324,9 +325,12 @@ export class McubeStreamService {
         }
         return;
       }
-    });
+    } catch (err) {
+      this.logger.error(`[MCube] Error processing message: ${err instanceof Error ? err.message : err}`);
+    }
+  });
 
-    ws.on('close', () => {
+  ws.on('close', () => {
       session.closed = true;
       clearSilence();
       this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
