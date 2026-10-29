@@ -169,7 +169,7 @@ let LlmService = LlmService_1 = class LlmService {
         };
         if (isGemini3) {
             if (options?.lowLatency) {
-                generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+                generationConfig.thinkingConfig = { thinkingLevel: 'low' };
             }
         }
         else {

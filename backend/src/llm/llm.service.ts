@@ -218,7 +218,7 @@ export class LlmService {
     };
     if (isGemini3) {
       if (options?.lowLatency) {
-        generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+        generationConfig.thinkingConfig = { thinkingLevel: 'low' };
       }
     } else {
       generationConfig.temperature = options?.temperature ?? 0.4;
