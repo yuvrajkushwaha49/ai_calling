@@ -315,13 +315,13 @@ export class McubeStreamService {
           }
           session.lastVoiceAt = now;
           session.rawChunks.push(chunk);
-          scheduleFlush(480);
+          scheduleFlush(320);
           if (now - session.speechStartedAt > 6500) {
             void this.flushTurn(ws, session);
           }
         } else if (session.speaking) {
           session.rawChunks.push(chunk);
-          scheduleFlush(520);
+          scheduleFlush(350);
         }
         return;
       }
@@ -380,14 +380,14 @@ export class McubeStreamService {
           ? boostPcm16(rawIn, 1.2)
           : boostPcm16(mulawToPcm16(rawIn), 2.2);
 
-      const wavPath = path.join(
-        this.uploadsDir,
-        `mcube-in-${randomUUID()}.wav`,
-      );
-      fs.writeFileSync(wavPath, pcm16ToWav(pcm16, session.sampleRate));
+      const wavBuffer = pcm16ToWav(pcm16, session.sampleRate);
 
       const [stt, context] = await Promise.all([
-        this.voice.speechToText({ filePath: wavPath, language: 'hi-IN' }),
+        this.voice.speechToText({
+          buffer: wavBuffer,
+          fileName: 'mcube-in.wav',
+          language: 'hi-IN',
+        }),
         session.callId
           ? Promise.all([
               this.prisma.call.findUnique({
@@ -439,31 +439,52 @@ export class McubeStreamService {
       let replyText = follow.text;
       let languageDetected = call?.languageDetected || 'hi-IN';
 
+      let ttsChain = Promise.resolve();
+      let streamedAnyAudio = false;
+
       try {
-        const result = await Promise.race([
-          this.conversation.reply({
-            lead,
-            userMessage,
-            priorTranscript: call?.transcript,
-            agentName: settings?.agentName || 'Neha',
-            companyName:
-              (settings as { companyName?: string })?.companyName ||
-              lead.project?.companyName ||
-              lead.project?.builder ||
-              'Saya Group',
-            defaultLanguage: call?.languageDetected || 'hi-IN',
-            tone: (settings as { tone?: string })?.tone || 'friendly',
-            systemPrompt: settings?.systemPrompt || undefined,
-            llmModel:
-              (settings as { llmModel?: string })?.llmModel ||
-              'gemini-flash-lite-latest',
-            approvedPlaybook: (settings as { approvedPlaybook?: unknown })
-              ?.approvedPlaybook,
-            agentVoice: settings?.agentVoice || 'rachel',
-            phoneLatency: true,
-          }),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
-        ]);
+        const result = await this.conversation.reply({
+          lead,
+          userMessage,
+          priorTranscript: call?.transcript,
+          agentName: settings?.agentName || 'Neha',
+          companyName:
+            (settings as { companyName?: string })?.companyName ||
+            lead.project?.companyName ||
+            lead.project?.builder ||
+            'Saya Group',
+          defaultLanguage: call?.languageDetected || 'hi-IN',
+          tone: (settings as { tone?: string })?.tone || 'friendly',
+          systemPrompt: settings?.systemPrompt || undefined,
+          llmModel:
+            (settings as { llmModel?: string })?.llmModel ||
+            'gemini-flash-lite-latest',
+          approvedPlaybook: (settings as { approvedPlaybook?: unknown })
+            ?.approvedPlaybook,
+          agentVoice: settings?.agentVoice || 'rachel',
+          phoneLatency: true,
+          stream: true,
+          onSentence: (sentence) => {
+            const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
+            if (!cleaned) return;
+            ttsChain = ttsChain
+              .then(async () => {
+                if (aborted() || ws.readyState !== ws.OPEN) return;
+                const audioBuffer = await this.synthesizeForSession(
+                  cleaned,
+                  session,
+                  settings,
+                );
+                if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
+                  streamedAnyAudio = true;
+                  await this.sendPlayAudio(ws, session, audioBuffer);
+                }
+              })
+              .catch((err) => {
+                this.logger.warn(`[MCube] Streamed sentence TTS error: ${err}`);
+              });
+          },
+        });
 
         if (aborted()) {
           session.cancelPlay = false;
@@ -475,6 +496,9 @@ export class McubeStreamService {
           replyText = result.replyText.trim();
           languageDetected = result.languageDetected || languageDetected;
         }
+
+        // Wait for all queued sentence audio to finish playing
+        await ttsChain;
       } catch (err) {
         this.logger.warn(`[MCube] LLM failed: ${err instanceof Error ? err.message : err}`);
       }
@@ -483,7 +507,7 @@ export class McubeStreamService {
       session.lastAgentText = replyText;
       session.turnCount += 1;
 
-      // Update call record transcript
+      // Update call record transcript in background
       void this.prisma.call
         .update({
           where: { id: callId },
@@ -501,17 +525,18 @@ export class McubeStreamService {
         })
         .catch(() => undefined);
 
-      // Synthesize audio
-      const cleanReply = truncateForPhone(replyText, 140);
-      const audioBuffer = await this.synthesizeForSession(cleanReply, session, settings);
-
-      if (!audioBuffer || aborted() || ws.readyState !== ws.OPEN) {
-        session.busy = false;
-        return;
+      // If streaming didn't output audio (e.g. scripted fallback), send full audio
+      if (!streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
+        const cleanReply = truncateForPhone(replyText, 140);
+        const audioBuffer = await this.synthesizeForSession(
+          cleanReply,
+          session,
+          settings,
+        );
+        if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
+          await this.sendPlayAudio(ws, session, audioBuffer);
+        }
       }
-
-      // Send audio chunk + checkpoint to MCube
-      await this.sendPlayAudio(ws, session, audioBuffer);
     } catch (err) {
       this.logger.error(`[MCube] Turn failed: ${err instanceof Error ? err.message : err}`);
     } finally {

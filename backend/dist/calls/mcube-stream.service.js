@@ -258,14 +258,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         }
                         session.lastVoiceAt = now;
                         session.rawChunks.push(chunk);
-                        scheduleFlush(480);
+                        scheduleFlush(320);
                         if (now - session.speechStartedAt > 6500) {
                             void this.flushTurn(ws, session);
                         }
                     }
                     else if (session.speaking) {
                         session.rawChunks.push(chunk);
-                        scheduleFlush(520);
+                        scheduleFlush(350);
                     }
                     return;
                 }
@@ -311,10 +311,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             const pcm16 = session.encoding === 'audio/x-l16'
                 ? (0, phone_audio_1.boostPcm16)(rawIn, 1.2)
                 : (0, phone_audio_1.boostPcm16)((0, phone_audio_1.mulawToPcm16)(rawIn), 2.2);
-            const wavPath = path.join(this.uploadsDir, `mcube-in-${(0, crypto_1.randomUUID)()}.wav`);
-            fs.writeFileSync(wavPath, (0, phone_audio_1.pcm16ToWav)(pcm16, session.sampleRate));
+            const wavBuffer = (0, phone_audio_1.pcm16ToWav)(pcm16, session.sampleRate);
             const [stt, context] = await Promise.all([
-                this.voice.speechToText({ filePath: wavPath, language: 'hi-IN' }),
+                this.voice.speechToText({
+                    buffer: wavBuffer,
+                    fileName: 'mcube-in.wav',
+                    language: 'hi-IN',
+                }),
                 session.callId
                     ? Promise.all([
                         this.prisma.call.findUnique({
@@ -358,29 +361,47 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             });
             let replyText = follow.text;
             let languageDetected = call?.languageDetected || 'hi-IN';
+            let ttsChain = Promise.resolve();
+            let streamedAnyAudio = false;
             try {
-                const result = await Promise.race([
-                    this.conversation.reply({
-                        lead,
-                        userMessage,
-                        priorTranscript: call?.transcript,
-                        agentName: settings?.agentName || 'Neha',
-                        companyName: settings?.companyName ||
-                            lead.project?.companyName ||
-                            lead.project?.builder ||
-                            'Saya Group',
-                        defaultLanguage: call?.languageDetected || 'hi-IN',
-                        tone: settings?.tone || 'friendly',
-                        systemPrompt: settings?.systemPrompt || undefined,
-                        llmModel: settings?.llmModel ||
-                            'gemini-flash-lite-latest',
-                        approvedPlaybook: settings
-                            ?.approvedPlaybook,
-                        agentVoice: settings?.agentVoice || 'rachel',
-                        phoneLatency: true,
-                    }),
-                    new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
-                ]);
+                const result = await this.conversation.reply({
+                    lead,
+                    userMessage,
+                    priorTranscript: call?.transcript,
+                    agentName: settings?.agentName || 'Neha',
+                    companyName: settings?.companyName ||
+                        lead.project?.companyName ||
+                        lead.project?.builder ||
+                        'Saya Group',
+                    defaultLanguage: call?.languageDetected || 'hi-IN',
+                    tone: settings?.tone || 'friendly',
+                    systemPrompt: settings?.systemPrompt || undefined,
+                    llmModel: settings?.llmModel ||
+                        'gemini-flash-lite-latest',
+                    approvedPlaybook: settings
+                        ?.approvedPlaybook,
+                    agentVoice: settings?.agentVoice || 'rachel',
+                    phoneLatency: true,
+                    stream: true,
+                    onSentence: (sentence) => {
+                        const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 120);
+                        if (!cleaned)
+                            return;
+                        ttsChain = ttsChain
+                            .then(async () => {
+                            if (aborted() || ws.readyState !== ws.OPEN)
+                                return;
+                            const audioBuffer = await this.synthesizeForSession(cleaned, session, settings);
+                            if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
+                                streamedAnyAudio = true;
+                                await this.sendPlayAudio(ws, session, audioBuffer);
+                            }
+                        })
+                            .catch((err) => {
+                            this.logger.warn(`[MCube] Streamed sentence TTS error: ${err}`);
+                        });
+                    },
+                });
                 if (aborted()) {
                     session.cancelPlay = false;
                     session.busy = false;
@@ -390,6 +411,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     replyText = result.replyText.trim();
                     languageDetected = result.languageDetected || languageDetected;
                 }
+                await ttsChain;
             }
             catch (err) {
                 this.logger.warn(`[MCube] LLM failed: ${err instanceof Error ? err.message : err}`);
@@ -413,13 +435,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 },
             })
                 .catch(() => undefined);
-            const cleanReply = (0, phone_audio_1.truncateForPhone)(replyText, 140);
-            const audioBuffer = await this.synthesizeForSession(cleanReply, session, settings);
-            if (!audioBuffer || aborted() || ws.readyState !== ws.OPEN) {
-                session.busy = false;
-                return;
+            if (!streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
+                const cleanReply = (0, phone_audio_1.truncateForPhone)(replyText, 140);
+                const audioBuffer = await this.synthesizeForSession(cleanReply, session, settings);
+                if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
+                    await this.sendPlayAudio(ws, session, audioBuffer);
+                }
             }
-            await this.sendPlayAudio(ws, session, audioBuffer);
         }
         catch (err) {
             this.logger.error(`[MCube] Turn failed: ${err instanceof Error ? err.message : err}`);
