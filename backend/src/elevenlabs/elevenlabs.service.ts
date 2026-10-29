@@ -466,30 +466,70 @@ export class ElevenLabsService {
         : lower.endsWith('.ogg')
           ? 'audio/ogg'
           : 'audio/wav';
-    form.append(
-      'file',
-      new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
-        type: mime,
-      }),
-      fileName,
-    );
-    form.append('model_id', 'scribe_v2');
     const lang = this.sttLanguageCode(options.language);
-    if (lang) form.append('language_code', lang);
-
-    const response = await fetch(`${this.baseUrl}/speech-to-text`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-      },
-      body: form,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new BadRequestException(
-        `ElevenLabs STT failed (${response.status}): ${errText.slice(0, 300)}`,
+    const makeForm = () => {
+      const f = new FormData();
+      f.append(
+        'file',
+        new Blob(
+          [
+            bytes.buffer.slice(
+              bytes.byteOffset,
+              bytes.byteOffset + bytes.byteLength,
+            ) as ArrayBuffer,
+          ],
+          { type: mime },
+        ),
+        fileName,
       );
+      f.append('model_id', 'scribe_v2');
+      if (lang) f.append('language_code', lang);
+      return f;
+    };
+
+    let response: Response | undefined;
+    let lastErrText = '';
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await fetch(`${this.baseUrl}/speech-to-text`, {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+          },
+          body: makeForm(),
+        });
+
+        if (response.ok) break;
+
+        lastErrText = await response.text();
+        const isBusy = response.status === 429 || response.status === 503;
+        if (isBusy && attempt < 3) {
+          const delay = attempt * 350;
+          this.logger.warn(
+            `ElevenLabs STT busy (${response.status}) on attempt ${attempt}. Retrying in ${delay}ms...`,
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastErrText = String(err);
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 300));
+          continue;
+        }
+      }
+    }
+
+    if (!response || !response.ok) {
+      this.logger.warn(
+        `ElevenLabs STT failed after retries (${response?.status || 'network'}): ${lastErrText.slice(0, 300)}`,
+      );
+      return {
+        transcript: '',
+        languageCode: lang || null,
+      };
     }
 
     const data = (await response.json()) as {
