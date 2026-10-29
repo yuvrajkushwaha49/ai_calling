@@ -11,8 +11,7 @@ frontend/.env*
 frontend/.env.local
 
 # Build outputs
-dist/
-!backend/dist/**
+frontend/dist/
 build/
 .next/
 out/

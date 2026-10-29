@@ -759,8 +759,8 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
     const llmOpts = {
       temperature: 0.45,
       model: voiceModel,
-      maxOutputTokens: options.phoneLatency || options.stream ? 60 : 120,
-      timeoutMs: options.phoneLatency || options.stream ? 9000 : 10000,
+      maxOutputTokens: options.phoneLatency || options.stream ? 70 : 120,
+      timeoutMs: options.phoneLatency || options.stream ? 12000 : 15000,
       lowLatency: true,
     };
 
@@ -779,7 +779,37 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
         options.approvedPlaybook,
         200,
       );
-      const quickSystem = `You are ${options.agentName}, live RE phone agent for ${company}.
+      const quickSystem = options.isInbound
+        ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
+${genderLines}
+Speak ${replyLang}. ${this.languageInstruction(replyLang)}
+The caller dialed your helpline to ask questions about properties, projects, locations, prices, or general information.
+
+AVAILABLE PROJECTS & INVENTORY:
+${projectsOverview}
+
+RULES (HUMAN HELPLINE ADVISOR):
+1) GREETING / IDENTITY / LIVENESS:
+   - If caller says "Hello" / "Haan ji" at start: "Haan ji Namaste! ${company} real estate helpline me aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
+   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
+   - If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge. Never ignore or dodge their question!
+3) EXPLAIN PROJECTS WHEN ASKED:
+   - If caller asks what projects are available: introduce Saya Gold Avenue (Indirapuram) & Saya Zion (Greater Noida West) for residential, Saya South X for commercial.
+4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
+   - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
+     * If caller's name is unknown (${options.lead.name === 'Inbound Caller' || !options.lead.name ? 'Name not known yet' : 'Name is ' + options.lead.name}): "Vaise main aapka shubh naam jaan sakti hoon?"
+     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ' + known.bhk}): "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"
+     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ' + known.purpose}): "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"
+     * If location or timeline unknown: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak shift karne ka plan hai?"
+     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ' + known.budgetLabel}): "Aapka approximate budget kya hai?"
+     * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
+5) Max 1-2 short spoken sentences. Never ask multiple questions in one turn. Answer first, then ask ONE question. Never interrogate.
+Facts: ${JSON.stringify(known)}
+${resolvedProject ? `Project: ${resolvedProject.name}` : ''}
+${ragBlock ? `KB:\n${ragBlock.slice(0, 300)}` : ''}`
+        : `You are ${options.agentName}, live RE phone agent for ${company}.
 Speak ${replyLang}. ${genderLines}
 CRITICAL: Reply to the customer's last message in context of YOUR previous line.
 Your previous line: "${(previousAgent || '').slice(0, 120)}"
@@ -794,7 +824,9 @@ ${learned ? learned : ''}`;
         { role: 'system' as const, content: quickSystem },
         {
           role: 'user' as const,
-          content: `Customer: "${options.userMessage}"\nReply only to that:`,
+          content: options.isInbound
+            ? `Customer called helpline and said: "${options.userMessage}"\nReply helpfully:`
+            : `Customer: "${options.userMessage}"\nReply only to that:`,
         },
       ];
       const t0 = Date.now();
