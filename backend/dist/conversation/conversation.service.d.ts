@@ -155,27 +155,15 @@ export declare class ConversationService {
             sourceUrl: string | null;
             excerpt: string;
         }[];
-        qualification: {
-            language: string;
-            budgetLabel: string | null;
-            preferredLocation: string | null;
-            bhkPreference: string | null;
-            purchaseTimeline: string | null;
-            interestLevel: string;
-            interestScore: number;
-            objections: string | null;
-            siteVisitInterest: boolean;
-            callbackAt: string | null;
-            outcome: string;
-            summary: string;
-            suggestedNextAction: string;
-        };
+        qualification: Record<string, unknown>;
         usedLlm: boolean;
         known: import("../calls/call-scripts").ConversationFacts;
         resolvedProjectId: string | null;
         resolvedProjectName: string | null;
     }>;
     private consumeLlmStream;
+    private cachedProjectsOverview;
+    getProjectsOverview(): Promise<string>;
     matchProjectFromSpeech(text: string): Promise<{
         id: string;
         name: string;

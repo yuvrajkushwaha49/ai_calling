@@ -211,17 +211,6 @@ export declare class CallsController {
             meetingAt: {} | null;
             googleCalendarSynced: {};
             googleLink: {} | null;
-            language: string;
-            budgetLabel: string | null;
-            preferredLocation: string | null;
-            bhkPreference: string | null;
-            purchaseTimeline: string | null;
-            objections: string | null;
-            siteVisitInterest: boolean;
-            callbackAt: string | null;
-            outcome: string;
-            summary: string;
-            suggestedNextAction: string;
         };
         interestScore: number;
         duration: number;

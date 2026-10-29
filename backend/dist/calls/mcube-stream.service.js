@@ -277,6 +277,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             session.closed = true;
             clearSilence();
             this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
+            if (session.callId) {
+                void this.prisma.call
+                    .updateMany({
+                    where: { id: session.callId, status: client_1.CallStatus.IN_PROGRESS },
+                    data: { status: client_1.CallStatus.COMPLETED },
+                })
+                    .catch(() => undefined);
+            }
         });
         ws.on('error', (err) => {
             session.closed = true;
@@ -439,6 +447,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 if (result?.replyText?.trim()) {
                     replyText = result.replyText.trim();
                     languageDetected = result.languageDetected || languageDetected;
+                }
+                if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
+                    void this.conversation
+                        .applyQualificationToLead(lead.id, {
+                        ...result.qualification,
+                        projectId: result.resolvedProjectId || undefined,
+                    })
+                        .catch(() => undefined);
                 }
                 await ttsChain;
             }

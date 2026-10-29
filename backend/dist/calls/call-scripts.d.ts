@@ -20,6 +20,8 @@ export type ConversationFacts = {
     visitDay?: string;
     interested?: boolean;
     askedVisit?: boolean;
+    callerName?: string;
+    purpose?: string;
 };
 export declare function normalizeLanguage(language?: string): AppLanguage;
 export declare function normalizeTone(tone?: string): AppTone;

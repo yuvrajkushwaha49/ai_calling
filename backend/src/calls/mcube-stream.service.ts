@@ -328,10 +328,18 @@ export class McubeStreamService {
     }
   });
 
-  ws.on('close', () => {
+    ws.on('close', () => {
       session.closed = true;
       clearSilence();
       this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
+      if (session.callId) {
+        void this.prisma.call
+          .updateMany({
+            where: { id: session.callId, status: CallStatus.IN_PROGRESS },
+            data: { status: CallStatus.COMPLETED },
+          })
+          .catch(() => undefined);
+      }
     });
 
     ws.on('error', (err) => {
@@ -530,6 +538,16 @@ export class McubeStreamService {
         if (result?.replyText?.trim()) {
           replyText = result.replyText.trim();
           languageDetected = result.languageDetected || languageDetected;
+        }
+
+        // Real-time CRM lead update with customer details (name, BHK, budget, project, site visit)
+        if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
+          void this.conversation
+            .applyQualificationToLead(lead.id, {
+              ...result.qualification,
+              projectId: result.resolvedProjectId || undefined,
+            })
+            .catch(() => undefined);
         }
 
         // Wait for all queued sentence audio to finish playing

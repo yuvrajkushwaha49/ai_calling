@@ -438,13 +438,35 @@ function extractFactsFromText(raw) {
             ? `${under[1]} crore`
             : `${under[1]} lakh`;
     }
-    const bhk = text.match(/(?:^|[\s])([1-5])\s*(?:bhk|bedroom|बी\s*एच\s*के|बीएचके|બી\s*એચ\s*કે)/i);
+    const normalizedForBhk = text
+        .replace(/\b(one|ek|एक)\b/gi, '1')
+        .replace(/\b(two|do|दो)\b/gi, '2')
+        .replace(/\b(three|teen|तीन)\b/gi, '3')
+        .replace(/\b(four|char|चार)\b/gi, '4')
+        .replace(/\b(five|paanch|पांच)\b/gi, '5')
+        .replace(/\bbh\s*के\b/gi, 'bhk')
+        .replace(/\bb\s*h\s*k\b/gi, 'bhk');
+    const bhk = normalizedForBhk.match(/(?:^|[\s])([1-5])\s*(?:bhk|bedroom|bed|बी\s*एच\s*के|बीएचके|બી\s*એચ\s*કે)/i);
     if (bhk?.[1])
         facts.bhk = `${bhk[1]}BHK`;
-    if (!facts.bhk && /(?:बीएचके|बी\s*एच\s*के|bhk)/i.test(text)) {
-        const n = text.match(/([1-5])/);
+    if (!facts.bhk && /(?:बीएचके|बी\s*एच\s*के|bhk)/i.test(normalizedForBhk)) {
+        const n = normalizedForBhk.match(/([1-5])/);
         if (n?.[1])
             facts.bhk = `${n[1]}BHK`;
+    }
+    const nameMatch = text.match(/(?:mera\s+naam|my\s+name\s+is|this\s+is|myself|main|naam)\s+([a-zA-Z\u0900-\u097F]{2,20})(?:\s+(?:hai|bol|speaking|here))?/i);
+    if (nameMatch?.[1]) {
+        const rawName = nameMatch[1].trim();
+        const banned = /^(?:hai|bol|raha|rahi|calling|sir|ji|madam|haan|nahi|kya|kaun|customer|agent|inbound|saya|hello|namaste)$/i;
+        if (!banned.test(rawName)) {
+            facts.callerName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        }
+    }
+    if (/rehne\s+ke\s+liye|end\s*use|self\s*use|family\s+ke\s+liye|khud\s+ke\s+liye/i.test(text)) {
+        facts.purpose = 'end-use';
+    }
+    else if (/invest|investment|rent|rental|kiraya|return/i.test(text)) {
+        facts.purpose = 'investment';
     }
     const locationPatterns = [
         /(?:in|at|near|area|location|jagah|जगह|ठिकाण|સ્થળ|शहर|city)\s+([a-zA-Z\u0900-\u097F\u0A80-\u0AFF][a-zA-Z\u0900-\u097F\u0A80-\u0AFF\s-]{1,30})/i,
@@ -539,6 +561,10 @@ function mergeFacts(...parts) {
             out.interested = true;
         if (part.askedVisit)
             out.askedVisit = true;
+        if (part.callerName)
+            out.callerName = part.callerName;
+        if (part.purpose)
+            out.purpose = part.purpose;
     }
     return out;
 }

@@ -331,7 +331,8 @@ let ConversationService = ConversationService_1 = class ConversationService {
         }
         if (!projectId &&
             (!options.phoneLatency ||
-                /saya|साया|project|property|राज\s*नगर|noida|extension/i.test(options.userMessage))) {
+                options.isInbound ||
+                /saya|साया|project|property|राज\s*नगर|noida|extension|indirapuram|zion|gold|south|piazza|flat|फ्लैट|bhk|बीएचके/i.test(options.userMessage))) {
             const matched = await this.matchProjectFromSpeech([options.userMessage, options.priorTranscript || ''].join('\n'));
             if (matched) {
                 projectId = matched.id;
@@ -417,27 +418,45 @@ If they have not named a project yet, ask ONE short question: which project / pr
         const genderLines = speechGender === 'female'
             ? 'Female Hindi: बोल रही हूँ / समझ गई. Never male forms.'
             : 'Male Hindi: बोल रहा हूँ / समझ गया. Never female forms.';
+        const projectsOverview = options.isInbound
+            ? await this.getProjectsOverview()
+            : '';
         const system = options.phoneLatency
             ? options.isInbound
                 ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
 ${genderLines}
 Speak ${replyLang}. ${this.languageInstruction(replyLang)}
 The caller dialed your helpline to ask questions about properties, projects, locations, prices, or general information.
-Rules:
+
+AVAILABLE PROJECTS & INVENTORY:
+${projectsOverview}
+
+RULES (HUMAN HELPLINE ADVISOR):
 1) GREETING / IDENTITY / LIVENESS:
    - If caller says "Hello" / "Haan ji" at start: "Haan ji Namaste! ${company} real estate helpline me aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
    - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
    - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
-2) ANSWER FIRST: The customer called you. If they ask about property, 2BHK/3BHK, price, location, builder, or RERA, ANSWER directly from Knowledge. Never ignore their question.
-3) If checking details: "Ji main dekh rahi hoon, ek second..."
-4) If wrong number or not interested: polite thank-you and end.
-5) Guide interested buyers toward a site visit.
+2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
+   - The customer called you. If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge below. Never ignore or dodge their question!
+3) EXPLAIN PROJECTS WHEN ASKED:
+   - If caller asks what projects are available or where flats are: introduce Saya Gold Avenue (Indirapuram) & Saya Zion (Greater Noida West) for residential, Saya South X for commercial.
+4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
+   - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
+     * If caller's name is unknown (${options.lead.name === 'Inbound Caller' || !options.lead.name ? 'Name not known yet' : 'Name is ' + options.lead.name}): "Vaise main aapka shubh naam jaan sakti hoon?"
+     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ' + known.bhk}): "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"
+     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ' + known.purpose}): "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"
+     * If location or timeline unknown: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak shift karne ka plan hai?"
+     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ' + known.budgetLabel}): "Aapka approximate budget kya hai?"
+     * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
+5) Never ask multiple questions in one turn. Answer first + ask ONE single question.
+6) If checking details: "Ji main dekh rahi hoon, ek second..."
+7) If wrong number or not interested: polite thank-you and end.
 Facts: ${JSON.stringify(known)}
-Project: ${resolvedProject?.name || 'unknown'} ${resolvedProject?.location || ''}
+Project: ${resolvedProject?.name || 'helpline discovery'} ${resolvedProject?.location || ''}
 ${ragBlock ? `Knowledge:\n${ragBlock.slice(0, 500)}` : ''}
 ${playbook ? playbook : ''}
 ${previousAgent ? `Do not repeat: ${previousAgent.slice(0, 100)}` : ''}
-Answer thoughtfully in 1–2 short spoken sentences.`
+Answer helpfully and warmly in 1–2 short spoken sentences.`
                 : `You are ${options.agentName}, live RE telecaller for ${company}.
 ${genderLines}
 Speak ${replyLang}. ${this.languageInstruction(replyLang)}
@@ -741,6 +760,51 @@ ${learned ? learned : ''}`;
         void emitted;
         return full.trim();
     }
+    cachedProjectsOverview = null;
+    async getProjectsOverview() {
+        const now = Date.now();
+        if (this.cachedProjectsOverview && this.cachedProjectsOverview.expiresAt > now) {
+            return this.cachedProjectsOverview.text;
+        }
+        try {
+            const projects = await this.prisma.project.findMany({
+                select: {
+                    name: true,
+                    location: true,
+                    propertyType: true,
+                    startingPrice: true,
+                    endingPrice: true,
+                    description: true,
+                },
+                take: 8,
+            });
+            let overview = '';
+            if (projects.length) {
+                overview = projects
+                    .map((p) => {
+                    const price = p.startingPrice != null
+                        ? `Price: ₹${p.startingPrice >= 10000000 ? (p.startingPrice / 10000000).toFixed(2) + ' Cr' : (p.startingPrice / 100000).toFixed(0) + ' L'} onwards`
+                        : '';
+                    const desc = p.description ? ` (${p.description.slice(0, 80)})` : '';
+                    return `- ${p.name} [${p.location}]: ${p.propertyType} ${price}${desc}`.trim();
+                })
+                    .join('\n');
+            }
+            else {
+                overview = `- Saya Gold Avenue (Indirapuram, Ghaziabad): Luxury 2, 3, 4 BHK Flats, ₹85 L onwards, Ready to move
+- Saya Zion (Sector 4, Greater Noida West): 2, 3, 4 BHK Apartments, ₹70 L onwards
+- Saya South X (Greater Noida West): High-Street Retail & Commercial, shops & dining
+- Saya Piazza (Sector 131, Noida Expressway): Commercial project`;
+            }
+            this.cachedProjectsOverview = { text: overview, expiresAt: now + 60_000 };
+            return overview;
+        }
+        catch {
+            return `- Saya Gold Avenue (Indirapuram): Luxury 2, 3, 4 BHK Flats, Ready to move
+- Saya Zion (Greater Noida West): 2, 3, 4 BHK Apartments
+- Saya South X (Greater Noida West): Commercial shops & dining`;
+        }
+    }
     async matchProjectFromSpeech(text) {
         const raw = (text || '').trim();
         if (raw.length < 3)
@@ -883,6 +947,8 @@ ${learned ? learned : ''}`;
     async extractQualification(input) {
         const base = {
             language: input.language,
+            callerName: input.known.callerName || null,
+            purpose: input.known.purpose || null,
             budgetLabel: input.known.budgetLabel || null,
             preferredLocation: input.known.location || null,
             bhkPreference: input.known.bhk || null,
@@ -933,18 +999,18 @@ ${learned ? learned : ''}`;
             userMessage: input.userMessage,
             priorTranscript: input.priorTranscript,
             known: input.known,
-            outcome: base.outcome,
-            siteVisitInterest: base.siteVisitInterest,
+            outcome: String(base.outcome || 'CONNECTED'),
+            siteVisitInterest: Boolean(base.siteVisitInterest),
             meetingBooked: Boolean(base.meetingAt),
         });
-        base.interestLevel = `${(0, interest_score_1.interestLevelFromScore)(base.interestScore)} (${base.interestScore}/10)`;
+        base.interestLevel = `${(0, interest_score_1.interestLevelFromScore)(Number(base.interestScore) || 5)} (${base.interestScore}/10)`;
         if (input.skipLlm) {
             return base;
         }
         const llmJson = await this.llm.chat([
             {
                 role: 'system',
-                content: 'Extract lead qualification JSON with keys: language, budgetLabel, preferredLocation, bhkPreference, purchaseTimeline, interestLevel, interestScore (integer 0-10 how interested the lead is in buying/visiting), objections, siteVisitInterest, callbackAt, outcome, summary, suggestedNextAction. outcome one of CONNECTED, QUALIFIED, CALLBACK_REQUESTED, SITE_VISIT_INTERESTED, NOT_INTERESTED. summary max 2 sentences.',
+                content: 'Extract lead qualification JSON with keys: callerName (if customer gave their personal name, e.g. Rahul, Vikas), language, budgetLabel, preferredLocation, bhkPreference, purchaseTimeline, interestLevel, interestScore (integer 0-10 how interested the lead is in buying/visiting), objections, siteVisitInterest, callbackAt, outcome, summary, suggestedNextAction. outcome one of CONNECTED, QUALIFIED, CALLBACK_REQUESTED, SITE_VISIT_INTERESTED, NOT_INTERESTED. summary max 2 sentences.',
             },
             {
                 role: 'user',
@@ -976,9 +1042,9 @@ ${learned ? learned : ''}`;
                         outcome: String(merged.outcome || base.outcome),
                         siteVisitInterest: Boolean(merged.siteVisitInterest),
                         meetingBooked: Boolean(merged.meetingAt),
-                        previousScore: base.interestScore,
+                        previousScore: Number(base.interestScore) || 5,
                     });
-                merged.interestLevel = `${(0, interest_score_1.interestLevelFromScore)(merged.interestScore)} (${merged.interestScore}/10)`;
+                merged.interestLevel = `${(0, interest_score_1.interestLevelFromScore)(Number(merged.interestScore))} (${merged.interestScore}/10)`;
                 return merged;
             }
             catch {
@@ -1018,6 +1084,8 @@ ${learned ? learned : ''}`;
     async applyQualificationToLead(leadId, qualification) {
         const budgetLabel = String(qualification.budgetLabel || '');
         const budget = (0, call_scripts_1.parseBudgetToNumber)(budgetLabel);
+        const callerName = qualification.callerName;
+        const projectId = qualification.projectId;
         const outcome = String(qualification.outcome || 'CONNECTED');
         const data = {
             preferredLanguage: String(qualification.language || '') || undefined,
@@ -1040,6 +1108,12 @@ ${learned ? learned : ''}`;
                 : {}),
             ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
         };
+        if (callerName && callerName.length >= 2 && !/^(?:caller|unknown|inbound|guest)$/i.test(callerName)) {
+            data.name = callerName;
+        }
+        if (projectId) {
+            data.project = { connect: { id: projectId } };
+        }
         return this.prisma.lead.update({ where: { id: leadId }, data });
     }
 };
