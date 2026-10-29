@@ -697,7 +697,7 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
           : `Recent call:\n${recentTranscript || '(start)'}\n\nCustomer just said: "${options.userMessage}"\n\nFirst understand them. If they asked something, answer it. Then reply in 1–2 short sentences.`,
       },
     ];
-    const voiceModel = options.llmModel || 'gemini-flash-latest';
+    const voiceModel = options.llmModel || 'gemini-flash-lite-latest';
     const llmOpts = {
       temperature: 0.45,
       model: voiceModel,

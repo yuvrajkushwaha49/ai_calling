@@ -59,7 +59,7 @@ let LlmService = LlmService_1 = class LlmService {
         if (configured)
             return configured;
         return this.getProvider() === 'gemini'
-            ? 'gemini-flash-latest'
+            ? 'gemini-flash-lite-latest'
             : 'gpt-4o-mini';
     }
     getEmbedModel() {
@@ -115,9 +115,11 @@ let LlmService = LlmService_1 = class LlmService {
         const model = this.resolveChatModel(options?.model);
         if (this.getProvider() === 'gemini') {
             const candidates = [
+                'gemini-flash-lite-latest',
+                'gemini-3.5-flash',
+                'gemini-3.6-flash',
                 'gemini-flash-latest',
                 model,
-                'gemini-3.8-flash',
             ].filter((m, idx, arr) => Boolean(m) && arr.indexOf(m) === idx);
             for (const m of candidates) {
                 let yielded = false;
@@ -298,14 +300,15 @@ let LlmService = LlmService_1 = class LlmService {
         let model = (requested || this.getDefaultModel()).trim();
         if (this.getProvider() === 'gemini') {
             if (model.startsWith('gpt-') || model.startsWith('o4-')) {
-                return 'gemini-flash-latest';
+                return 'gemini-flash-lite-latest';
             }
-            if (model === 'gemini-flash-lite-latest' ||
-                model === 'gemini-2.5-flash-lite' ||
+            if (model === 'gemini-2.5-flash-lite' ||
                 model === 'gemini-3.5-flash-lite' ||
                 model === 'gemini-2.5-flash' ||
-                model === 'gemini-2.0-flash') {
-                return 'gemini-flash-latest';
+                model === 'gemini-2.0-flash' ||
+                model === 'gemini-3.8-flash' ||
+                model === 'gemini-3.7-flash') {
+                return 'gemini-flash-lite-latest';
             }
         }
         return model;
@@ -315,7 +318,11 @@ let LlmService = LlmService_1 = class LlmService {
         if (primary)
             return primary;
         if (options?.lowLatency) {
-            for (const alt of ['gemini-flash-latest', 'gemini-3.8-flash']) {
+            for (const alt of [
+                'gemini-flash-lite-latest',
+                'gemini-3.5-flash',
+                'gemini-3.6-flash',
+            ]) {
                 if (alt === model)
                     continue;
                 const hit = await this.chatGeminiOnce(messages, alt, {
