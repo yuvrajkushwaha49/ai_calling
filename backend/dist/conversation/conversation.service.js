@@ -308,7 +308,7 @@ let ConversationService = ConversationService_1 = class ConversationService {
             if (options.stream && options.onSentence) {
                 void Promise.resolve(options.onSentence(replyText));
             }
-            this.logger.log(`Fast script (${contextualEarly?.kind || 'intent'}) — no RAG/LLM: "${options.userMessage.slice(0, 40)}"`);
+            this.logger.log(`⚡ [Fast Script] Caller: "${options.userMessage}" ➔ AI: "${replyText}"`);
             const qualification = await this.extractQualification({
                 userMessage: options.userMessage,
                 replyText,
@@ -742,6 +742,7 @@ ${learned ? learned : ''}`;
             llmModel: options.llmModel,
             skipLlm: true,
         });
+        this.logger.log(`[Conversation] 🤖 Reply: "${replyText}" (LLM: ${usedLlm})`);
         return {
             replyText: replyText,
             languageDetected: replyLang,

@@ -260,6 +260,7 @@ export class McubeStreamService {
               settings,
             );
             if (audioBuf && ws.readyState === ws.OPEN) {
+              this.logger.log(`[MCube] 🤖 AI Opener: "${initialOpener}"`);
               await this.sendPlayAudio(ws, session, audioBuf);
             }
           } catch (err) {
@@ -416,7 +417,7 @@ export class McubeStreamService {
       }
 
       const userMessage = (stt.transcript || '').trim();
-      this.logger.log(`[MCube] STT: "${userMessage}"`);
+      this.logger.log(`[MCube] 👤 Caller: "${userMessage}"`);
 
       if (!userMessage || userMessage.length < 2) {
         session.busy = false;
@@ -470,6 +471,7 @@ export class McubeStreamService {
         if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
         try {
           const filler = 'हाँ जी, मैं देख रही हूँ...';
+          this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
           const audioBuffer = await this.synthesizeForSession(
             filler,
             session,
@@ -513,6 +515,7 @@ export class McubeStreamService {
             }
             const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
             if (!cleaned) return;
+            this.logger.log(`[MCube] 🤖 AI Speaking: "${cleaned}"`);
             ttsChain = ttsChain
               .then(async () => {
                 if (aborted() || ws.readyState !== ws.OPEN) return;
@@ -570,6 +573,7 @@ export class McubeStreamService {
 
       session.lastUserText = userMessage;
       session.lastAgentText = replyText;
+      this.logger.log(`[MCube] 💬 Turn #${session.turnCount + 1}: Caller: "${userMessage}" ➔ AI: "${replyText}"`);
       session.turnCount += 1;
       session.transcript = [
         session.transcript || call?.transcript || '',

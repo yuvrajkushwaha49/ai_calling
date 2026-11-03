@@ -215,6 +215,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                             session.turnCount = 1;
                             const audioBuf = await this.synthesizeForSession(initialOpener, session, settings);
                             if (audioBuf && ws.readyState === ws.OPEN) {
+                                this.logger.log(`[MCube] 🤖 AI Opener: "${initialOpener}"`);
                                 await this.sendPlayAudio(ws, session, audioBuf);
                             }
                         }
@@ -344,7 +345,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 return;
             }
             const userMessage = (stt.transcript || '').trim();
-            this.logger.log(`[MCube] STT: "${userMessage}"`);
+            this.logger.log(`[MCube] 👤 Caller: "${userMessage}"`);
             if (!userMessage || userMessage.length < 2) {
                 session.busy = false;
                 return;
@@ -388,6 +389,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     return;
                 try {
                     const filler = 'हाँ जी, मैं देख रही हूँ...';
+                    this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
                     const audioBuffer = await this.synthesizeForSession(filler, session, settings);
                     if (audioBuffer && !streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
                         await this.sendPlayAudio(ws, session, audioBuffer);
@@ -425,6 +427,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 120);
                         if (!cleaned)
                             return;
+                        this.logger.log(`[MCube] 🤖 AI Speaking: "${cleaned}"`);
                         ttsChain = ttsChain
                             .then(async () => {
                             if (aborted() || ws.readyState !== ws.OPEN)
@@ -472,6 +475,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             }
             session.lastUserText = userMessage;
             session.lastAgentText = replyText;
+            this.logger.log(`[MCube] 💬 Turn #${session.turnCount + 1}: Caller: "${userMessage}" ➔ AI: "${replyText}"`);
             session.turnCount += 1;
             session.transcript = [
                 session.transcript || call?.transcript || '',
