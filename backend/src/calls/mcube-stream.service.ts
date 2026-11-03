@@ -469,7 +469,7 @@ export class McubeStreamService {
       let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
         if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
         try {
-          const filler = 'Haan ji, main dekh rahi hoon...';
+          const filler = 'हाँ जी, मैं देख रही हूँ...';
           const audioBuffer = await this.synthesizeForSession(
             filler,
             session,

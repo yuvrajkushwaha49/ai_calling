@@ -387,7 +387,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN)
                     return;
                 try {
-                    const filler = 'Haan ji, main dekh rahi hoon...';
+                    const filler = 'हाँ जी, मैं देख रही हूँ...';
                     const audioBuffer = await this.synthesizeForSession(filler, session, settings);
                     if (audioBuffer && !streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
                         await this.sendPlayAudio(ws, session, audioBuffer);

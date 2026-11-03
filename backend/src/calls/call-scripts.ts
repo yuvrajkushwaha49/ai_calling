@@ -935,34 +935,34 @@ export function buildContextualLivenessAck(options: {
   // If there is an active project in the conversation
   const projectMatch =
     options.projectName ||
-    (prior.match(/(palace heights|ncr monarch|future estate|aarya heights|dholera|vvip|saya|apex|godrej|sobha|gulshan|parx laureate|eternia|synq|biigtech|town square|autograph|kutumb)/i)?.[0]);
+    (prior.match(/(palace heights|ncr monarch|future estate|aarya heights|dholera|vvip|saya|apex|godrej|sobha|gulshan|parx laureate|eternia|synq|biigtech|town square|autograph|kutumb|पैलेस|मोनार्क)/i)?.[0]);
 
-  if (/2\s*bhk|3\s*bhk|bedroom|configuration/i.test(lastLower)) {
-    return 'Haan ji, main line par hoon, sun rahi hoon! Maine poochha tha ki aap 2 BHK flat dekh rahe hain ya 3 BHK?';
+  if (/2\s*bhk|3\s*bhk|bedroom|configuration|बीएचके/i.test(lastLower)) {
+    return 'हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! मैंने पूछा था कि आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?';
   }
   if (/budget|बजट/i.test(lastLower)) {
-    return 'Haan ji sun rahi hoon, boliye! Aapka approximate budget kya hai?';
+    return 'हाँ जी सुन रही हूँ, बोलिए! आपका बजट लगभग कितना है?';
   }
-  if (/rehne|end use|investment/i.test(lastLower)) {
-    return 'Haan ji, main line par hoon! Main pooch rahi thi ki aap apne rehne ke liye dekh rahe hain ya investment ke liye?';
+  if (/rehne|end use|investment|रहने|इन्वेस्टमेंट/i.test(lastLower)) {
+    return 'हाँ जी, मैं लाइन पर हूँ! मैं पूछ रही थी कि आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?';
   }
-  if (/possession|ready to move|under construction/i.test(lastLower)) {
-    return 'Haan ji, bilkul aawaz aa rahi hai! Aap ready-to-move dekh rahe hain ya under-construction chalega?';
+  if (/possession|ready to move|under construction|पजेशन|रेडी|अंडर/i.test(lastLower)) {
+    return 'हाँ जी, बिल्कुल आवाज़ आ रही है! आप रेडी-टू-मूव देख रहे हैं या अंडर-कंस्ट्रक्शन चलेगा?';
   }
-  if (/site visit|visit|weekend|sample flat/i.test(lastLower)) {
-    return 'Haan ji, bilkul sun rahi hoon! Kya aap is weekend sample flat visit plan karna chahenge?';
+  if (/site visit|visit|weekend|sample flat|विजिट|सैंपल/i.test(lastLower)) {
+    return 'हाँ जी, बिल्कुल सुन रही हूँ! क्या आप इस वीकेंड सैंपल फ्लैट विजिट प्लान करना चाहेंगे?';
   }
-  if (/naam|shubh naam/i.test(lastLower)) {
-    return 'Haan ji, main line par hoon! Main aapka shubh naam jaan sakti hoon?';
+  if (/naam|shubh naam|नाम|शुभ नाम/i.test(lastLower)) {
+    return 'हाँ जी, मैं लाइन पर हूँ! मैं आपका शुभ नाम जान सकती हूँ?';
   }
   if (projectMatch && lastLower.length > 10) {
     const pName = projectMatch.replace(/\b\w/g, (c) => c.toUpperCase());
-    return `Haan ji, main line par hoon, sun rahi hoon! Hum ${pName} ke baare mein baat kar rahe the — boliye!`;
+    return `हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! हम ${pName} के बारे में बात कर रहे थे — बोलिए!`;
   }
-  if (lastLower.length > 12 && !/hello\?/i.test(lastLower)) {
-    return 'Haan ji, bilkul aawaz aa rahi hai! Main line par hoon, aap boliye.';
+  if (lastLower.length > 12 && !/hello\?|हेलो\?/i.test(lastLower)) {
+    return 'हाँ जी, बिल्कुल आवाज़ आ रही है! मैं लाइन पर हूँ, आप बोलिए।';
   }
-  return 'Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!';
+  return 'हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!';
 }
 
 export function detectIntent(text: string): {
@@ -1200,7 +1200,7 @@ export function buildFollowUpReply(options: {
     greeting_inbound: {
       'en-IN': `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
       'hi-IN': `हाँ जी नमस्ते! ${options.companyName || 'Saya Group'} real estate helpline में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
-      hinglish: `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+      hinglish: `हाँ जी नमस्ते! ${options.companyName || 'साया ग्रुप'} रियल एस्टेट हेल्पलाइन में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
       'mr-IN': `नमस्कार! ${options.companyName || 'Saya Group'} हेल्पलाईनमध्ये आपले स्वागत आहे. मी आपली काय मदत करू शकते?`,
       'gu-IN': `નમસ્તે! ${options.companyName || 'Saya Group'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
     },
@@ -1226,7 +1226,7 @@ export function buildFollowUpReply(options: {
     thinking_filler: {
       'en-IN': `Ji main dekh rahi hoon, ek second...`,
       'hi-IN': `जी मैं देख रही हूँ, एक सेकंड...`,
-      hinglish: `Ji main dekh rahi hoon, ek second...`,
+      hinglish: `जी मैं देख रही हूँ, एक सेकंड...`,
       'mr-IN': `हो, मी पाहतेय, एक सेकंद...`,
       'gu-IN': `હા, હું જોઉં છું, એક સેકન્ડ...`,
     },
