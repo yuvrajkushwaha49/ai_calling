@@ -815,7 +815,7 @@ ${learned ? learned : ''}`;
                     endingPrice: true,
                     description: true,
                 },
-                take: 8,
+                take: 50,
             });
             let overview = '';
             if (projects.length) {
