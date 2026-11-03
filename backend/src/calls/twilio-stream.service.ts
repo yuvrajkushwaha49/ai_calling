@@ -222,6 +222,7 @@ export class TwilioStreamService {
   private async flushTurn(ws: WebSocket, session: StreamSession) {
     if (session.busy || session.closed) return;
     session.busy = true;
+    session.cancelPlay = false;
     const myGen = ++session.flushGen;
     if (session.silenceTimer) {
       clearTimeout(session.silenceTimer);

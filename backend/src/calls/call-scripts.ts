@@ -923,6 +923,48 @@ export function buildGreetingText(options: {
 }
 
 
+export function buildContextualLivenessAck(options: {
+  priorTranscript?: string | null;
+  language?: string;
+  projectName?: string | null;
+}): string {
+  const prior = options.priorTranscript || '';
+  const last = lastAgentLine(prior).trim();
+  const lastLower = last.toLowerCase();
+
+  // If there is an active project in the conversation
+  const projectMatch =
+    options.projectName ||
+    (prior.match(/(palace heights|ncr monarch|future estate|aarya heights|dholera|vvip|saya|apex|godrej|sobha|gulshan|parx laureate|eternia|synq|biigtech|town square|autograph|kutumb)/i)?.[0]);
+
+  if (/2\s*bhk|3\s*bhk|bedroom|configuration/i.test(lastLower)) {
+    return 'Haan ji, main line par hoon, sun rahi hoon! Maine poochha tha ki aap 2 BHK flat dekh rahe hain ya 3 BHK?';
+  }
+  if (/budget|बजट/i.test(lastLower)) {
+    return 'Haan ji sun rahi hoon, boliye! Aapka approximate budget kya hai?';
+  }
+  if (/rehne|end use|investment/i.test(lastLower)) {
+    return 'Haan ji, main line par hoon! Main pooch rahi thi ki aap apne rehne ke liye dekh rahe hain ya investment ke liye?';
+  }
+  if (/possession|ready to move|under construction/i.test(lastLower)) {
+    return 'Haan ji, bilkul aawaz aa rahi hai! Aap ready-to-move dekh rahe hain ya under-construction chalega?';
+  }
+  if (/site visit|visit|weekend|sample flat/i.test(lastLower)) {
+    return 'Haan ji, bilkul sun rahi hoon! Kya aap is weekend sample flat visit plan karna chahenge?';
+  }
+  if (/naam|shubh naam/i.test(lastLower)) {
+    return 'Haan ji, main line par hoon! Main aapka shubh naam jaan sakti hoon?';
+  }
+  if (projectMatch && lastLower.length > 10) {
+    const pName = projectMatch.replace(/\b\w/g, (c) => c.toUpperCase());
+    return `Haan ji, main line par hoon, sun rahi hoon! Hum ${pName} ke baare mein baat kar rahe the — boliye!`;
+  }
+  if (lastLower.length > 12 && !/hello\?/i.test(lastLower)) {
+    return 'Haan ji, bilkul aawaz aa rahi hai! Main line par hoon, aap boliye.';
+  }
+  return 'Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!';
+}
+
 export function detectIntent(text: string): {
   notInterested: boolean;
   callback: boolean;
@@ -1061,7 +1103,10 @@ export function buildFollowUpReply(options: {
     outcome = CallOutcome.NOT_INTERESTED;
   } else if (intent.isGreeting) {
     const hasPriorLead = Boolean(priorLeadText && priorLeadText.trim().length > 3);
-    if (options.isInbound && !hasPriorLead) {
+    const hasRealPriorAgent = Boolean(
+      lastReply && lastReply.length > 5 && !/^(?:agent:\s*)?hello\??$/i.test(lastReply.trim()),
+    );
+    if (options.isInbound && !hasPriorLead && !hasRealPriorAgent) {
       kind = 'greeting_inbound';
     } else {
       kind = 'liveness_ack';
@@ -1160,9 +1205,21 @@ export function buildFollowUpReply(options: {
       'gu-IN': `નમસ્તે! ${options.companyName || 'Saya Group'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
     },
     liveness_ack: {
-      'en-IN': `Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye main aapki kya help kar sakti hoon?`,
-      'hi-IN': `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए मैं आपकी क्या सहायता कर सकती हूँ?`,
-      hinglish: `Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye main aapki kya help kar sakti hoon?`,
+      'en-IN': buildContextualLivenessAck({
+        priorTranscript: options.priorTranscript,
+        language: 'en-IN',
+        projectName: options.knownFacts?.location || null,
+      }),
+      'hi-IN': buildContextualLivenessAck({
+        priorTranscript: options.priorTranscript,
+        language: 'hi-IN',
+        projectName: options.knownFacts?.location || null,
+      }),
+      hinglish: buildContextualLivenessAck({
+        priorTranscript: options.priorTranscript,
+        language: 'hinglish',
+        projectName: options.knownFacts?.location || null,
+      }),
       'mr-IN': `होय, आवाज येतोय! मी ऐकतेय, बोला.`,
       'gu-IN': `હા, અવાજ આવે છે! હું સાંભળું છું, બોલો.`,
     },

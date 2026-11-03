@@ -82,6 +82,11 @@ export declare function buildGreetingText(options: {
     agentVoice?: string;
     companyName?: string | null;
 }): string;
+export declare function buildContextualLivenessAck(options: {
+    priorTranscript?: string | null;
+    language?: string;
+    projectName?: string | null;
+}): string;
 export declare function detectIntent(text: string): {
     notInterested: boolean;
     callback: boolean;

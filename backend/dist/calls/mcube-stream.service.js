@@ -117,6 +117,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             this.logger.log(`[MCube] Caller barge-in on stream=${session.streamId}`);
             session.cancelPlay = true;
             session.agentPlaying = false;
+            session.pendingSegments.clear();
             session.flushGen += 1;
             this.sendClearAudio(ws, session.streamId);
         };
@@ -254,6 +255,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         if (!session.speaking) {
                             session.speaking = true;
                             session.speechStartedAt = now;
+                            session.cancelPlay = false;
                         }
                         session.lastVoiceAt = now;
                         session.rawChunks.push(chunk);
@@ -297,6 +299,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         if (session.busy || session.closed)
             return;
         session.busy = true;
+        session.cancelPlay = false;
         const myGen = ++session.flushGen;
         if (session.silenceTimer) {
             clearTimeout(session.silenceTimer);

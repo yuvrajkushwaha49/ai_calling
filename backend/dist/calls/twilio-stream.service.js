@@ -216,6 +216,7 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
         if (session.busy || session.closed)
             return;
         session.busy = true;
+        session.cancelPlay = false;
         const myGen = ++session.flushGen;
         if (session.silenceTimer) {
             clearTimeout(session.silenceTimer);
