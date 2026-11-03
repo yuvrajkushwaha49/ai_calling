@@ -489,7 +489,7 @@ export class ConversationService {
       !projectId &&
       (!options.phoneLatency ||
         options.isInbound ||
-        /saya|साया|project|property|राज\s*नगर|noida|extension|indirapuram|zion|gold|south|piazza|flat|फ्लैट|bhk|बीएचके/i.test(
+        /palace|पैलेस|rudra|रुद्रा|monarch|मोनार्क|ncr|gh-?02|project|property|noida|extension|greater\s*noida|sec-?1|sector\s*1|flat|फ्लैट|bhk|बीएचके/i.test(
           options.userMessage,
         ))
     ) {
@@ -608,7 +608,7 @@ If they have not named a project yet, ask ONE short question: which project / pr
       options.companyName ||
       resolvedProject?.companyName ||
       resolvedProject?.builder ||
-      'Saya Group';
+      'Palace Heights & NCR Monarch';
     const productName = resolvedProject?.name || 'the property they choose';
 
     const genderLines =
@@ -639,13 +639,13 @@ RULES (HUMAN HELPLINE ADVISOR):
 2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
    - The customer called you. If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge below. Never ignore or dodge their question!
 3) EXPLAIN PROJECTS WHEN ASKED:
-   - If caller asks what projects are available or where flats are: introduce Saya Gold Avenue (Indirapuram) & Saya Zion (Greater Noida West) for residential, Saya South X for commercial.
+   - If caller asks what projects are available or where flats are: introduce Palace Heights by Rudra (GH-02B, Sector 1, Greater Noida West) for 1/2/3/4 BHK with 50:50 payment plan & NCR Monarch (GH-02C, Sector 1, Greater Noida West) for 1/2/3 BHK & commercial shops.
 4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
    - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
      * If caller's name is unknown (${options.lead.name === 'Inbound Caller' || !options.lead.name ? 'Name not known yet' : 'Name is ' + options.lead.name}): "Vaise main aapka shubh naam jaan sakti hoon?"
      * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ' + known.bhk}): "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"
      * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ' + known.purpose}): "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"
-     * If location or timeline unknown: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak shift karne ka plan hai?"
+     * If location or timeline unknown: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak shift karne ka plan hai?"
      * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ' + known.budgetLabel}): "Aapka approximate budget kya hai?"
      * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
 5) Never ask multiple questions in one turn. Answer first + ask ONE single question.
@@ -805,7 +805,7 @@ CRITICAL ANTI-REPETITION & NATURAL DIALOGUE RULES:
      * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'Ask: "Vaise main aapka shubh naam jaan sakti hoon?"'}
      * Configuration: ${known.bhk ? `Known (${known.bhk}) - DO NOT ask BHK again!` : 'Ask: "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"'}
      * Purpose: ${known.purpose ? `Known (${known.purpose}) - DO NOT ask purpose again!` : 'Ask: "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"'}
-     * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Indirapuram prefer karenge ya Greater Noida? Aur kab tak lene ka plan hai?"'}
+     * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak lene ka plan hai?"'}
      * Budget: ${known.budgetLabel ? `Known (${known.budgetLabel})` : 'Ask: "Aapka approximate budget kya hai?"'}
      * Site Visit: If interested in a project, invite them: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
 - Rule: 1-2 short spoken sentences. Answer their query first + ask ONE next question. Never ask multiple questions. Never interrogate.
@@ -1076,17 +1076,14 @@ ${learned ? learned : ''}`;
           })
           .join('\n');
       } else {
-        overview = `- Saya Gold Avenue (Indirapuram, Ghaziabad): Luxury 2, 3, 4 BHK Flats, ₹85 L onwards, Ready to move
-- Saya Zion (Sector 4, Greater Noida West): 2, 3, 4 BHK Apartments, ₹70 L onwards
-- Saya South X (Greater Noida West): High-Street Retail & Commercial, shops & dining
-- Saya Piazza (Sector 131, Noida Expressway): Commercial project`;
+        overview = `- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3, 4 BHK Luxury Apartments, ₹8,700/sq.ft (from ₹60.9 L onwards, 1 BHK fully furnished). 30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months.
+- NCR Monarch (GH-02C, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3 BHK Luxury Apartments & Society Shops, ₹8,888/sq.ft (from ₹64 L onwards). 30,000 sq.ft clubhouse, 70% green area, 4 towers.`;
       }
       this.cachedProjectsOverview = { text: overview, expiresAt: now + 60_000 };
       return overview;
     } catch {
-      return `- Saya Gold Avenue (Indirapuram): Luxury 2, 3, 4 BHK Flats, Ready to move
-- Saya Zion (Greater Noida West): 2, 3, 4 BHK Apartments
-- Saya South X (Greater Noida West): Commercial shops & dining`;
+      return `- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension): 1, 2, 3, 4 BHK Flats, ₹8,700/sq.ft, 50:50 payment plan
+- NCR Monarch (GH-02C, Sector 1, Noida Extension): 1, 2, 3 BHK Flats & Society Shops, ₹8,888/sq.ft`;
     }
   }
 
@@ -1139,6 +1136,11 @@ ${learned ? learned : ''}`;
     const hay = norm(raw);
     // Common spoken aliases
     const hayExpanded = hay
+      .replace(/\brudr[aa]\b/g, 'rudra')
+      .replace(/\bpalace\s*heights?\b/g, 'palace heights')
+      .replace(/\bncr\s*monarch\b/g, 'ncr monarch')
+      .replace(/\bmonarc?h\b/g, 'monarch')
+      .replace(/\bsec(?:tor)?\s*1\b/g, 'sector 1')
       .replace(/\bsayaa?\b/g, 'saya')
       .replace(/\bsaa\s*ya\b/g, 'saya')
       .replace(/\braaj\b/g, 'raj')
@@ -1164,6 +1166,19 @@ ${learned ? learned : ''}`;
         if (parts.length && hits / parts.length >= 0.6) {
           score = Math.max(score, Math.floor(t.length * (hits / parts.length)));
         }
+      }
+      // Project specific match boosts
+      if (
+        /palace|पैलेस|rudra|रुद्रा|gh-?02b/i.test(hayExpanded) &&
+        /palace|rudra/i.test(p.name)
+      ) {
+        score = Math.max(score, 50);
+      }
+      if (
+        /monarch|मोनार्क|ncr|gh-?02c/i.test(hayExpanded) &&
+        /monarch/i.test(p.name)
+      ) {
+        score = Math.max(score, 50);
       }
       // Saya Raj Nagar Extension special case
       if (

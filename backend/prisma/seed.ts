@@ -1,4 +1,14 @@
-import { PrismaClient, UserRole, LeadStatus, LeadSource, PropertyType, CallOutcome, AppointmentStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  LeadStatus,
+  LeadSource,
+  PropertyType,
+  CallOutcome,
+  AppointmentStatus,
+  KnowledgeSourceType,
+  KnowledgeStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -30,31 +40,50 @@ async function main() {
 
   const project1 = await prisma.project.create({
     data: {
-      name: 'Skyline Residences',
-      location: 'Mumbai, Bandra West',
-      builder: 'Prestige Builders',
+      name: 'PALACE HEIGHTS BY RUDRA',
+      companyName: 'Rudra Buildwell',
+      builder: 'Mukesh Khurana (Rudra Buildwell)',
+      location: 'GH-02B, Sector 1, Noida Extension, Greater Noida West',
       propertyType: PropertyType.APARTMENT,
-      startingPrice: 8500000,
-      endingPrice: 15000000,
-      possessionDate: new Date('2027-06-01'),
-      reraNumber: 'MH/RERA/2024/001',
-      amenities: ['Swimming Pool', 'Gym', 'Clubhouse', '24/7 Security', 'Parking'],
-      description: 'Premium 2 & 3 BHK apartments with sea-facing views in Bandra West.',
+      startingPrice: 6090000,
+      endingPrice: 19879500,
+      possessionDate: new Date('2027-05-01'),
+      reraNumber: 'UPRERAPRJ11124',
+      amenities: [
+        '30,000 Sq.Ft Clubhouse',
+        '70% Green Area',
+        '2-Side Open Plot',
+        '22 Society Shops',
+        'Fully Furnished 1 BHK',
+        'Power Backup & 24/7 Security',
+        'Dedicated Car Parking',
+      ],
+      description:
+        'Palace Heights by Rudra in GH-02B, Sector 1, Greater Noida West spans 8.27 acres with 10 towers (G+22 floors, 1434 units, 70% green area, 30,000 sq.ft clubhouse). Configurations: 1 BHK (700 sq.ft fully furnished), 2 BHK (1015, 1088 sq.ft), 3 BHK (1341, 1405, 1540, 1568 sq.ft), 4 BHK (1841, 2285 sq.ft). BSP ₹8,700/sq.ft. 50:50 payment plan. 3 towers ready for possession in 6 months.',
     },
   });
 
   const project2 = await prisma.project.create({
     data: {
-      name: 'Green Valley Villas',
-      location: 'Pune, Hinjewadi',
-      builder: 'Green Homes Ltd',
-      propertyType: PropertyType.VILLA,
-      startingPrice: 12000000,
-      endingPrice: 25000000,
-      possessionDate: new Date('2026-12-01'),
-      reraNumber: 'MH/RERA/2024/002',
-      amenities: ['Garden', 'Private Pool', 'Smart Home', 'EV Charging'],
-      description: 'Luxury villas with modern amenities in Hinjewadi IT corridor.',
+      name: 'NCR MONARCH',
+      companyName: 'JSS Buildcon Pvt Ltd',
+      builder: 'Ankit Sharma & PK Sharma (JSS Buildcon)',
+      location: 'GH-02C, Sector 1, Noida Extension, Greater Noida West',
+      propertyType: PropertyType.APARTMENT,
+      startingPrice: 6399360,
+      endingPrice: 16087280,
+      possessionDate: new Date('2027-12-01'),
+      reraNumber: 'UPRERAPRJ11125',
+      amenities: [
+        '30,000 Sq.Ft Clubhouse',
+        '70% Green Area',
+        '25 Society Commercial Shops',
+        'Commercial Banquet Hall',
+        'Swimming Pool & Gym',
+        'Covered Parking',
+      ],
+      description:
+        'NCR Monarch in GH-02C, Sector 1, Greater Noida West spans 3.75 acres across 4 towers with 671 units. 1 BHK (720-1010 sq.ft), 2 BHK (1075, 1255), 3 BHK (1345-1810), and G+2 commercial shops & banquet hall. BSP ₹8,888/sq.ft.',
     },
   });
 
@@ -65,11 +94,13 @@ async function main() {
         phone: '+91 98765 43210',
         email: 'rajesh@email.com',
         source: LeadSource.WEBSITE,
-        budget: 10000000,
+        budget: 9000000,
         propertyType: PropertyType.APARTMENT,
         status: LeadStatus.QUALIFIED,
         projectId: project1.id,
-        aiSummary: 'Interested in 3BHK sea-facing unit. Budget flexible up to 1.2Cr. Ready for site visit.',
+        bhkPreference: '2BHK',
+        preferredLocation: 'Sector 1 Noida Extension',
+        aiSummary: 'Interested in 2BHK 1015 sq.ft in Palace Heights. Budget around 90L.',
       },
     }),
     prisma.lead.create({
@@ -78,46 +109,13 @@ async function main() {
         phone: '+91 87654 32109',
         email: 'priya@email.com',
         source: LeadSource.REFERRAL,
-        budget: null,
-        propertyType: PropertyType.VILLA,
+        budget: 12000000,
+        propertyType: PropertyType.APARTMENT,
         status: LeadStatus.CONTACTED,
         projectId: project2.id,
-      },
-    }),
-    prisma.lead.create({
-      data: {
-        name: 'Amit Patel',
-        phone: '+91 76543 21098',
-        email: 'amit@email.com',
-        source: LeadSource.SOCIAL_MEDIA,
-        budget: null,
-        propertyType: PropertyType.APARTMENT,
-        status: LeadStatus.NEW,
-      },
-    }),
-    prisma.lead.create({
-      data: {
-        name: 'Sneha Reddy',
-        phone: '+91 65432 10987',
-        email: 'sneha@email.com',
-        source: LeadSource.COLD_CALL,
-        budget: 20000000,
-        propertyType: PropertyType.PENTHOUSE,
-        status: LeadStatus.NEGOTIATION,
-        projectId: project1.id,
-        aiSummary: 'High-value lead. Interested in penthouse. Negotiating on payment plan.',
-      },
-    }),
-    prisma.lead.create({
-      data: {
-        name: 'Vikram Singh',
-        phone: '+91 54321 09876',
-        email: 'vikram@email.com',
-        source: LeadSource.WALK_IN,
-        budget: 9500000,
-        propertyType: PropertyType.APARTMENT,
-        status: LeadStatus.CONVERTED,
-        projectId: project1.id,
+        bhkPreference: '3BHK',
+        preferredLocation: 'Noida Extension',
+        aiSummary: 'Looking for 3BHK 1345 sq.ft in NCR Monarch.',
       },
     }),
   ]);
@@ -126,12 +124,11 @@ async function main() {
     await prisma.call.create({
       data: {
         leadId: lead.id,
-        duration: Math.floor(Math.random() * 600) + 60,
-        transcript: `Agent: Hello, this is calling from Real Estate CRM regarding your property inquiry.\nLead: Yes, I'm interested in learning more.\nAgent: Great! Let me share the available options...`,
-        summary: `Lead ${lead.name} showed interest. Discussed budget and preferences. Follow-up scheduled.`,
-        recordingUrl: 'https://example.com/recordings/sample.mp3',
+        projectId: lead.projectId,
+        duration: 180,
+        transcript: `Agent: Hello, this is calling from property helpline regarding your enquiry.\nLead: Yes, I was looking for a 2BHK flat in Noida Extension.\nAgent: Great! We have Palace Heights by Rudra and NCR Monarch in Sector 1.`,
+        summary: `Lead ${lead.name} interested in Sector 1 Noida Extension projects.`,
         outcome: CallOutcome.CONNECTED,
-        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
       },
     });
   }
@@ -141,42 +138,23 @@ async function main() {
       leadId: leads[0].id,
       projectId: project1.id,
       date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      time: '10:00 AM',
+      time: '11:00 AM',
       status: AppointmentStatus.SCHEDULED,
+      notes: 'Site visit for Palace Heights sample flat',
     },
-  });
-
-  await prisma.appointment.create({
-    data: {
-      leadId: leads[1].id,
-      projectId: project2.id,
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      time: '2:00 PM',
-      status: AppointmentStatus.SCHEDULED,
-    },
-  });
-
-  await prisma.activity.createMany({
-    data: [
-      { leadId: leads[0].id, userId: agent.id, type: 'CALL_LOGGED', description: 'Outbound AI call completed' },
-      { leadId: leads[0].id, userId: agent.id, type: 'STATUS_CHANGED', description: 'Status changed to QUALIFIED' },
-      { leadId: leads[3].id, userId: admin.id, type: 'NOTE_ADDED', description: 'Negotiation in progress' },
-      { leadId: leads[4].id, userId: agent.id, type: 'STATUS_CHANGED', description: 'Lead converted!' },
-    ],
   });
 
   await prisma.aiAgentSettings.create({
     data: {
-      agentName: 'Aria - Real Estate Assistant',
-      agentVoice: 'shubh',
+      agentName: 'Neha - Property Advisor',
+      agentVoice: 'rachel',
       language: 'en-IN',
-      systemPrompt: `You are an AI sales calling agent for real estate. Qualify leads, answer from knowledge, and move toward a site visit or meeting. Speak calm Hinglish. Soft acks only. Never say "वाह". Keep replies short.`,
-      workingHours: { start: '09:00', end: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'] },
-      knowledgeBase: ['project-brochure-skyline.pdf', 'pricing-sheet-2024.pdf'],
+      systemPrompt: `You are an AI property advisor for Palace Heights by Rudra and NCR Monarch in Sector 1, Greater Noida West / Noida Extension. Answer customer queries with accuracy from Knowledge and guide them toward a site visit.`,
+      workingHours: { start: '09:00', end: '19:00', days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
     },
   });
 
-  console.log('✅ Seed completed');
+  console.log('✅ Seed completed successfully with Palace Heights by Rudra and NCR Monarch');
   console.log('   Admin: admin@realestatecrm.com / password123');
   console.log('   Agent: agent@realestatecrm.com / password123');
 }

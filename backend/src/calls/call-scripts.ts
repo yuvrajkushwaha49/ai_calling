@@ -577,7 +577,7 @@ export function extractFactsFromText(raw: string): ConversationFacts {
   }
   const cities =
     text.match(
-      /(?:^|[\s,./])(saya\s*raj\s*nagar(?:\s*extension)?|saya\s*rajnagar|mumbai|pune|thane|navi mumbai|andheri|borivali|powai|wakad|hinjewadi|baner|kothrud|hadapsar|ahmedabad|surat|vadodara|rajkot|nagpur|nashik|delhi|noida|gurgaon|gurugram|bangalore|bengaluru|hyderabad|chennai|kolkata|jaipur|indore|bhopal|lucknow|ghaziabad|साया\s*राज\s*नगर(?:\s*एक्सटेंशन)?|मुंबई|पुणे|दिल्ली|नोएडा|नॉएडा|गुड़गांव|गुरुग्राम|बैंगलोर|हैदराबाद|चेन्नई|कोलकाता|अहमदाबाद|सूरत|गाजियाबाद)(?=$|[\s,./!?])/i,
+      /(?:^|[\s,./])(saya\s*raj\s*nagar(?:\s*extension)?|saya\s*rajnagar|mumbai|pune|thane|navi mumbai|andheri|borivali|powai|wakad|hinjewadi|baner|kothrud|hadapsar|ahmedabad|surat|vadodara|rajkot|nagpur|nashik|noida extension|greater noida west|greater noida|sector 1|sec-1|delhi|noida|gurgaon|gurugram|bangalore|bengaluru|hyderabad|chennai|kolkata|jaipur|indore|bhopal|lucknow|ghaziabad|साया\s*राज\s*नगर(?:\s*एक्सटेंशन)?|मुंबई|पुणे|नोएडा एक्सटेंशन|ग्रेटर नोएडा|सेक्टर 1|दिल्ली|नोएडा|नॉएडा|गुड़गांव|गुरुग्राम|बैंगलोर|हैदराबाद|चेन्नई|कोलकाता|अहमदाबाद|सूरत|गाजियाबाद)(?=$|[\s,./!?])/i,
     );
   if (!facts.location && cities?.[1]) {
     const raw = cities[1];
