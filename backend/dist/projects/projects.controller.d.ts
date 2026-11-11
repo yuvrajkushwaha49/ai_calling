@@ -13,9 +13,9 @@ export declare class ProjectsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         propertyType: import("@prisma/client").$Enums.PropertyType;
         companyName: string;
-        location: string;
         builder: string;
         startingPrice: number;
         endingPrice: number;
@@ -40,11 +40,11 @@ export declare class ProjectsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            leadId: string;
             status: import("@prisma/client").$Enums.AppointmentStatus;
             notes: string | null;
             projectId: string | null;
             date: Date;
-            leadId: string;
             time: string;
             googleEventId: string | null;
             googleLink: string | null;
@@ -55,9 +55,9 @@ export declare class ProjectsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            budget: number | null;
             phone: string;
             source: import("@prisma/client").$Enums.LeadSource;
-            budget: number | null;
             propertyType: import("@prisma/client").$Enums.PropertyType | null;
             status: import("@prisma/client").$Enums.LeadStatus;
             notes: string | null;
@@ -82,9 +82,9 @@ export declare class ProjectsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         propertyType: import("@prisma/client").$Enums.PropertyType;
         companyName: string;
-        location: string;
         builder: string;
         startingPrice: number;
         endingPrice: number;
@@ -99,9 +99,9 @@ export declare class ProjectsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         propertyType: import("@prisma/client").$Enums.PropertyType;
         companyName: string;
-        location: string;
         builder: string;
         startingPrice: number;
         endingPrice: number;
@@ -116,9 +116,9 @@ export declare class ProjectsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         propertyType: import("@prisma/client").$Enums.PropertyType;
         companyName: string;
-        location: string;
         builder: string;
         startingPrice: number;
         endingPrice: number;
@@ -133,9 +133,9 @@ export declare class ProjectsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         propertyType: import("@prisma/client").$Enums.PropertyType;
         companyName: string;
-        location: string;
         builder: string;
         startingPrice: number;
         endingPrice: number;

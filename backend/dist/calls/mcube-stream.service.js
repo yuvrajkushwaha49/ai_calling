@@ -53,6 +53,9 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const ai_service_1 = require("../ai/ai.service");
 const voice_service_1 = require("../voice/voice.service");
 const conversation_service_1 = require("../conversation/conversation.service");
+const customer_memory_service_1 = require("../memory/customer-memory.service");
+const fact_extractor_service_1 = require("../memory/fact-extractor.service");
+const question_validator_service_1 = require("../memory/question-validator.service");
 const client_1 = require("@prisma/client");
 const call_scripts_1 = require("./call-scripts");
 const phone_audio_1 = require("./phone-audio");
@@ -62,14 +65,20 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     ai;
     voice;
     conversation;
+    customerMemory;
+    factExtractor;
+    questionValidator;
     logger = new common_1.Logger(McubeStreamService_1.name);
     uploadsDir = path.join(process.cwd(), 'uploads', 'audio');
-    constructor(config, prisma, ai, voice, conversation) {
+    constructor(config, prisma, ai, voice, conversation, customerMemory, factExtractor, questionValidator) {
         this.config = config;
         this.prisma = prisma;
         this.ai = ai;
         this.voice = voice;
         this.conversation = conversation;
+        this.customerMemory = customerMemory;
+        this.factExtractor = factExtractor;
+        this.questionValidator = questionValidator;
         fs.mkdirSync(this.uploadsDir, { recursive: true });
     }
     attachClient(ws, callIdHint, queryParams) {
@@ -427,7 +436,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 120);
                         if (!cleaned)
                             return;
-                        this.logger.log(`[MCube] 🤖 AI Speaking: "${cleaned}"`);
+                        let validatedSentence = cleaned;
+                        if (session.memory) {
+                            const check = this.questionValidator.validateAndSanitize(session.memory, cleaned);
+                            if (check.wasRepeated) {
+                                this.logger.log(`[MCube] 🛡️ Anti-Repetition Sanitized: "${cleaned}" ➔ "${check.sanitized}"`);
+                            }
+                            validatedSentence = check.sanitized;
+                        }
+                        if (!validatedSentence)
+                            return;
+                        this.logger.log(`[MCube] 🤖 AI Speaking: "${validatedSentence}"`);
                         ttsChain = ttsChain
                             .then(async () => {
                             if (aborted() || ws.readyState !== ws.OPEN)
@@ -477,6 +496,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             session.lastAgentText = replyText;
             this.logger.log(`[MCube] 💬 Turn #${session.turnCount + 1}: Caller: "${userMessage}" ➔ AI: "${replyText}"`);
             session.turnCount += 1;
+            if (session.callId) {
+                void this.customerMemory.recordTurn(session.callId, {
+                    role: 'assistant',
+                    content: replyText,
+                    timestamp: Date.now(),
+                });
+                void this.customerMemory.updateCallMemory(session.callId, (st) => {
+                    st.lastAssistantResponse = replyText;
+                });
+                void this.customerMemory.persistMemoryToDb(session.callId);
+            }
             session.transcript = [
                 session.transcript || call?.transcript || '',
                 `Lead: ${userMessage}`,
@@ -623,6 +653,9 @@ exports.McubeStreamService = McubeStreamService = McubeStreamService_1 = __decor
         prisma_service_1.PrismaService,
         ai_service_1.AiService,
         voice_service_1.VoiceService,
-        conversation_service_1.ConversationService])
+        conversation_service_1.ConversationService,
+        customer_memory_service_1.CustomerMemoryService,
+        fact_extractor_service_1.FactExtractorService,
+        question_validator_service_1.QuestionValidatorService])
 ], McubeStreamService);
 //# sourceMappingURL=mcube-stream.service.js.map

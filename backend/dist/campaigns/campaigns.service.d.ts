@@ -41,9 +41,9 @@ export declare class CampaignsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            location: string;
             propertyType: import("@prisma/client").$Enums.PropertyType;
             companyName: string;
-            location: string;
             builder: string;
             startingPrice: number;
             endingPrice: number;
@@ -70,10 +70,10 @@ export declare class CampaignsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import("@prisma/client").$Enums.QueueItemStatus;
             leadId: string;
-            campaignId: string;
             callId: string | null;
+            status: import("@prisma/client").$Enums.QueueItemStatus;
+            campaignId: string;
             attempts: number;
             nextAttempt: Date | null;
             lastError: string | null;
@@ -112,9 +112,9 @@ export declare class CampaignsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            location: string;
             propertyType: import("@prisma/client").$Enums.PropertyType;
             companyName: string;
-            location: string;
             builder: string;
             startingPrice: number;
             endingPrice: number;
@@ -141,10 +141,10 @@ export declare class CampaignsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import("@prisma/client").$Enums.QueueItemStatus;
             leadId: string;
-            campaignId: string;
             callId: string | null;
+            status: import("@prisma/client").$Enums.QueueItemStatus;
+            campaignId: string;
             attempts: number;
             nextAttempt: Date | null;
             lastError: string | null;

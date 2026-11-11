@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CustomerMemoryService } from '../memory/customer-memory.service';
 import {
   CreateLeadDto,
   UpdateLeadDto,
@@ -10,7 +11,10 @@ import {
 
 @Injectable()
 export class LeadsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private customerMemory: CustomerMemoryService,
+  ) {}
 
   async findAll(query: LeadQueryDto) {
     const where: Prisma.LeadWhereInput = {};
@@ -87,16 +91,24 @@ export class LeadsService {
 
   async update(id: string, dto: UpdateLeadDto) {
     await this.findOne(id);
-    return this.prisma.lead.update({
+    const lead = await this.prisma.lead.update({
       where: { id },
       data: dto,
       include: { project: { select: { id: true, name: true } } },
     });
+    if (lead?.phone) {
+      void this.customerMemory.invalidateCustomerCache(lead.phone);
+    }
+    return lead;
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.lead.delete({ where: { id } });
+    const existing = await this.findOne(id);
+    const res = await this.prisma.lead.delete({ where: { id } });
+    if (existing?.phone) {
+      void this.customerMemory.invalidateCustomerCache(existing.phone);
+    }
+    return res;
   }
 
   async addNote(leadId: string, userId: string, dto: CreateLeadNoteDto) {

@@ -21,7 +21,7 @@ export declare class AiController {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         knowledgeBase: import("@prisma/client/runtime/library").JsonValue | null;
         isActive: boolean;
@@ -57,7 +57,7 @@ export declare class AiController {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         knowledgeBase: import("@prisma/client/runtime/library").JsonValue | null;
         isActive: boolean;
@@ -77,7 +77,7 @@ export declare class AiController {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         knowledgeBase: import("@prisma/client/runtime/library").JsonValue | null;
         isActive: boolean;

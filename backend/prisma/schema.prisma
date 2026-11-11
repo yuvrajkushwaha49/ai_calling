@@ -200,6 +200,7 @@ model Lead {
   activities   Activity[]
   queueItems   CampaignQueueItem[]
   feedback     CallFeedback[]
+  conversationMemories ConversationMemory[]
 }
 
 model LeadNote {
@@ -253,6 +254,29 @@ model Call {
   campaign   CallCampaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   feedback   CallFeedback[]
   queueItems CampaignQueueItem[]
+  conversationMemory ConversationMemory?
+}
+
+model ConversationMemory {
+  id                  String   @id @default(cuid())
+  leadId              String?
+  callId              String?  @unique
+  customerFacts       Json?
+  askedQuestions      Json?
+  answeredFields      Json?
+  pendingQuestion     String?
+  lastIntent          String?
+  conversationStage   String?
+  conversationSummary String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  call Call? @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([callId])
+  @@index([createdAt])
 }
 
 model Appointment {

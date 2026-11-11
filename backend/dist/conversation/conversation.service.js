@@ -8,6 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var ConversationService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConversationService = void 0;
@@ -18,6 +21,7 @@ const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const llm_service_1 = require("../llm/llm.service");
 const knowledge_service_1 = require("../knowledge/knowledge.service");
+const customer_memory_service_1 = require("../memory/customer-memory.service");
 const call_scripts_1 = require("../calls/call-scripts");
 const opener_bank_1 = require("../calls/opener-bank");
 const place_names_1 = require("../elevenlabs/place-names");
@@ -86,11 +90,13 @@ let ConversationService = ConversationService_1 = class ConversationService {
     prisma;
     llm;
     knowledge;
+    customerMemory;
     logger = new common_1.Logger(ConversationService_1.name);
-    constructor(prisma, llm, knowledge) {
+    constructor(prisma, llm, knowledge, customerMemory) {
         this.prisma = prisma;
         this.llm = llm;
         this.knowledge = knowledge;
+        this.customerMemory = customerMemory;
     }
     detectLanguage(text, fallback) {
         const t = text || '';
@@ -1164,14 +1170,22 @@ ${learned ? learned : ''}`;
         if (projectId) {
             data.project = { connect: { id: projectId } };
         }
-        return this.prisma.lead.update({ where: { id: leadId }, data });
+        const updatedLead = await this.prisma.lead.update({ where: { id: leadId }, data });
+        if (updatedLead?.phone) {
+            if (this.customerMemory) {
+                void this.customerMemory.invalidateCustomerCache(updatedLead.phone);
+            }
+        }
+        return updatedLead;
     }
 };
 exports.ConversationService = ConversationService;
 exports.ConversationService = ConversationService = ConversationService_1 = __decorate([
     (0, common_1.Injectable)(),
+    __param(3, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         llm_service_1.LlmService,
-        knowledge_service_1.KnowledgeService])
+        knowledge_service_1.KnowledgeService,
+        customer_memory_service_1.CustomerMemoryService])
 ], ConversationService);
 //# sourceMappingURL=conversation.service.js.map

@@ -32,10 +32,10 @@ export declare class FeedbackService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import("@prisma/client").$Enums.FeedbackStatus;
-        projectId: string | null;
         leadId: string | null;
         callId: string;
+        status: import("@prisma/client").$Enums.FeedbackStatus;
+        projectId: string | null;
         rating: import("@prisma/client").$Enums.FeedbackRating;
         approvedAt: Date | null;
         createdById: string | null;
@@ -61,10 +61,10 @@ export declare class FeedbackService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import("@prisma/client").$Enums.FeedbackStatus;
-        projectId: string | null;
         leadId: string | null;
         callId: string;
+        status: import("@prisma/client").$Enums.FeedbackStatus;
+        projectId: string | null;
         rating: import("@prisma/client").$Enums.FeedbackRating;
         approvedAt: Date | null;
         createdById: string | null;
@@ -81,10 +81,10 @@ export declare class FeedbackService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import("@prisma/client").$Enums.FeedbackStatus;
-        projectId: string | null;
         leadId: string | null;
         callId: string;
+        status: import("@prisma/client").$Enums.FeedbackStatus;
+        projectId: string | null;
         rating: import("@prisma/client").$Enums.FeedbackRating;
         approvedAt: Date | null;
         createdById: string | null;

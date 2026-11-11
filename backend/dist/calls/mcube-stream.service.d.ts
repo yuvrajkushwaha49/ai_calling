@@ -4,6 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { VoiceService } from '../voice/voice.service';
 import { ConversationService } from '../conversation/conversation.service';
+import { CustomerMemoryService } from '../memory/customer-memory.service';
+import { FactExtractorService } from '../memory/fact-extractor.service';
+import { QuestionValidatorService } from '../memory/question-validator.service';
+import { ConversationState } from '../memory/memory.types';
 export type McubeMediaFormat = {
     encoding?: string;
     sampleRate?: number;
@@ -46,6 +50,7 @@ type McubeSession = {
     turnCount: number;
     transcript: string;
     pendingSegments: Set<string>;
+    memory?: ConversationState;
 };
 export declare class McubeStreamService {
     private config;
@@ -53,9 +58,12 @@ export declare class McubeStreamService {
     private ai;
     private voice;
     private conversation;
+    private customerMemory;
+    private factExtractor;
+    private questionValidator;
     private readonly logger;
     private readonly uploadsDir;
-    constructor(config: ConfigService, prisma: PrismaService, ai: AiService, voice: VoiceService, conversation: ConversationService);
+    constructor(config: ConfigService, prisma: PrismaService, ai: AiService, voice: VoiceService, conversation: ConversationService, customerMemory: CustomerMemoryService, factExtractor: FactExtractorService, questionValidator: QuestionValidatorService);
     attachClient(ws: WebSocket, callIdHint?: string, queryParams?: Record<string, string>): void;
     private flushTurn;
     private synthesizeForSession;

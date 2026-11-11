@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ExternalLink, FileText, Sparkles } from 'lucide-react';
+import { ExternalLink, FileText, Sparkles, Brain, UserCheck, CheckCircle2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,7 +71,22 @@ export default function CallsPage() {
                     key={call.id}
                     className="border-b border-border/60 last:border-0 hover:bg-muted/30"
                   >
-                    <td className="px-5 py-3.5 font-medium lg:px-6">{call.lead?.name}</td>
+                    <td className="px-5 py-3.5 font-medium lg:px-6">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5">
+                          {call.lead?.name || 'Unknown'}
+                          {call.conversationMemory?.isReturning && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800 dark:bg-violet-900/50 dark:text-violet-200"
+                              title="Returning customer recognized from memory"
+                            >
+                              <Brain className="h-2.5 w-2.5" />
+                              Returning
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5 lg:px-6">{call.lead?.phone}</td>
                     <td className="px-5 py-3.5 tabular-nums lg:px-6">
                       {formatDuration(call.duration)}
@@ -178,6 +193,65 @@ export default function CallsPage() {
                       AI Call Summary
                     </div>
                     <p className="text-sm text-foreground/90">{selectedCall.summary}</p>
+                  </div>
+                )}
+
+                {selectedCall.conversationMemory && (
+                  <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-semibold text-violet-700 dark:text-violet-300">
+                        <Brain className="h-4 w-4" />
+                        Customer Memory & Anti-Repetition State
+                      </div>
+                      <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-900/50 dark:text-violet-200">
+                        {selectedCall.conversationMemory.isReturning
+                          ? 'Returning Customer'
+                          : 'New Customer'}
+                      </span>
+                    </div>
+
+                    {selectedCall.conversationMemory.facts &&
+                      typeof selectedCall.conversationMemory.facts === 'object' && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                          {Object.entries(
+                            selectedCall.conversationMemory.facts as Record<string, any>,
+                          )
+                            .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+                            .map(([k, v]) => (
+                              <div
+                                key={k}
+                                className="rounded bg-background/80 p-2 border border-border/40"
+                              >
+                                <span className="font-medium text-muted-foreground capitalize">
+                                  {k.replace(/([A-Z])/g, ' $1')}:
+                                </span>{' '}
+                                <span className="font-semibold text-foreground">
+                                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                    {selectedCall.conversationMemory.answeredFields &&
+                      selectedCall.conversationMemory.answeredFields.length > 0 && (
+                        <div className="mt-3">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Remembered Answers (Never Re-asked):
+                          </span>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {selectedCall.conversationMemory.answeredFields.map((field) => (
+                              <span
+                                key={field}
+                                className="inline-flex items-center gap-1 rounded bg-background px-2 py-0.5 text-[11px] font-medium text-foreground border border-border/50"
+                              >
+                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                {field}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
 

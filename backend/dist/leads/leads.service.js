@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LeadsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const customer_memory_service_1 = require("../memory/customer-memory.service");
 let LeadsService = class LeadsService {
     prisma;
-    constructor(prisma) {
+    customerMemory;
+    constructor(prisma, customerMemory) {
         this.prisma = prisma;
+        this.customerMemory = customerMemory;
     }
     async findAll(query) {
         const where = {};
@@ -87,15 +90,23 @@ let LeadsService = class LeadsService {
     }
     async update(id, dto) {
         await this.findOne(id);
-        return this.prisma.lead.update({
+        const lead = await this.prisma.lead.update({
             where: { id },
             data: dto,
             include: { project: { select: { id: true, name: true } } },
         });
+        if (lead?.phone) {
+            void this.customerMemory.invalidateCustomerCache(lead.phone);
+        }
+        return lead;
     }
     async remove(id) {
-        await this.findOne(id);
-        return this.prisma.lead.delete({ where: { id } });
+        const existing = await this.findOne(id);
+        const res = await this.prisma.lead.delete({ where: { id } });
+        if (existing?.phone) {
+            void this.customerMemory.invalidateCustomerCache(existing.phone);
+        }
+        return res;
     }
     async addNote(leadId, userId, dto) {
         await this.findOne(leadId);
@@ -117,6 +128,7 @@ let LeadsService = class LeadsService {
 exports.LeadsService = LeadsService;
 exports.LeadsService = LeadsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        customer_memory_service_1.CustomerMemoryService])
 ], LeadsService);
 //# sourceMappingURL=leads.service.js.map

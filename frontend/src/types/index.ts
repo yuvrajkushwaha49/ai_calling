@@ -110,6 +110,21 @@ export interface Activity {
   user?: Pick<User, 'id' | 'name'> | null;
 }
 
+export interface ConversationMemoryItem {
+  id: string;
+  leadId?: string | null;
+  phone: string;
+  isReturning: boolean;
+  facts?: Record<string, unknown> | null;
+  answeredFields?: string[] | null;
+  askedQuestions?: string[] | null;
+  conversationSummary?: string | null;
+  conversationStage?: string | null;
+  lastAssistantResponse?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Call {
   id: string;
   leadId: string;
@@ -127,6 +142,7 @@ export interface Call {
   lead?: Pick<Lead, 'id' | 'name' | 'phone' | 'email'> & {
     project?: Pick<Project, 'id' | 'name'> | null;
   };
+  conversationMemory?: ConversationMemoryItem | null;
 }
 
 export interface Appointment {

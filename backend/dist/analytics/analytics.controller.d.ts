@@ -20,10 +20,10 @@ export declare class AnalyticsController {
         } & {
             id: string;
             createdAt: Date;
-            description: string;
-            leadId: string;
-            userId: string | null;
             type: string;
+            leadId: string;
+            description: string;
+            userId: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
         })[];
         leadSources: {

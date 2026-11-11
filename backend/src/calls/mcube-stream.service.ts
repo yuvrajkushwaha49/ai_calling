@@ -8,6 +8,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { VoiceService } from '../voice/voice.service';
 import { ConversationService } from '../conversation/conversation.service';
+import { CustomerMemoryService } from '../memory/customer-memory.service';
+import { FactExtractorService } from '../memory/fact-extractor.service';
+import { QuestionValidatorService } from '../memory/question-validator.service';
+import { ConversationState } from '../memory/memory.types';
+import { maskPhoneNumber } from '../memory/phone-utils';
 import { CallOutcome, CallStatus } from '@prisma/client';
 import { buildFollowUpReply } from './call-scripts';
 import {
@@ -65,6 +70,7 @@ type McubeSession = {
   turnCount: number;
   transcript: string;
   pendingSegments: Set<string>;
+  memory?: ConversationState;
 };
 
 @Injectable()
@@ -78,6 +84,9 @@ export class McubeStreamService {
     private ai: AiService,
     private voice: VoiceService,
     private conversation: ConversationService,
+    private customerMemory: CustomerMemoryService,
+    private factExtractor: FactExtractorService,
+    private questionValidator: QuestionValidatorService,
   ) {
     fs.mkdirSync(this.uploadsDir, { recursive: true });
   }
@@ -515,7 +524,19 @@ export class McubeStreamService {
             }
             const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
             if (!cleaned) return;
-            this.logger.log(`[MCube] 🤖 AI Speaking: "${cleaned}"`);
+
+            // Validate against repeated questions using live customer memory
+            let validatedSentence = cleaned;
+            if (session.memory) {
+              const check = this.questionValidator.validateAndSanitize(session.memory, cleaned);
+              if (check.wasRepeated) {
+                this.logger.log(`[MCube] 🛡️ Anti-Repetition Sanitized: "${cleaned}" ➔ "${check.sanitized}"`);
+              }
+              validatedSentence = check.sanitized;
+            }
+            if (!validatedSentence) return;
+
+            this.logger.log(`[MCube] 🤖 AI Speaking: "${validatedSentence}"`);
             ttsChain = ttsChain
               .then(async () => {
                 if (aborted() || ws.readyState !== ws.OPEN) return;
@@ -575,6 +596,19 @@ export class McubeStreamService {
       session.lastAgentText = replyText;
       this.logger.log(`[MCube] 💬 Turn #${session.turnCount + 1}: Caller: "${userMessage}" ➔ AI: "${replyText}"`);
       session.turnCount += 1;
+
+      // Update call memory turn and persist to DB
+      if (session.callId) {
+        void this.customerMemory.recordTurn(session.callId, {
+          role: 'assistant',
+          content: replyText,
+          timestamp: Date.now(),
+        });
+        void this.customerMemory.updateCallMemory(session.callId, (st: ConversationState) => {
+          st.lastAssistantResponse = replyText;
+        });
+        void this.customerMemory.persistMemoryToDb(session.callId);
+      }
       session.transcript = [
         session.transcript || call?.transcript || '',
         `Lead: ${userMessage}`,

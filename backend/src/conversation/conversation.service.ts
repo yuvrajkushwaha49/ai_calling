@@ -1,8 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { CallOutcome, LeadStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ConversationState } from '../memory/memory.types';
+import { CustomerMemoryService } from '../memory/customer-memory.service';
 import {
   buildFollowUpReply,
   compactToneGuide,
@@ -140,6 +142,7 @@ export class ConversationService {
     private prisma: PrismaService,
     private llm: LlmService,
     private knowledge: KnowledgeService,
+    @Optional() private customerMemory?: CustomerMemoryService,
   ) {}
 
   detectLanguage(text: string, fallback?: string): DetectedLanguage {
@@ -1477,6 +1480,10 @@ ${learned ? learned : ''}`;
       data.project = { connect: { id: projectId } };
     }
 
-    return this.prisma.lead.update({ where: { id: leadId }, data });
+    const updatedLead = await this.prisma.lead.update({ where: { id: leadId }, data });
+    if (updatedLead?.phone) {
+      if (this.customerMemory) { void this.customerMemory.invalidateCustomerCache(updatedLead.phone); }
+    }
+    return updatedLead;
   }
 }

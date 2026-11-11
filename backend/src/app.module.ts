@@ -16,6 +16,8 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { RedisModule } from './redis/redis.module';
+import { MemoryModule } from './memory/memory.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -24,6 +26,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    RedisModule,
+    MemoryModule,
     AuditModule,
     LlmModule,
     AuthModule,

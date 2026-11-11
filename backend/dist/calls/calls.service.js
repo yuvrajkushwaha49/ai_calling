@@ -87,6 +87,7 @@ let CallsService = CallsService_1 = class CallsService {
         return this.prisma.call.findMany({
             include: {
                 lead: { select: { id: true, name: true, phone: true, email: true } },
+                conversationMemory: true,
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -95,6 +96,7 @@ let CallsService = CallsService_1 = class CallsService {
         const call = await this.prisma.call.findUnique({
             where: { id },
             include: {
+                conversationMemory: true,
                 lead: {
                     include: {
                         project: {

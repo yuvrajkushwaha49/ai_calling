@@ -29,7 +29,7 @@ export declare class AiService {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: Prisma.JsonValue | null;
         knowledgeBase: Prisma.JsonValue | null;
         isActive: boolean;
@@ -81,7 +81,7 @@ export declare class AiService {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: Prisma.JsonValue | null;
         knowledgeBase: Prisma.JsonValue | null;
         isActive: boolean;
@@ -99,7 +99,7 @@ export declare class AiService {
         language: string;
         tone: string;
         llmModel: string;
-        systemPrompt: string;
+        systemPrompt: string | null;
         workingHours: Prisma.JsonValue | null;
         knowledgeBase: Prisma.JsonValue | null;
         isActive: boolean;

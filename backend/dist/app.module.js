@@ -25,6 +25,8 @@ const knowledge_module_1 = require("./knowledge/knowledge.module");
 const conversation_module_1 = require("./conversation/conversation.module");
 const campaigns_module_1 = require("./campaigns/campaigns.module");
 const feedback_module_1 = require("./feedback/feedback.module");
+const redis_module_1 = require("./redis/redis.module");
+const memory_module_1 = require("./memory/memory.module");
 const jwt_auth_guard_1 = require("./auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const global_exception_filter_1 = require("./common/filters/global-exception.filter");
@@ -36,6 +38,8 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             prisma_module_1.PrismaModule,
+            redis_module_1.RedisModule,
+            memory_module_1.MemoryModule,
             audit_module_1.AuditModule,
             llm_module_1.LlmModule,
             auth_module_1.AuthModule,

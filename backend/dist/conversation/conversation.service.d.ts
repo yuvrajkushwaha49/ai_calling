@@ -2,6 +2,7 @@ import { CallOutcome, LeadStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { CustomerMemoryService } from '../memory/customer-memory.service';
 import { type OpenerStyle } from '../calls/opener-bank';
 export declare function pullSpokenSentences(buffer: string, options?: {
     force?: boolean;
@@ -16,8 +17,9 @@ export declare class ConversationService {
     private prisma;
     private llm;
     private knowledge;
+    private customerMemory?;
     private readonly logger;
-    constructor(prisma: PrismaService, llm: LlmService, knowledge: KnowledgeService);
+    constructor(prisma: PrismaService, llm: LlmService, knowledge: KnowledgeService, customerMemory?: CustomerMemoryService | undefined);
     detectLanguage(text: string, fallback?: string): DetectedLanguage;
     private isAmbiguousLanguageCue;
     resolveReplyLanguage(options: {
@@ -188,9 +190,9 @@ export declare class ConversationService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        budget: number | null;
         phone: string;
         source: import("@prisma/client").$Enums.LeadSource;
-        budget: number | null;
         propertyType: import("@prisma/client").$Enums.PropertyType | null;
         status: import("@prisma/client").$Enums.LeadStatus;
         notes: string | null;

@@ -1,0 +1,35 @@
+import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
+import { ConversationState, ConversationTurn, CustomerProfileCache } from './memory.types';
+import { ExtractedTurnFacts } from './fact-extractor.service';
+export declare class CustomerMemoryService {
+    private readonly prisma;
+    private readonly redis;
+    private readonly logger;
+    private readonly localMemoryFallback;
+    private readonly localHistoryFallback;
+    private readonly CUSTOMER_PROFILE_TTL;
+    private readonly CALL_MEMORY_TTL;
+    private readonly CALL_HISTORY_TTL;
+    private readonly CUSTOMER_SUMMARY_TTL;
+    private readonly MAX_HISTORY_TURNS;
+    constructor(prisma: PrismaService, redis: RedisService);
+    lookupCustomer(phone: string, leadIdHint?: string | null): Promise<CustomerProfileCache | null>;
+    initCallMemory(callId: string, phone?: string | null, leadIdHint?: string | null): Promise<ConversationState>;
+    acquireLeadLock(leadId: string, ttlSeconds?: number): Promise<string | null>;
+    releaseLeadLock(leadId: string, token: string): Promise<boolean>;
+    initializeCallMemory(callId: string, rawPhone?: string | null, leadIdHint?: string | null): Promise<ConversationState>;
+    getCallMemory(callId: string): Promise<ConversationState | null>;
+    updateCallMemory(callId: string, updater: (state: ConversationState) => void): Promise<ConversationState>;
+    applyExtractedFacts(callId: string, extracted: ExtractedTurnFacts): Promise<ConversationState>;
+    recordTurn(callId: string, turn: ConversationTurn): Promise<void>;
+    getRecentHistory(callId: string, limit?: number): Promise<ConversationTurn[]>;
+    persistMemoryToDb(callId: string): Promise<void>;
+    invalidateCustomerCache(rawPhone?: string | null): Promise<void>;
+    private getCustomerProfileFromRedis;
+    private saveCustomerProfileToRedis;
+    private getCustomerSummaryFromRedis;
+    private saveCustomerSummaryToRedis;
+    private saveCallMemoryToRedis;
+    private fetchCustomerProfileFromDb;
+}
