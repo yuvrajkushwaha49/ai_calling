@@ -400,6 +400,47 @@ export class ConversationService {
     const shortCueEarly =
       isShortAffirmation(options.userMessage) ||
       isShortDecline(options.userMessage);
+    const company =
+      options.companyName ||
+      options.lead.project?.companyName ||
+      options.lead.project?.builder ||
+      resolvedProject?.companyName ||
+      resolvedProject?.builder ||
+      'Saya Group';
+
+    const rawLeadName = (options.lead.name || '').trim();
+    const isGenericLeadName =
+      !rawLeadName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawLeadName);
+    const rawMemName = (options.memory?.customer?.name || '').trim();
+    const isGenericMemName =
+      !rawMemName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawMemName);
+
+    const realCustomerName =
+      (!isGenericMemName && rawMemName) ||
+      (!isGenericLeadName && rawLeadName) ||
+      null;
+
+    const knownBhk =
+      options.memory?.customer?.bhk ||
+      options.lead.bhkPreference ||
+      null;
+    const knownProject =
+      options.memory?.customer?.interestedProjects?.[0] ||
+      resolvedProject?.name ||
+      null;
+    const pastRequirement = knownBhk
+      ? `${knownBhk} फ्लैट`
+      : knownProject
+        ? `${knownProject} प्रोजेक्ट`
+        : '';
+
+    const isReturning = Boolean(
+      options.memory?.isReturningCustomer ||
+      Boolean(realCustomerName) ||
+      Boolean(knownBhk) ||
+      ((options.lead as any).calls && (options.lead as any).calls.length > 0),
+    );
+
     const liveTurn = Boolean(options.stream || options.phoneLatency);
     // Fast path: clear intents / short yes-no — skip RAG + Gemini entirely
     const scriptFast =
@@ -437,29 +478,48 @@ export class ConversationService {
         extractFactsFromText(leadOnlyText(options.priorTranscript)),
         extractFactsFromText(options.userMessage),
       );
-      const fallback = buildFollowUpReply({
-        transcript: options.userMessage,
-        leadName: options.lead.name,
-        language: this.scriptLanguage(replyLang),
-        tone: options.tone || 'friendly',
-        priorTranscript: options.priorTranscript,
-        knownFacts: {
-          budgetLabel: knownFast.budgetLabel,
-          location: knownFast.location,
-          interested: knownFast.interested,
-          bhk: knownFast.bhk,
-          possession: knownFast.possession,
-          visitDay: knownFast.visitDay,
-        },
-        speechGender,
-        agentVoice: options.agentVoice,
-        agentName: options.agentName,
-        companyName: options.companyName,
-        isInbound: options.isInbound,
-      });
-      let replyText = this.stripBannedPhrases(
-        this.fixGenderedSpeech(fallback.text, speechGender),
-      );
+      let replyText = '';
+      const priorLeadText = leadOnlyText(options.priorTranscript);
+      const isStartOfCall = !priorLeadText || priorLeadText.trim().length < 3;
+
+      if (options.isInbound && intentEarly.isGreeting) {
+        if (isStartOfCall) {
+          if (realCustomerName) {
+            replyText = pastRequirement
+              ? `नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?`
+              : `नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?`;
+          } else {
+            replyText = `हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?`;
+          }
+        } else {
+          // Mid-call "Hello" or "Awaz aa rahi hai"
+          replyText = `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!`;
+        }
+      } else {
+        const fallback = buildFollowUpReply({
+          transcript: options.userMessage,
+          leadName: realCustomerName || options.lead.name,
+          language: this.scriptLanguage(replyLang),
+          tone: options.tone || 'friendly',
+          priorTranscript: options.priorTranscript,
+          knownFacts: {
+            budgetLabel: knownFast.budgetLabel,
+            location: knownFast.location,
+            interested: knownFast.interested,
+            bhk: knownFast.bhk,
+            possession: knownFast.possession,
+            visitDay: knownFast.visitDay,
+          },
+          speechGender,
+          agentVoice: options.agentVoice,
+          agentName: options.agentName,
+          companyName: company,
+          isInbound: options.isInbound,
+        });
+        replyText = this.stripBannedPhrases(
+          this.fixGenderedSpeech(fallback.text, speechGender),
+        );
+      }
       if (options.stream && options.onSentence) {
         void Promise.resolve(options.onSentence(replyText));
       }
@@ -615,11 +675,6 @@ If they have not named a project yet, ask ONE short question: which project / pr
       .slice(options.phoneLatency ? -4 : -8)
       .join('\n');
 
-    const company =
-      options.companyName ||
-      resolvedProject?.companyName ||
-      resolvedProject?.builder ||
-      'Palace Heights & NCR Monarch';
     const productName = resolvedProject?.name || 'the property they choose';
 
     const genderLines =
@@ -630,39 +685,6 @@ If they have not named a project yet, ask ONE short question: which project / pr
     const projectsOverview = options.isInbound
       ? await this.getProjectsOverview()
       : '';
-
-    const rawLeadName = (options.lead.name || '').trim();
-    const isGenericLeadName =
-      !rawLeadName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawLeadName);
-    const rawMemName = (options.memory?.customer?.name || '').trim();
-    const isGenericMemName =
-      !rawMemName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawMemName);
-
-    const realCustomerName =
-      (!isGenericMemName && rawMemName) ||
-      (!isGenericLeadName && rawLeadName) ||
-      null;
-
-    const knownBhk =
-      options.memory?.customer?.bhk ||
-      options.lead.bhkPreference ||
-      null;
-    const knownProject =
-      options.memory?.customer?.interestedProjects?.[0] ||
-      resolvedProject?.name ||
-      null;
-    const pastRequirement = knownBhk
-      ? `${knownBhk} फ्लैट`
-      : knownProject
-        ? `${knownProject} प्रोजेक्ट`
-        : '';
-
-    const isReturning = Boolean(
-      options.memory?.isReturningCustomer ||
-      Boolean(realCustomerName) ||
-      Boolean(knownBhk) ||
-      ((options.lead as any).calls && (options.lead as any).calls.length > 0),
-    );
 
     // Phone: think + answer customer first (LLM); script only if LLM fails
     const system = options.phoneLatency
@@ -1548,7 +1570,7 @@ ${learned ? learned : ''}`;
       ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
     };
 
-    if (callerName && callerName.length >= 2 && !/^(?:caller|unknown|inbound|guest)$/i.test(callerName)) {
+    if (callerName && callerName.length >= 2 && !/^(?:caller|unknown|inbound|guest|lead\s*\d+)$/i.test(callerName)) {
       data.name = callerName;
     }
     if (projectId) {

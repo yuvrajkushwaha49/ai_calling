@@ -385,6 +385,18 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 session.busy = false;
                 return;
             }
+            if (session.callId) {
+                void this.customerMemory.recordTurn(session.callId, {
+                    role: 'user',
+                    content: userMessage,
+                    timestamp: Date.now(),
+                });
+                const extracted = this.factExtractor.extractFromUtterance(userMessage);
+                if (extracted && Object.keys(extracted.facts).length > 0) {
+                    session.memory = await this.customerMemory.applyExtractedFacts(session.callId, extracted);
+                    this.logger.log(`[MCube] 🧠 Extracted customer facts: ${JSON.stringify(extracted.facts)}`);
+                }
+            }
             const call = context?.[0];
             const settings = context?.[1] || (await this.ai.getSettings());
             const callId = call?.id || session.callId;
