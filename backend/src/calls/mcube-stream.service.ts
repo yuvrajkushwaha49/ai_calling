@@ -196,15 +196,35 @@ export class McubeStreamService {
               include: { lead: { include: { project: true } } },
             });
 
+            // Extract caller phone from MCube start payload, queryParams, or callId prefix (e.g. 95657630891794459512)
+            const rawStart = (msg.start as any) || {};
+            let callerPhone =
+              rawStart.callerNumber ||
+              rawStart.from ||
+              rawStart.caller ||
+              rawStart.customerNumber ||
+              rawStart.customParameters?.callerNumber ||
+              rawStart.customParameters?.from ||
+              queryParams?.from ||
+              queryParams?.caller ||
+              queryParams?.callerNumber ||
+              queryParams?.phone ||
+              '';
+
+            // MCube attaches caller 10-digit phone to the beginning of callId (e.g. 95657630891794459512)
+            if (!callerPhone && session.callId) {
+              const prefix10 = session.callId.slice(0, 10);
+              if (/^[6-9]\d{9}$/.test(prefix10)) {
+                callerPhone = prefix10;
+              }
+            }
+
+            if (!callerPhone) {
+              callerPhone = 'Inbound Caller';
+            }
+
             // If call doesn't exist, this is an incoming call from a customer on our MCube number
             if (!call) {
-              const callerPhone =
-                queryParams?.from ||
-                queryParams?.caller ||
-                queryParams?.callerNumber ||
-                queryParams?.phone ||
-                'Inbound Caller';
-
               let lead =
                 callerPhone && callerPhone !== 'Inbound Caller'
                   ? await this.prisma.lead.findFirst({
@@ -216,10 +236,15 @@ export class McubeStreamService {
               if (!lead) {
                 lead = await this.prisma.lead.create({
                   data: {
-                    name: 'Inbound Caller',
+                    name:
+                      callerPhone !== 'Inbound Caller'
+                        ? `Lead ${callerPhone.slice(-4)}`
+                        : 'Inbound Caller',
                     phone:
                       callerPhone !== 'Inbound Caller'
-                        ? callerPhone
+                        ? callerPhone.startsWith('+')
+                          ? callerPhone
+                          : `+91${callerPhone.slice(-10)}`
                         : 'Unknown',
                     source: 'COLD_CALL',
                     status: 'NEW',
@@ -244,7 +269,7 @@ export class McubeStreamService {
                 include: { lead: { include: { project: true } } },
               });
               this.logger.log(
-                `[MCube] Created Inbound Call record id=${call.id} for lead=${lead.name}`,
+                `[MCube] Inbound Call id=${call.id} matched lead=${lead.name} phone=${lead.phone}`,
               );
             } else {
               await this.prisma.call.update({
@@ -255,6 +280,21 @@ export class McubeStreamService {
                   status: CallStatus.IN_PROGRESS,
                 },
               });
+            }
+
+            // Initialize structured customer memory in Redis & DB
+            const activePhone =
+              call?.lead?.phone ||
+              (callerPhone !== 'Inbound Caller' ? callerPhone : '');
+            session.memory = await this.customerMemory.initializeCallMemory(
+              session.callId,
+              activePhone,
+              call?.leadId,
+            );
+            if (session.memory?.isReturningCustomer) {
+              this.logger.log(
+                `[MCube] 🌟 Recognized Returning Customer: ${session.memory.customer.name || 'Caller'} (BHK: ${session.memory.customer.bhk || 'N/A'}, Budget: ${session.memory.customer.budgetLabel || 'N/A'}, Calls: ${session.memory.previousCallCount})`,
+              );
             }
 
             // Natural human telecaller: start with a soft, warm "Hello?"
@@ -542,7 +582,7 @@ export class McubeStreamService {
               .then(async () => {
                 if (aborted() || ws.readyState !== ws.OPEN) return;
                 const audioBuffer = await this.synthesizeForSession(
-                  cleaned,
+                  validatedSentence,
                   session,
                   settings,
                 );
