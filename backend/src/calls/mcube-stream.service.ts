@@ -499,6 +499,7 @@ export class McubeStreamService {
           lead,
           userMessage,
           priorTranscript: liveTranscript,
+          memory: session.memory || (await this.customerMemory.getCallMemory(session.callId)),
           agentName: settings?.agentName || 'Neha',
           companyName:
             (settings as { companyName?: string })?.companyName ||

@@ -365,6 +365,21 @@ let ConversationService = ConversationService_1 = class ConversationService {
             bhk: options.lead.bhkPreference || undefined,
             timeline: options.lead.purchaseTimeline || undefined,
         }, (0, call_scripts_1.extractFactsFromText)(leadOnlyText(options.priorTranscript)), (0, call_scripts_1.extractFactsFromText)(options.userMessage));
+        if (options.memory?.customer) {
+            const c = options.memory.customer;
+            if (c.bhk && !known.bhk)
+                known.bhk = c.bhk;
+            if (c.budgetLabel && !known.budgetLabel)
+                known.budgetLabel = c.budgetLabel;
+            else if (c.budget && !known.budgetLabel)
+                known.budgetLabel = `${c.budget >= 10000000 ? `${(c.budget / 10000000).toFixed(1)} Cr` : `${Math.round(c.budget / 100000)} Lakh`}`;
+            if (c.purpose && !known.purpose)
+                known.purpose = c.purpose;
+            if (c.location && !known.location)
+                known.location = c.location;
+            if (c.timeline && !known.timeline)
+                known.timeline = c.timeline;
+        }
         if (!known.budgetLabel) {
             const asked = (0, call_scripts_1.priorAgentAsked)(options.priorTranscript);
             const inferred = (0, call_scripts_1.inferBudgetFromShortReply)(options.userMessage, {
@@ -512,6 +527,11 @@ Answer thoughtfully in one short spoken reply.`
                     short_summary: resolvedProject
                         ? 'live call — project identified'
                         : 'live call — discover project first',
+                    customer_status: options.memory?.isReturningCustomer
+                        ? `Returning customer (called ${options.memory.previousCallCount || 1} times before). PREVIOUS CONTEXT: ${options.memory.conversationSummary || 'Interested in property'}. Greet as returning caller without re-asking basic details.`
+                        : 'New caller.',
+                    answered_fields: (options.memory?.answeredFields || []).join(', ') || 'none yet',
+                    known_memory: options.memory ? JSON.stringify(options.memory.customer) : 'none',
                 });
             })()}
 

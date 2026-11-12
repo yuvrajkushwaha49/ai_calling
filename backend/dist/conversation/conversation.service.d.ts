@@ -2,6 +2,7 @@ import { CallOutcome, LeadStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ConversationState } from '../memory/memory.types';
 import { CustomerMemoryService } from '../memory/customer-memory.service';
 import { type OpenerStyle } from '../calls/opener-bank';
 export declare function pullSpokenSentences(buffer: string, options?: {
@@ -145,6 +146,7 @@ export declare class ConversationService {
         onTextDelta?: (delta: string) => void;
         onSentence?: (sentence: string) => void | Promise<void>;
         isInbound?: boolean;
+        memory?: ConversationState | null;
     }): Promise<{
         replyText: string;
         languageDetected: "hinglish" | "hi-IN" | "en-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";

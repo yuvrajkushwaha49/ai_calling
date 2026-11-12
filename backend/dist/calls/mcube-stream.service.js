@@ -412,6 +412,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     lead,
                     userMessage,
                     priorTranscript: liveTranscript,
+                    memory: session.memory || (await this.customerMemory.getCallMemory(session.callId)),
                     agentName: settings?.agentName || 'Neha',
                     companyName: settings?.companyName ||
                         lead.project?.companyName ||

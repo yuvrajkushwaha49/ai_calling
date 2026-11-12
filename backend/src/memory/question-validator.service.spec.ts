@@ -85,3 +85,4 @@ describe('QuestionValidatorService', () => {
     expect(result.sanitizedText).toBe(sentence);
   });
 });
+

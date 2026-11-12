@@ -47,3 +47,4 @@ export function buildIoRedisOptions(config: RedisConfigOptions): RedisOptions {
 
   return options;
 }
+
