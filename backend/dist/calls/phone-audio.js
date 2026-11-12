@@ -53,7 +53,7 @@ function pcm16ToWav(pcm, sampleRate) {
     header.writeUInt32LE(dataSize, 40);
     return asNodeBuffer(Buffer.concat([header, body]));
 }
-function truncateForPhone(text, max = 85) {
+function truncateForPhone(text, max = 280) {
     const clean = String(text || '').replace(/\s+/g, ' ').trim();
     if (clean.length <= max)
         return clean;

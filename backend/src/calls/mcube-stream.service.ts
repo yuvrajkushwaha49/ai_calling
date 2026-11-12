@@ -580,7 +580,7 @@ export class McubeStreamService {
               clearTimeout(fillerTimeout);
               fillerTimeout = null;
             }
-            const cleaned = truncateForPhone(String(sentence || '').trim(), 120);
+            const cleaned = truncateForPhone(String(sentence || '').trim(), 300);
             if (!cleaned) return;
 
             // Validate against repeated questions using live customer memory
@@ -689,7 +689,7 @@ export class McubeStreamService {
 
       // If streaming didn't output audio (e.g. scripted fallback), send full audio
       if (!streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
-        const cleanReply = truncateForPhone(replyText, 140);
+        const cleanReply = truncateForPhone(replyText, 300);
         const audioBuffer = await this.synthesizeForSession(
           cleanReply,
           session,

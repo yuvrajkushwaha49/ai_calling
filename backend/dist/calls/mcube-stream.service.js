@@ -472,7 +472,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                             clearTimeout(fillerTimeout);
                             fillerTimeout = null;
                         }
-                        const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 120);
+                        const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 300);
                         if (!cleaned)
                             return;
                         let validatedSentence = cleaned;
@@ -564,7 +564,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             })
                 .catch(() => undefined);
             if (!streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
-                const cleanReply = (0, phone_audio_1.truncateForPhone)(replyText, 140);
+                const cleanReply = (0, phone_audio_1.truncateForPhone)(replyText, 300);
                 const audioBuffer = await this.synthesizeForSession(cleanReply, session, settings);
                 if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
                     await this.sendPlayAudio(ws, session, audioBuffer);

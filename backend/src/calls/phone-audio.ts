@@ -46,7 +46,7 @@ export function pcm16ToWav(pcm: Buffer, sampleRate: number): Buffer {
   return asNodeBuffer(Buffer.concat([header, body]));
 }
 
-export function truncateForPhone(text: string, max = 85): string {
+export function truncateForPhone(text: string, max = 280): string {
   const clean = String(text || '').replace(/\s+/g, ' ').trim();
   if (clean.length <= max) return clean;
   const cut = clean.slice(0, max);
