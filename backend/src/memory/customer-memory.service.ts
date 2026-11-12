@@ -119,6 +119,8 @@ export class CustomerMemoryService {
     const isReturning = Boolean(
       customerProfile &&
         (customerProfile.previousCallCount > 0 ||
+          Boolean(customerProfile.name) ||
+          Boolean(customerProfile.bhk) ||
           (customerProfile.leadId && customerProfile.leadStatus !== 'NEW')),
     );
 
@@ -544,7 +546,14 @@ export class CustomerMemoryService {
 
       return {
         leadId: lead.id,
-        name: lead.name && !/inbound/i.test(lead.name) ? lead.name : null,
+        name:
+          lead.name &&
+          !/inbound/i.test(lead.name) &&
+          !/^lead\s*\d+/i.test(lead.name) &&
+          !/unknown/i.test(lead.name) &&
+          !/guest/i.test(lead.name)
+            ? lead.name
+            : null,
         phone: normalizedPhone || lead.phone,
         purpose: null,
         bhk: lead.bhkPreference || null,

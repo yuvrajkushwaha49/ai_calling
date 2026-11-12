@@ -631,6 +631,39 @@ If they have not named a project yet, ask ONE short question: which project / pr
       ? await this.getProjectsOverview()
       : '';
 
+    const rawLeadName = (options.lead.name || '').trim();
+    const isGenericLeadName =
+      !rawLeadName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawLeadName);
+    const rawMemName = (options.memory?.customer?.name || '').trim();
+    const isGenericMemName =
+      !rawMemName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawMemName);
+
+    const realCustomerName =
+      (!isGenericMemName && rawMemName) ||
+      (!isGenericLeadName && rawLeadName) ||
+      null;
+
+    const knownBhk =
+      options.memory?.customer?.bhk ||
+      options.lead.bhkPreference ||
+      null;
+    const knownProject =
+      options.memory?.customer?.interestedProjects?.[0] ||
+      resolvedProject?.name ||
+      null;
+    const pastRequirement = knownBhk
+      ? `${knownBhk} फ्लैट`
+      : knownProject
+        ? `${knownProject} प्रोजेक्ट`
+        : '';
+
+    const isReturning = Boolean(
+      options.memory?.isReturningCustomer ||
+      Boolean(realCustomerName) ||
+      Boolean(knownBhk) ||
+      ((options.lead as any).calls && (options.lead as any).calls.length > 0),
+    );
+
     // Phone: think + answer customer first (LLM); script only if LLM fails
     const system = options.phoneLatency
       ? options.isInbound
@@ -642,22 +675,39 @@ The caller dialed your helpline to ask questions about properties, projects, loc
 AVAILABLE PROJECTS & INVENTORY:
 ${projectsOverview}
 
+CUSTOMER STATUS:
+${isReturning
+  ? `RETURNING CUSTOMER${realCustomerName ? ` (${realCustomerName} ji)` : ''}.
+- Customer has called or enquired before. Known Requirement: ${pastRequirement || 'Interested in property'}.
+- CRITICAL: NEVER re-ask for customer's name, BHK, or details already known!
+- Use the personalized opening pitch below.`
+  : `NEW CALLER (First time enquiry, no previous records).`}
+
 RULES (HUMAN HELPLINE ADVISOR):
-1) GREETING / IDENTITY / LIVENESS:
-   - If caller says "Hello" / "Haan ji" at start: "Haan ji Namaste! ${company} real estate helpline me aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
-   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
-   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+1) GREETING / IDENTITY / FIRST TURN OPENER (IN DEVANAGARI HINDI):
+   - When caller says "Hello" / "Haan ji" / "Namaste" / "Kaun" at start of call:
+${realCustomerName
+  ? `     * RECOGNIZED RETURNING CLIENT: Name is "${realCustomerName}".
+       Greet warmly by name in Devanagari Hindi!
+       ${pastRequirement
+         ? `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?"`}`
+  : `     * NEW CALLER (NO DATABASE RECORD / UNKNOWN NAME):
+       PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+}
+   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या सहायता कर सकती हूँ?"
+   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!"
 2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
    - The customer called you. If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge below. Never ignore or dodge their question!
 3) EXPLAIN PROJECTS WHEN ASKED:
    - If caller asks what projects are available or where flats are: introduce Palace Heights by Rudra (GH-02B, Sector 1, Greater Noida West) for 1/2/3/4 BHK with 50:50 payment plan & NCR Monarch (GH-02C, Sector 1, Greater Noida West) for 1/2/3 BHK & commercial shops.
 4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
    - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
-     * If caller's name is unknown (${options.lead.name === 'Inbound Caller' || !options.lead.name ? 'Name not known yet' : 'Name is ' + options.lead.name}): "Vaise main aapka shubh naam jaan sakti hoon?"
-     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ' + known.bhk}): "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"
-     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ' + known.purpose}): "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"
-     * If location or timeline unknown: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak shift karne ka plan hai?"
-     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ' + known.budgetLabel}): "Aapka approximate budget kya hai?"
+     * If caller's name is unknown (${!realCustomerName ? 'Name not known yet' : 'Name is ALREADY KNOWN (' + realCustomerName + ') - NEVER ASK NAME'}): "वैसे मैं आपका शुभ नाम जान सकती हूँ?"
+     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ALREADY KNOWN (' + known.bhk + ') - NEVER ASK BHK'}): "आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?"
+     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ALREADY KNOWN (' + known.purpose + ') - NEVER ASK PURPOSE'}): "आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?"
+     * If location or timeline unknown: "आप सेक्टर 1 नोएडा एक्सटेंशन में देख रहे हैं? और कब तक shift karne ka plan hai?"
+     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ALREADY KNOWN (' + known.budgetLabel + ') - NEVER ASK BUDGET'}): "आपका लगभग बजट कितना है?"
      * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
 5) Never ask multiple questions in one turn. Answer first + ask ONE single question.
 6) If checking details: "Ji main dekh rahi hoon, ek second..."
@@ -693,7 +743,7 @@ Answer thoughtfully in one short spoken reply.`
               : buildDefaultSalesAgentPrompt();
           return fillSalesAgentPrompt(template, {
             company_name: company,
-            customer_name: options.lead.name || 'ji',
+            customer_name: realCustomerName ? `${realCustomerName} जी` : 'कस्टमर',
             product_name: productName,
             lead_source: options.isInbound ? 'helpline call' : 'enquiry',
             previous_interaction: recentTranscript
@@ -718,11 +768,12 @@ Answer thoughtfully in one short spoken reply.`
             short_summary: resolvedProject
               ? 'live call — project identified'
               : 'live call — discover project first',
-            customer_status: options.memory?.isReturningCustomer
-              ? `Returning customer (called ${options.memory.previousCallCount || 1} times before). PREVIOUS CONTEXT: ${options.memory.conversationSummary || 'Interested in property'}. Greet as returning caller without re-asking basic details.`
-              : 'New caller.',
+            customer_status: isReturning
+              ? `Returning customer${realCustomerName ? ` (${realCustomerName} ji)` : ''}. Called before. PREVIOUS CONTEXT: ${pastRequirement || options.memory?.conversationSummary || 'Interested in property'}. GREET AS RETURNING CALLER USING THE PERSONALIZED PITCH.`
+              : 'New caller without previous records.',
             answered_fields: (options.memory?.answeredFields || []).join(', ') || 'none yet',
             known_memory: options.memory ? JSON.stringify(options.memory.customer) : 'none',
+            known_requirement: pastRequirement || 'प्रॉपर्टी',
           });
         })()}
 
@@ -735,10 +786,19 @@ ${speechGender === 'female'
   : 'You are male. Hindi first-person: बोल रहा हूँ, समझ गया, सकता हूँ, चाहता हूँ, बताऊँगा, करूँगा. NEVER female forms.'}
 Tone: ${compactToneGuide(options.tone || 'friendly')}
 CRITICAL HUMAN TELECALLER RULES:
-1) GREETING / IDENTITY / LIVENESS HANDLING:
-   - If customer says "Hello" / "Haan ji" at start: Greet warmly: "Haan ji Namaste! ${company} real estate helpline mein aapka swagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"
-   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" mid-call: Reassure immediately: "Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!"
-   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: "Ji Namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?"
+1) GREETING / IDENTITY / FIRST TURN OPENER (MANDATORY IN DEVANAGARI):
+   - When customer says "Hello" / "Haan ji" / "Namaste" / "Kaun" at start of call:
+${realCustomerName
+  ? `     * RECOGNIZED RETURNING CLIENT: Name is "${realCustomerName}".
+       Greet warmly by name in Devanagari Hindi!
+       ${pastRequirement
+         ? `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?"`}`
+  : `     * NEW CALLER (NO DATABASE RECORD / UNKNOWN NAME):
+       PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+}
+   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" MID-CALL: Reassure immediately: "हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!"
+   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: "जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या मदद कर सकती हूँ?"
    - If asked for project/property details: Give facts simply; if looking up: "Ji main dekh rahi hoon, ek second..."
 2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
 3) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.
