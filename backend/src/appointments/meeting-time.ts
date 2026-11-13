@@ -257,15 +257,38 @@ function normalizeRelativeDayText(raw: string): string {
 }
 
 const DAY_AFTER_RE =
-  /\b(?:parso|परसों|day\s+after\s+tomorrow)\b/i;
+  /\bparso\b|परसों|\bday\s+after\s+tomorrow\b/i;
 /** Plain tomorrow/kal — must NOT match inside "day after tomorrow". */
 const TOMORROW_RE =
-  /(?<!day\s+after\s+)\b(?:kal|कल|tomorrow|tmrw|tomoro)\b/i;
-const TODAY_RE = /\b(?:aaj|ajj|aj|आज|today|tdy)\b/i;
+  /(?<!day\s+after\s+)(?:\b(?:kal|tomorrow|tmrw|tomoro)\b|कल)/i;
+const TODAY_RE = /\b(?:aaj|ajj|aj|today|tdy)\b|आज/i;
+const WEEKEND_RE = /\b(?:weekend|weekends)\b|वीकेंड|हफ्ते\s*के\s*अंत/i;
 
 function isSlotStillAhead(slot: ParsedMeetingSlot, cushionMs = 5 * 60_000): boolean {
   const ms = Date.parse(slot.startIso);
   return Number.isFinite(ms) && ms > Date.now() + cushionMs;
+}
+
+function getWeekendSlot(
+  base: ReturnType<typeof nowIst>,
+  hm: { hour24: number; minute: number },
+): ParsedMeetingSlot {
+  if (base.dow === 6) {
+    // Today is Saturday
+    const today = addIstDays(base, 0, hm.hour24, hm.minute);
+    if (isSlotStillAhead(today)) return today;
+    return addIstDays(base, 1, hm.hour24, hm.minute); // Sunday
+  }
+  if (base.dow === 0) {
+    // Today is Sunday
+    const today = addIstDays(base, 0, hm.hour24, hm.minute);
+    if (isSlotStillAhead(today)) return today;
+    const nextSat = nextWeekday(0, 6, base);
+    return buildSlot(nextSat.y, nextSat.monthIndex, nextSat.d, hm.hour24, hm.minute);
+  }
+  // Monday to Friday -> upcoming Saturday
+  const sat = nextWeekday(base.dow, 6, base);
+  return buildSlot(sat.y, sat.monthIndex, sat.d, hm.hour24, hm.minute);
 }
 
 /** Prefer today if that time is still upcoming; otherwise tomorrow. */
@@ -298,7 +321,7 @@ function addIstDays(
 /** True if text looks like scheduling a meeting / visit / callback with time. */
 export function looksLikeMeetingRequest(text: string): boolean {
   const t = normalizeRelativeDayText(text || '');
-  return /meeting|meet|appointment|visit|site visit|callback|call back|slot|book|fix|कल|tomorrow|parso|परसों|day after tomorrow|aaj|today|saturday|sunday|monday|tuesday|wednesday|thursday|friday|शनिवार|रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|baje|bajey|bje|बजे|\d{1,2}\s*(am|pm|:)|morning|evening|subah|shaam|सुबह|शाम/i.test(
+  return /meeting|meet|appointment|visit|site\s*visit|callback|call back|slot|book|fix|weekend|weekends|वीकेंड|हफ्ते\s*के\s*अंत|सैंपल|sample|विजिट|साइट|कल|tomorrow|parso|परसों|day after tomorrow|aaj|today|saturday|sunday|monday|tuesday|wednesday|thursday|friday|शनिवार|रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|baje|bajey|bje|बजे|\d{1,2}\s*(am|pm|:)|morning|evening|subah|shaam|सुबह|शाम|dekhne|aaunga|aate hain/i.test(
     t,
   );
 }
@@ -314,13 +337,29 @@ export function parseMeetingSlot(
     `${priorTranscript || ''}\n${userMessage || ''}`.trim(),
   );
   if (!text) return null;
+
+  const focus = normalizeRelativeDayText(userMessage || text);
+  const priorTail = normalizeRelativeDayText(
+    (priorTranscript || '').split('\n').slice(-8).join('\n'),
+  );
+
+  // If customer explicitly declined or said no/not interested, do not book
+  if (
+    /(?:nahi|nahin|no\b|not\s+interested|nahi\s+chahiye|cancel|manna)/i.test(focus) &&
+    !/(?:kyun|kyu)\s+nahi/i.test(focus)
+  ) {
+    return null;
+  }
+
   const base = nowIst();
 
-  // Need a time somewhere in the latest user line preferably
-  const focus = normalizeRelativeDayText(userMessage || text);
+  // Find explicit time or default to 11:00 AM if meeting/visit intent exists
   const hm =
     parseHourMinute(focus) ||
-    parseHourMinute(text.slice(-120));
+    parseHourMinute(text.slice(-120)) ||
+    (looksLikeMeetingRequest(focus) || looksLikeMeetingRequest(priorTail)
+      ? { hour24: 11, minute: 0 }
+      : null);
   if (!hm) return null;
 
   // Absolute date in the latest message first (before weekday from prior)
@@ -357,9 +396,6 @@ export function parseMeetingSlot(
   }
 
   // Relative days — LATEST user line wins (agent "shaam ya kal?" must not force kal)
-  const priorTail = normalizeRelativeDayText(
-    (priorTranscript || '').split('\n').slice(-8).join('\n'),
-  );
   const priorIsChoiceOffer =
     /(?:shaam|शाम|evening|aaj|आज).{0,40}(?:ya|या|or|phir|फिर).{0,20}(?:kal|कल|tomorrow)/i.test(
       priorTail,
@@ -389,6 +425,26 @@ export function parseMeetingSlot(
     return addIstDays(base, 1, hm.hour24, hm.minute);
   }
 
+  // Weekday in latest message
+  for (const [name, dow] of Object.entries(DAY_MAP)) {
+    const re = /[\u0900-\u097F]/.test(name)
+      ? new RegExp(name, 'i')
+      : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
+    if (re.test(focus)) {
+      if (base.dow === dow) {
+        const todaySlot = addIstDays(base, 0, hm.hour24, hm.minute);
+        if (isSlotStillAhead(todaySlot)) return todaySlot;
+      }
+      const next = nextWeekday(base.dow, dow, base);
+      return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+    }
+  }
+
+  // Weekend in latest message
+  if (WEEKEND_RE.test(focus)) {
+    return getWeekendSlot(base, hm);
+  }
+
   // Prior cues — skip if agent only offered a choice (shaam ya kal)
   if (!priorIsChoiceOffer) {
     if (DAY_AFTER_RE.test(priorTail)) {
@@ -402,14 +458,22 @@ export function parseMeetingSlot(
     if (TOMORROW_RE.test(priorTail)) {
       return addIstDays(base, 1, hm.hour24, hm.minute);
     }
-  }
-
-  // Weekday in latest message
-  for (const [name, dow] of Object.entries(DAY_MAP)) {
-    const re = new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
-    if (re.test(focus)) {
-      const next = nextWeekday(base.dow, dow, base);
-      return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+    if (
+      WEEKEND_RE.test(priorTail) &&
+      /haan|हां|हाँ|yes|yep|sure|ok|okay|theek|ठीक|bilkul|बिल्कुल|chalega|chlega|kar do|kar dijiye|book|visit|aaunga|aate|aayenge/i.test(
+        focus,
+      )
+    ) {
+      return getWeekendSlot(base, hm);
+    }
+    for (const [name, dow] of Object.entries(DAY_MAP)) {
+      const re = /[\u0900-\u097F]/.test(name)
+        ? new RegExp(name, 'i')
+        : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
+      if (re.test(priorTail.slice(-400))) {
+        const next = nextWeekday(base.dow, dow, base);
+        return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+      }
     }
   }
 
@@ -433,6 +497,9 @@ export function parseMeetingSlot(
       }
       if (TOMORROW_RE.test(prior)) {
         return addIstDays(base, 1, hm.hour24, hm.minute);
+      }
+      if (WEEKEND_RE.test(prior)) {
+        return getWeekendSlot(base, hm);
       }
       for (const [name, dow] of Object.entries(DAY_MAP)) {
         if (new RegExp(name, 'i').test(prior.slice(-400))) {

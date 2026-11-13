@@ -219,12 +219,30 @@ function normalizeRelativeDayText(raw) {
         .replace(/tom+or+ow/g, 'tomorrow')
         .replace(/day\s+after\s+tom+or+ow/g, 'day after tomorrow');
 }
-const DAY_AFTER_RE = /\b(?:parso|परसों|day\s+after\s+tomorrow)\b/i;
-const TOMORROW_RE = /(?<!day\s+after\s+)\b(?:kal|कल|tomorrow|tmrw|tomoro)\b/i;
-const TODAY_RE = /\b(?:aaj|ajj|aj|आज|today|tdy)\b/i;
+const DAY_AFTER_RE = /\bparso\b|परसों|\bday\s+after\s+tomorrow\b/i;
+const TOMORROW_RE = /(?<!day\s+after\s+)(?:\b(?:kal|tomorrow|tmrw|tomoro)\b|कल)/i;
+const TODAY_RE = /\b(?:aaj|ajj|aj|today|tdy)\b|आज/i;
+const WEEKEND_RE = /\b(?:weekend|weekends)\b|वीकेंड|हफ्ते\s*के\s*अंत/i;
 function isSlotStillAhead(slot, cushionMs = 5 * 60_000) {
     const ms = Date.parse(slot.startIso);
     return Number.isFinite(ms) && ms > Date.now() + cushionMs;
+}
+function getWeekendSlot(base, hm) {
+    if (base.dow === 6) {
+        const today = addIstDays(base, 0, hm.hour24, hm.minute);
+        if (isSlotStillAhead(today))
+            return today;
+        return addIstDays(base, 1, hm.hour24, hm.minute);
+    }
+    if (base.dow === 0) {
+        const today = addIstDays(base, 0, hm.hour24, hm.minute);
+        if (isSlotStillAhead(today))
+            return today;
+        const nextSat = nextWeekday(0, 6, base);
+        return buildSlot(nextSat.y, nextSat.monthIndex, nextSat.d, hm.hour24, hm.minute);
+    }
+    const sat = nextWeekday(base.dow, 6, base);
+    return buildSlot(sat.y, sat.monthIndex, sat.d, hm.hour24, hm.minute);
 }
 function defaultDayForTimeOnly(base, hour24, minute) {
     const today = addIstDays(base, 0, hour24, minute);
@@ -238,16 +256,24 @@ function addIstDays(base, days, hour24, minute) {
 }
 function looksLikeMeetingRequest(text) {
     const t = normalizeRelativeDayText(text || '');
-    return /meeting|meet|appointment|visit|site visit|callback|call back|slot|book|fix|कल|tomorrow|parso|परसों|day after tomorrow|aaj|today|saturday|sunday|monday|tuesday|wednesday|thursday|friday|शनिवार|रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|baje|bajey|bje|बजे|\d{1,2}\s*(am|pm|:)|morning|evening|subah|shaam|सुबह|शाम/i.test(t);
+    return /meeting|meet|appointment|visit|site\s*visit|callback|call back|slot|book|fix|weekend|weekends|वीकेंड|हफ्ते\s*के\s*अंत|सैंपल|sample|विजिट|साइट|कल|tomorrow|parso|परसों|day after tomorrow|aaj|today|saturday|sunday|monday|tuesday|wednesday|thursday|friday|शनिवार|रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|baje|bajey|bje|बजे|\d{1,2}\s*(am|pm|:)|morning|evening|subah|shaam|सुबह|शाम|dekhne|aaunga|aate hain/i.test(t);
 }
 function parseMeetingSlot(userMessage, priorTranscript) {
     const text = normalizeRelativeDayText(`${priorTranscript || ''}\n${userMessage || ''}`.trim());
     if (!text)
         return null;
-    const base = nowIst();
     const focus = normalizeRelativeDayText(userMessage || text);
+    const priorTail = normalizeRelativeDayText((priorTranscript || '').split('\n').slice(-8).join('\n'));
+    if (/(?:nahi|nahin|no\b|not\s+interested|nahi\s+chahiye|cancel|manna)/i.test(focus) &&
+        !/(?:kyun|kyu)\s+nahi/i.test(focus)) {
+        return null;
+    }
+    const base = nowIst();
     const hm = parseHourMinute(focus) ||
-        parseHourMinute(text.slice(-120));
+        parseHourMinute(text.slice(-120)) ||
+        (looksLikeMeetingRequest(focus) || looksLikeMeetingRequest(priorTail)
+            ? { hour24: 11, minute: 0 }
+            : null);
     if (!hm)
         return null;
     let m = focus.match(/(\d{1,2})(?:st|nd|rd|th)?[\s\/\-]+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितं?बर|अक्टूबर|नव(?:ं|म्)बर|दिसं?बर)(?:[\s\/\-]+(\d{2,4}))?/i);
@@ -280,7 +306,6 @@ function parseMeetingSlot(userMessage, priorTranscript) {
             return buildSlot(year, monthIndex, day, hm.hour24, hm.minute);
         }
     }
-    const priorTail = normalizeRelativeDayText((priorTranscript || '').split('\n').slice(-8).join('\n'));
     const priorIsChoiceOffer = /(?:shaam|शाम|evening|aaj|आज).{0,40}(?:ya|या|or|phir|फिर).{0,20}(?:kal|कल|tomorrow)/i.test(priorTail) ||
         /(?:kal|कल|tomorrow).{0,40}(?:ya|या|or|phir|फिर).{0,20}(?:shaam|शाम|evening|aaj|आज)/i.test(priorTail);
     const focusPicksTomorrow = TOMORROW_RE.test(focus) && !/(?:shaam|शाम|evening|aaj|आज)/i.test(focus);
@@ -300,6 +325,23 @@ function parseMeetingSlot(userMessage, priorTranscript) {
     if (focusPicksTomorrow) {
         return addIstDays(base, 1, hm.hour24, hm.minute);
     }
+    for (const [name, dow] of Object.entries(DAY_MAP)) {
+        const re = /[\u0900-\u097F]/.test(name)
+            ? new RegExp(name, 'i')
+            : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
+        if (re.test(focus)) {
+            if (base.dow === dow) {
+                const todaySlot = addIstDays(base, 0, hm.hour24, hm.minute);
+                if (isSlotStillAhead(todaySlot))
+                    return todaySlot;
+            }
+            const next = nextWeekday(base.dow, dow, base);
+            return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+        }
+    }
+    if (WEEKEND_RE.test(focus)) {
+        return getWeekendSlot(base, hm);
+    }
     if (!priorIsChoiceOffer) {
         if (DAY_AFTER_RE.test(priorTail)) {
             return addIstDays(base, 2, hm.hour24, hm.minute);
@@ -313,12 +355,18 @@ function parseMeetingSlot(userMessage, priorTranscript) {
         if (TOMORROW_RE.test(priorTail)) {
             return addIstDays(base, 1, hm.hour24, hm.minute);
         }
-    }
-    for (const [name, dow] of Object.entries(DAY_MAP)) {
-        const re = new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
-        if (re.test(focus)) {
-            const next = nextWeekday(base.dow, dow, base);
-            return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+        if (WEEKEND_RE.test(priorTail) &&
+            /haan|हां|हाँ|yes|yep|sure|ok|okay|theek|ठीक|bilkul|बिल्कुल|chalega|chlega|kar do|kar dijiye|book|visit|aaunga|aate|aayenge/i.test(focus)) {
+            return getWeekendSlot(base, hm);
+        }
+        for (const [name, dow] of Object.entries(DAY_MAP)) {
+            const re = /[\u0900-\u097F]/.test(name)
+                ? new RegExp(name, 'i')
+                : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
+            if (re.test(priorTail.slice(-400))) {
+                const next = nextWeekday(base.dow, dow, base);
+                return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+            }
         }
     }
     if (hm &&
@@ -336,6 +384,9 @@ function parseMeetingSlot(userMessage, priorTranscript) {
             }
             if (TOMORROW_RE.test(prior)) {
                 return addIstDays(base, 1, hm.hour24, hm.minute);
+            }
+            if (WEEKEND_RE.test(prior)) {
+                return getWeekendSlot(base, hm);
             }
             for (const [name, dow] of Object.entries(DAY_MAP)) {
                 if (new RegExp(name, 'i').test(prior.slice(-400))) {

@@ -57,6 +57,7 @@ const customer_memory_service_1 = require("../memory/customer-memory.service");
 const fact_extractor_service_1 = require("../memory/fact-extractor.service");
 const question_validator_service_1 = require("../memory/question-validator.service");
 const client_1 = require("@prisma/client");
+const appointments_service_1 = require("../appointments/appointments.service");
 const call_scripts_1 = require("./call-scripts");
 const phone_audio_1 = require("./phone-audio");
 let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
@@ -68,9 +69,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     customerMemory;
     factExtractor;
     questionValidator;
+    appointments;
     logger = new common_1.Logger(McubeStreamService_1.name);
     uploadsDir = path.join(process.cwd(), 'uploads', 'audio');
-    constructor(config, prisma, ai, voice, conversation, customerMemory, factExtractor, questionValidator) {
+    constructor(config, prisma, ai, voice, conversation, customerMemory, factExtractor, questionValidator, appointments) {
         this.config = config;
         this.prisma = prisma;
         this.ai = ai;
@@ -79,6 +81,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         this.customerMemory = customerMemory;
         this.factExtractor = factExtractor;
         this.questionValidator = questionValidator;
+        this.appointments = appointments;
         fs.mkdirSync(this.uploadsDir, { recursive: true });
     }
     attachClient(ws, callIdHint, queryParams) {
@@ -323,6 +326,27 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     data: { status: client_1.CallStatus.COMPLETED },
                 })
                     .catch(() => undefined);
+                void (async () => {
+                    try {
+                        const finalCall = await this.prisma.call.findUnique({
+                            where: { id: session.callId },
+                            include: { lead: true },
+                        });
+                        if (finalCall?.lead &&
+                            finalCall.lead.id !== 'guest-lead' &&
+                            session.transcript) {
+                            await this.appointments.maybeBookFromCall({
+                                leadId: finalCall.lead.id,
+                                projectId: finalCall.lead.projectId || undefined,
+                                userMessage: session.lastUserText || '',
+                                priorTranscript: session.transcript,
+                            });
+                        }
+                    }
+                    catch (err) {
+                        this.logger.warn(`[MCube] Close hook appointment check error: ${err}`);
+                    }
+                })();
             }
         });
         ws.on('error', (err) => {
@@ -522,6 +546,24 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     })
                         .catch(() => undefined);
                 }
+                if (lead?.id && lead.id !== 'guest-lead') {
+                    void this.appointments
+                        .maybeBookFromCall({
+                        leadId: lead.id,
+                        projectId: result?.resolvedProjectId || lead.projectId || undefined,
+                        userMessage,
+                        priorTranscript: session.transcript,
+                        qualification: result?.qualification,
+                    })
+                        .then((booking) => {
+                        if (booking.booked) {
+                            this.logger.log(`[MCube] 📅 Auto-booked Appointment for lead ${lead.name || lead.phone}: ${booking.date} at ${booking.time} (id=${booking.appointmentId})`);
+                        }
+                    })
+                        .catch((err) => {
+                        this.logger.warn(`[MCube] Appointment booking error: ${err}`);
+                    });
+                }
                 await ttsChain;
             }
             catch (err) {
@@ -695,6 +737,7 @@ exports.McubeStreamService = McubeStreamService = McubeStreamService_1 = __decor
         conversation_service_1.ConversationService,
         customer_memory_service_1.CustomerMemoryService,
         fact_extractor_service_1.FactExtractorService,
-        question_validator_service_1.QuestionValidatorService])
+        question_validator_service_1.QuestionValidatorService,
+        appointments_service_1.AppointmentsService])
 ], McubeStreamService);
 //# sourceMappingURL=mcube-stream.service.js.map

@@ -14,6 +14,7 @@ import { QuestionValidatorService } from '../memory/question-validator.service';
 import { ConversationState } from '../memory/memory.types';
 import { maskPhoneNumber } from '../memory/phone-utils';
 import { CallOutcome, CallStatus } from '@prisma/client';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { buildFollowUpReply } from './call-scripts';
 import {
   asNodeBuffer,
@@ -87,6 +88,7 @@ export class McubeStreamService {
     private customerMemory: CustomerMemoryService,
     private factExtractor: FactExtractorService,
     private questionValidator: QuestionValidatorService,
+    private appointments: AppointmentsService,
   ) {
     fs.mkdirSync(this.uploadsDir, { recursive: true });
   }
@@ -393,6 +395,31 @@ export class McubeStreamService {
             data: { status: CallStatus.COMPLETED },
           })
           .catch(() => undefined);
+
+        // Call-end site visit / appointment booking safety check:
+        // Ensures any appointment agreed during the conversation is booked
+        void (async () => {
+          try {
+            const finalCall = await this.prisma.call.findUnique({
+              where: { id: session.callId },
+              include: { lead: true },
+            });
+            if (
+              finalCall?.lead &&
+              finalCall.lead.id !== 'guest-lead' &&
+              session.transcript
+            ) {
+              await this.appointments.maybeBookFromCall({
+                leadId: finalCall.lead.id,
+                projectId: finalCall.lead.projectId || undefined,
+                userMessage: session.lastUserText || '',
+                priorTranscript: session.transcript,
+              });
+            }
+          } catch (err) {
+            this.logger.warn(`[MCube] Close hook appointment check error: ${err}`);
+          }
+        })();
       }
     });
 
@@ -638,6 +665,28 @@ export class McubeStreamService {
               projectId: result.resolvedProjectId || undefined,
             })
             .catch(() => undefined);
+        }
+
+        // Auto-book Site Visit / Appointment into CRM if caller expressed date/time or visit interest
+        if (lead?.id && lead.id !== 'guest-lead') {
+          void this.appointments
+            .maybeBookFromCall({
+              leadId: lead.id,
+              projectId: result?.resolvedProjectId || lead.projectId || undefined,
+              userMessage,
+              priorTranscript: session.transcript,
+              qualification: result?.qualification,
+            })
+            .then((booking) => {
+              if (booking.booked) {
+                this.logger.log(
+                  `[MCube] 📅 Auto-booked Appointment for lead ${lead.name || lead.phone}: ${booking.date} at ${booking.time} (id=${booking.appointmentId})`,
+                );
+              }
+            })
+            .catch((err) => {
+              this.logger.warn(`[MCube] Appointment booking error: ${err}`);
+            });
         }
 
         // Wait for all queued sentence audio to finish playing
