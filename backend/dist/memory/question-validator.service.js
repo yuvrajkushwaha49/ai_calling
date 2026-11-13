@@ -12,7 +12,7 @@ const common_1 = require("@nestjs/common");
 let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValidatorService {
     logger = new common_1.Logger(QuestionValidatorService_1.name);
     questionDetectors = {
-        bhk: /(?:2\s*bhk|3\s*bhk|kitne\s*bhk|kaunsa\s*bhk|configuration|दो\s*बीएचके|तीन\s*बीएचके|कितने\s*बीएचके|कॉन्फ़िगरेशन|बीएचके)/i,
+        bhk: /(?:2\s*(?:bhk|बीएचके).*?(?:ya|या|or).*?3\s*(?:bhk|बीएचके)|kitne\s*bhk|कितने\s*(?:bhk|बीएचके)|kaunsa\s*bhk|कौनसा\s*(?:bhk|बीएचके)|configuration|कॉन्फ़िगरेशन|दो\s*bedroom\s*या\s*तीन|two\s*bedroom\s*ya\s*three)/i,
         budget: /(?:budget|kitna\s*budget|approximate\s*budget|बजट|कितना\s*बजट)/i,
         purpose: /(?:rehne\s*ke\s*liye|investment\s*ke\s*liye|end\s*use|रहने\s*के\s*लिए|इन्वेस्टमेंट)/i,
         name: /(?:shubh\s*naam|aapka\s*naam|शुभ\s*नाम|आपका\s*नाम)/i,
@@ -33,6 +33,10 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
         const raw = (sentence || '').trim();
         if (!raw) {
             return { sanitized: '', sanitizedText: '', allowed: true, wasRepeated: false };
+        }
+        const isPastContextGreeting = /(?:swagat|स्वागत|welcome|pichhli\s*baar|पिछली\s*बार|baat\s*hui\s*thi|बात\s*हुई\s*थी|usi\s*ke\s*regarding|उसी\s*के\s*रिगार्डिंग|phir\s*se\s*swagat|फिर\s*से\s*स्वागत|dobara\s*call|दोबारा\s*कॉल)/i.test(raw);
+        if (isPastContextGreeting) {
+            return { sanitized: raw, sanitizedText: raw, allowed: true, wasRepeated: false };
         }
         const isQuestion = raw.includes('?') || /^(?:kya|aap|bataiye|kaun|kitna|क्या|आप|बताइए|कितना)/i.test(raw);
         if (!isQuestion) {

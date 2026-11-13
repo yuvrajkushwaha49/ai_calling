@@ -463,17 +463,20 @@ export class ConversationService {
             intentEarly.positive)));
 
     if (scriptFast) {
+      const memCustomer = options.memory?.customer;
       const knownFast = mergeFacts(
         factsFromLead({
           ...options.lead,
           trustProfileBudget: Boolean(
-            options.lead.budget != null && Number(options.lead.budget) > 0,
+            (options.lead.budget != null && Number(options.lead.budget) > 0) ||
+              memCustomer?.budget,
           ),
         }),
         {
-          location: options.lead.preferredLocation || undefined,
-          bhk: options.lead.bhkPreference || undefined,
-          timeline: options.lead.purchaseTimeline || undefined,
+          location: memCustomer?.location || options.lead.preferredLocation || undefined,
+          bhk: memCustomer?.bhk || options.lead.bhkPreference || undefined,
+          timeline: memCustomer?.timeline || options.lead.purchaseTimeline || undefined,
+          budgetLabel: memCustomer?.budgetLabel || undefined,
         },
         extractFactsFromText(leadOnlyText(options.priorTranscript)),
         extractFactsFromText(options.userMessage),

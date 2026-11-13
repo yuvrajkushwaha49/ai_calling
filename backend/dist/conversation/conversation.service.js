@@ -310,13 +310,16 @@ let ConversationService = ConversationService_1 = class ConversationService {
                         (0, call_scripts_1.lastAgentOfferedDetails)(previousAgentEarly) ||
                         intentEarly.positive)));
         if (scriptFast) {
+            const memCustomer = options.memory?.customer;
             const knownFast = (0, call_scripts_1.mergeFacts)((0, call_scripts_1.factsFromLead)({
                 ...options.lead,
-                trustProfileBudget: Boolean(options.lead.budget != null && Number(options.lead.budget) > 0),
+                trustProfileBudget: Boolean((options.lead.budget != null && Number(options.lead.budget) > 0) ||
+                    memCustomer?.budget),
             }), {
-                location: options.lead.preferredLocation || undefined,
-                bhk: options.lead.bhkPreference || undefined,
-                timeline: options.lead.purchaseTimeline || undefined,
+                location: memCustomer?.location || options.lead.preferredLocation || undefined,
+                bhk: memCustomer?.bhk || options.lead.bhkPreference || undefined,
+                timeline: memCustomer?.timeline || options.lead.purchaseTimeline || undefined,
+                budgetLabel: memCustomer?.budgetLabel || undefined,
             }, (0, call_scripts_1.extractFactsFromText)(leadOnlyText(options.priorTranscript)), (0, call_scripts_1.extractFactsFromText)(options.userMessage));
             let replyText = '';
             const priorLeadText = leadOnlyText(options.priorTranscript);
