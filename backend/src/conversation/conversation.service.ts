@@ -256,6 +256,34 @@ export class ConversationService {
       msg,
       priorDetected || configured,
     );
+
+    // If configured to Hinglish: ALWAYS reply in conversational Hinglish (Roman script).
+    // Hindi speech from caller should NEVER force Devanagari script.
+    if (configured === 'hinglish') {
+      if (fromMessage === 'hi-IN' || fromMessage === 'mixed' || fromMessage === 'en-IN') {
+        return 'hinglish';
+      }
+      return fromMessage;
+    }
+
+    // If configured to English: stay in English unless customer explicitly requests Hindi
+    if (configured === 'en-IN') {
+      const explicitHindi = /(hindi|हिंदी|हिन्दी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho|me)/i.test(msg);
+      if (explicitHindi) {
+        return 'hi-IN';
+      }
+      return 'en-IN';
+    }
+
+    // If configured to Hindi: stay in Hindi unless customer explicitly requests English
+    if (configured === 'hi-IN') {
+      const explicitEnglish = /(english|अंग्रेजी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho|me)/i.test(msg);
+      if (explicitEnglish) {
+        return 'en-IN';
+      }
+      return 'hi-IN';
+    }
+
     return fromMessage === 'mixed' ? 'hinglish' : fromMessage;
   }
 

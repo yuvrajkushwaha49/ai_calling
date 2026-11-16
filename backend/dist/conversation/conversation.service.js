@@ -187,6 +187,26 @@ let ConversationService = ConversationService_1 = class ConversationService {
             ? this.detectLanguage(leadPrior, configured)
             : configured;
         const fromMessage = this.detectLanguage(msg, priorDetected || configured);
+        if (configured === 'hinglish') {
+            if (fromMessage === 'hi-IN' || fromMessage === 'mixed' || fromMessage === 'en-IN') {
+                return 'hinglish';
+            }
+            return fromMessage;
+        }
+        if (configured === 'en-IN') {
+            const explicitHindi = /(hindi|हिंदी|हिन्दी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho|me)/i.test(msg);
+            if (explicitHindi) {
+                return 'hi-IN';
+            }
+            return 'en-IN';
+        }
+        if (configured === 'hi-IN') {
+            const explicitEnglish = /(english|अंग्रेजी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho|me)/i.test(msg);
+            if (explicitEnglish) {
+                return 'en-IN';
+            }
+            return 'hi-IN';
+        }
         return fromMessage === 'mixed' ? 'hinglish' : fromMessage;
     }
     languageInstruction(lang) {
