@@ -351,16 +351,32 @@ let ConversationService = ConversationService_1 = class ConversationService {
             if (options.isInbound && intentEarly.isGreeting) {
                 if (isStartOfCall) {
                     if (realCustomerName) {
-                        replyText = pastRequirement
-                            ? `नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?`
-                            : `नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?`;
+                        replyText = isEn
+                            ? pastRequirement
+                                ? `Hello ${realCustomerName} ji! Welcome back to ${company}. Last time we spoke about ${pastRequirement} — would you like to discuss that further or explore something new today?`
+                                : `Hello ${realCustomerName} ji! Thank you for calling ${company} again. I am ${options.agentName}, how may I help you today?`
+                            : isHing
+                                ? pastRequirement
+                                    ? `Namaste ${realCustomerName} ji! ${company} mein aapka phir se swaagat hai. Pichhli baar hamari baat ${pastRequirement} ko lekar hui thi — kya aaj usi ke regarding baat karna chahenge ya kuch naya dekhna hai?`
+                                    : `Namaste ${realCustomerName} ji! Dobara call karne ke liye dhanyavaad. Main ${options.agentName} baat kar rahi hoon, bataiye aaj aapki kya sahayata kar sakti hoon?`
+                                : pastRequirement
+                                    ? `नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?`
+                                    : `नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?`;
                     }
                     else {
-                        replyText = `हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?`;
+                        replyText = isEn
+                            ? `Hello! Welcome to ${company} helpline. I am ${options.agentName}, how may I assist you today?`
+                            : isHing
+                                ? `Haan ji namaste! ${company} helpline mein aapka swaagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya madad kar sakti hoon?`
+                                : `हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?`;
                     }
                 }
                 else {
-                    replyText = `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!`;
+                    replyText = isEn
+                        ? `Yes, I can hear you clearly! Please go ahead.`
+                        : isHing
+                            ? `Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!`
+                            : `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!`;
                 }
             }
             else {
