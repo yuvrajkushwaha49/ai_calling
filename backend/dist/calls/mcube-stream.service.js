@@ -248,6 +248,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                                 this.logger.log(`[MCube] 🌟 Recognized Returning Customer: ${session.memory.customer.name || 'Caller'} (BHK: ${session.memory.customer.bhk || 'N/A'}, Budget: ${session.memory.customer.budgetLabel || 'N/A'}, Calls: ${session.memory.previousCallCount})`);
                             }
                             const settings = await this.ai.getSettings();
+                            session.settings = settings;
                             const initialOpener = 'Hello?';
                             session.lastAgentText = initialOpener;
                             session.turnCount = 1;
@@ -387,7 +388,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 this.voice.speechToText({
                     buffer: wavBuffer,
                     fileName: 'mcube-in.wav',
-                    language: 'hi-IN',
+                    language: session.settings?.language || 'en-IN',
                 }),
                 session.callId
                     ? Promise.all([
@@ -623,12 +624,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         }
     }
     async synthesizeForSession(text, session, settings) {
+        const lang = settings?.language || session.settings?.language || 'en-IN';
         try {
             if (session.encoding === 'audio/x-l16') {
                 const tts = await this.voice.textToSpeech({
                     text,
                     speaker: settings?.agentVoice || 'rachel',
-                    language: session.lastAgentText ? 'hi-IN' : 'en-US',
+                    language: lang,
                     outputFormat: 'pcm_16000',
                     skipSave: true,
                     pace: 1.0,
@@ -642,7 +644,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     const tts = await this.voice.textToSpeech({
                         text,
                         speaker: settings?.agentVoice || 'rachel',
-                        language: 'hi-IN',
+                        language: lang,
                         outputFormat: 'ulaw_8000',
                         skipSave: true,
                         pace: 1.0,
@@ -655,7 +657,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     const tts = await this.voice.textToSpeech({
                         text,
                         speaker: settings?.agentVoice || 'rachel',
-                        language: 'hi-IN',
+                        language: lang,
                         outputFormat: 'pcm_16000',
                         skipSave: true,
                         pace: 1.0,

@@ -195,16 +195,17 @@ export class ConversationService {
     return 'en-IN';
   }
 
-  /** True when message is too short/ambiguous to switch language (ok, haan, yes…). */
+  /** True when message is too short/ambiguous to switch language (ok, haan, yes, toh, hello…). */
   private isAmbiguousLanguageCue(text: string): boolean {
     const t = (text || '').trim();
     if (!t) return true;
-    if (t.split(/\s+/).length <= 2 && t.length < 18) {
-      return /^(ok+|okay|haan|han|ha|yes|yeah|no|nahi|nhi|नहीं|हाँ|जी|theek|bilkul|hmm+|ach+a+|sure|right|ji)\.?$/i.test(
-        t.replace(/[.!?,]/g, ''),
-      );
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length <= 3 && t.length < 25) {
+      return true;
     }
-    return false;
+    return /^(ok+|okay|haan|han|ha|yes|yeah|no|nahi|nhi|नहीं|हाँ|जी|तो|theek|bilkul|hmm+|ach+a+|sure|right|ji|kya|batao|bolo|kahiye|sunao|hello|namaste)\.?$/i.test(
+      t.replace(/[.!?,?]/g, ''),
+    );
   }
 
   /**
@@ -221,18 +222,39 @@ export class ConversationService {
       options.stickyLanguage === 'mixed'
         ? 'hinglish'
         : (options.stickyLanguage as DetectedLanguage | undefined);
-    const leadPrior = leadOnlyText(options.priorTranscript);
-    const priorDetected = leadPrior
-      ? this.detectLanguage(leadPrior, sticky || options.fallback || 'hinglish')
-      : sticky || this.detectLanguage('', options.fallback || 'hinglish');
+    const configured = sticky || (options.fallback as DetectedLanguage) || 'en-IN';
+    const msg = (options.userMessage || '').trim();
 
-    if (this.isAmbiguousLanguageCue(options.userMessage)) {
-      return (sticky || priorDetected || 'hinglish') as DetectedLanguage;
+    // Check for explicit user switch requests
+    if (/(hindi|हिंदी|हिन्दी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho)/i.test(msg)) {
+      return 'hi-IN';
+    }
+    if (/(english|अंग्रेजी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho)/i.test(msg)) {
+      return 'en-IN';
+    }
+    if (/hinglish/i.test(msg)) {
+      return 'hinglish';
     }
 
+    // Short answers / cues should NEVER change the configured language
+    if (this.isAmbiguousLanguageCue(msg)) {
+      return configured;
+    }
+
+    // Only switch language if the user spoke a substantial sentence (at least 4 words or >25 chars)
+    const words = msg.split(/\s+/).filter(Boolean);
+    if (words.length < 4 && msg.length < 25) {
+      return configured;
+    }
+
+    const leadPrior = leadOnlyText(options.priorTranscript);
+    const priorDetected = leadPrior
+      ? this.detectLanguage(leadPrior, configured)
+      : configured;
+
     const fromMessage = this.detectLanguage(
-      options.userMessage,
-      sticky || priorDetected || options.fallback || 'hinglish',
+      msg,
+      priorDetected || configured,
     );
     return fromMessage === 'mixed' ? 'hinglish' : fromMessage;
   }
@@ -428,10 +450,18 @@ export class ConversationService {
       options.memory?.customer?.interestedProjects?.[0] ||
       resolvedProject?.name ||
       null;
+    const isEn = replyLang === 'en-IN';
+    const isHing = String(replyLang) === 'hinglish';
     const pastRequirement = knownBhk
-      ? `${knownBhk} फ्लैट`
+      ? isEn
+        ? `${knownBhk} apartment`
+        : isHing
+        ? `${knownBhk} flat`
+        : `${knownBhk} फ्लैट`
       : knownProject
-        ? `${knownProject} प्रोजेक्ट`
+        ? isEn || isHing
+          ? `${knownProject} project`
+          : `${knownProject} प्रोजेक्ट`
         : '';
 
     const isReturning = Boolean(
@@ -831,7 +861,7 @@ Answer thoughtfully in one short spoken reply.`
               : 'New caller without previous records.',
             answered_fields: (options.memory?.answeredFields || []).join(', ') || 'none yet',
             known_memory: options.memory ? JSON.stringify(options.memory.customer) : 'none',
-            known_requirement: pastRequirement || 'प्रॉपर्टी',
+            known_requirement: pastRequirement || (isEn || isHing ? 'property' : 'प्रॉपर्टी'),
           });
         })()}
 

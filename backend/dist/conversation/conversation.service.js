@@ -154,23 +154,39 @@ let ConversationService = ConversationService_1 = class ConversationService {
         const t = (text || '').trim();
         if (!t)
             return true;
-        if (t.split(/\s+/).length <= 2 && t.length < 18) {
-            return /^(ok+|okay|haan|han|ha|yes|yeah|no|nahi|nhi|नहीं|हाँ|जी|theek|bilkul|hmm+|ach+a+|sure|right|ji)\.?$/i.test(t.replace(/[.!?,]/g, ''));
+        const words = t.split(/\s+/).filter(Boolean);
+        if (words.length <= 3 && t.length < 25) {
+            return true;
         }
-        return false;
+        return /^(ok+|okay|haan|han|ha|yes|yeah|no|nahi|nhi|नहीं|हाँ|जी|तो|theek|bilkul|hmm+|ach+a+|sure|right|ji|kya|batao|bolo|kahiye|sunao|hello|namaste)\.?$/i.test(t.replace(/[.!?,?]/g, ''));
     }
     resolveReplyLanguage(options) {
         const sticky = options.stickyLanguage === 'mixed'
             ? 'hinglish'
             : options.stickyLanguage;
+        const configured = sticky || options.fallback || 'en-IN';
+        const msg = (options.userMessage || '').trim();
+        if (/(hindi|हिंदी|हिन्दी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho)/i.test(msg)) {
+            return 'hi-IN';
+        }
+        if (/(english|अंग्रेजी)/i.test(msg) && /(speak|talk|bolo|baat|batao|kaho)/i.test(msg)) {
+            return 'en-IN';
+        }
+        if (/hinglish/i.test(msg)) {
+            return 'hinglish';
+        }
+        if (this.isAmbiguousLanguageCue(msg)) {
+            return configured;
+        }
+        const words = msg.split(/\s+/).filter(Boolean);
+        if (words.length < 4 && msg.length < 25) {
+            return configured;
+        }
         const leadPrior = leadOnlyText(options.priorTranscript);
         const priorDetected = leadPrior
-            ? this.detectLanguage(leadPrior, sticky || options.fallback || 'hinglish')
-            : sticky || this.detectLanguage('', options.fallback || 'hinglish');
-        if (this.isAmbiguousLanguageCue(options.userMessage)) {
-            return (sticky || priorDetected || 'hinglish');
-        }
-        const fromMessage = this.detectLanguage(options.userMessage, sticky || priorDetected || options.fallback || 'hinglish');
+            ? this.detectLanguage(leadPrior, configured)
+            : configured;
+        const fromMessage = this.detectLanguage(msg, priorDetected || configured);
         return fromMessage === 'mixed' ? 'hinglish' : fromMessage;
     }
     languageInstruction(lang) {
@@ -282,10 +298,18 @@ let ConversationService = ConversationService_1 = class ConversationService {
         const knownProject = options.memory?.customer?.interestedProjects?.[0] ||
             resolvedProject?.name ||
             null;
+        const isEn = replyLang === 'en-IN';
+        const isHing = String(replyLang) === 'hinglish';
         const pastRequirement = knownBhk
-            ? `${knownBhk} फ्लैट`
+            ? isEn
+                ? `${knownBhk} apartment`
+                : isHing
+                    ? `${knownBhk} flat`
+                    : `${knownBhk} फ्लैट`
             : knownProject
-                ? `${knownProject} प्रोजेक्ट`
+                ? isEn || isHing
+                    ? `${knownProject} project`
+                    : `${knownProject} प्रोजेक्ट`
                 : '';
         const isReturning = Boolean(options.memory?.isReturningCustomer ||
             Boolean(realCustomerName) ||
@@ -622,7 +646,7 @@ Answer thoughtfully in one short spoken reply.`
                         : 'New caller without previous records.',
                     answered_fields: (options.memory?.answeredFields || []).join(', ') || 'none yet',
                     known_memory: options.memory ? JSON.stringify(options.memory.customer) : 'none',
-                    known_requirement: pastRequirement || 'प्रॉपर्टी',
+                    known_requirement: pastRequirement || (isEn || isHing ? 'property' : 'प्रॉपर्टी'),
                 });
             })()}
 

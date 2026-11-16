@@ -72,6 +72,7 @@ type McubeSession = {
   transcript: string;
   pendingSegments: Set<string>;
   memory?: ConversationState;
+  settings?: any;
 };
 
 @Injectable()
@@ -301,6 +302,7 @@ export class McubeStreamService {
 
             // Natural human telecaller: start with a soft, warm "Hello?"
             const settings = await this.ai.getSettings();
+            session.settings = settings;
             const initialOpener = 'Hello?';
             session.lastAgentText = initialOpener;
             session.turnCount = 1;
@@ -474,7 +476,7 @@ export class McubeStreamService {
         this.voice.speechToText({
           buffer: wavBuffer,
           fileName: 'mcube-in.wav',
-          language: 'hi-IN',
+          language: session.settings?.language || 'en-IN',
         }),
         session.callId
           ? Promise.all([
@@ -766,12 +768,13 @@ export class McubeStreamService {
     session: McubeSession,
     settings: any,
   ): Promise<Buffer | null> {
+    const lang = settings?.language || session.settings?.language || 'en-IN';
     try {
       if (session.encoding === 'audio/x-l16') {
         const tts = await this.voice.textToSpeech({
           text,
           speaker: settings?.agentVoice || 'rachel',
-          language: session.lastAgentText ? 'hi-IN' : 'en-US',
+          language: lang,
           outputFormat: 'pcm_16000',
           skipSave: true,
           pace: 1.0,
@@ -785,7 +788,7 @@ export class McubeStreamService {
           const tts = await this.voice.textToSpeech({
             text,
             speaker: settings?.agentVoice || 'rachel',
-            language: 'hi-IN',
+            language: lang,
             outputFormat: 'ulaw_8000',
             skipSave: true,
             pace: 1.0,
@@ -797,7 +800,7 @@ export class McubeStreamService {
           const tts = await this.voice.textToSpeech({
             text,
             speaker: settings?.agentVoice || 'rachel',
-            language: 'hi-IN',
+            language: lang,
             outputFormat: 'pcm_16000',
             skipSave: true,
             pace: 1.0,
