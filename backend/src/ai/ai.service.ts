@@ -134,7 +134,7 @@ export class AiService {
       (normalizedLanguage === 'hi-IN' &&
         /HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
       (normalizedLanguage === 'en-IN' &&
-        /DEVANAGARI|HINGLISH/i.test(cleanedPrompt)) ||
+        /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
       /natural Indian real-estate phone agent/i.test(cleanedPrompt) ||
       /You are an AI sales calling agent for real estate/i.test(cleanedPrompt) ||
       /calm, friendly real-estate sales caller/i.test(cleanedPrompt) ||
@@ -367,12 +367,15 @@ export class AiService {
       ? this.voice.normalizeAppLanguage(language)
       : existing.language;
 
+    const languageChanged = normalizedLang !== existing.language;
     let resolvedPrompt = systemPrompt;
-    if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
+    if (languageChanged) {
+      resolvedPrompt = buildDefaultSalesAgentPrompt(normalizedLang);
+    } else if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
       resolvedPrompt = buildDefaultSalesAgentPrompt('hinglish');
     } else if (normalizedLang === 'hi-IN' && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
       resolvedPrompt = buildDefaultSalesAgentPrompt('hi-IN');
-    } else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI|HINGLISH/i.test(systemPrompt)) {
+    } else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
       resolvedPrompt = buildDefaultSalesAgentPrompt('en-IN');
     }
 

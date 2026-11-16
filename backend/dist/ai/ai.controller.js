@@ -11,24 +11,31 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var AiController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiController = void 0;
 const common_1 = require("@nestjs/common");
 const ai_service_1 = require("./ai.service");
 const ai_settings_dto_1 = require("./dto/ai-settings.dto");
-let AiController = class AiController {
+let AiController = AiController_1 = class AiController {
     aiService;
+    logger = new common_1.Logger(AiController_1.name);
     constructor(aiService) {
         this.aiService = aiService;
     }
-    getSettings() {
-        return this.aiService.getSettings();
+    async getSettings() {
+        const s = await this.aiService.getSettings();
+        this.logger.log(`GET /ai/settings returning language=${s.language} voice=${s.agentVoice}`);
+        return s;
     }
     getPlaybook() {
         return this.aiService.getPlaybookSummary();
     }
-    updateSettings(dto) {
-        return this.aiService.updateSettings(dto);
+    async updateSettings(dto) {
+        this.logger.log(`PATCH /ai/settings received language=${dto.language} voice=${dto.agentVoice}`);
+        const res = await this.aiService.updateSettings(dto);
+        this.logger.log(`PATCH /ai/settings saved successfully, language=${res.language}`);
+        return res;
     }
     uploadKnowledgeBase(body) {
         return this.aiService.uploadKnowledgeBase(body.files);
@@ -42,7 +49,7 @@ __decorate([
     (0, common_1.Get)('settings'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AiController.prototype, "getSettings", null);
 __decorate([
     (0, common_1.Get)('playbook'),
@@ -55,7 +62,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [ai_settings_dto_1.UpdateAiSettingsDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AiController.prototype, "updateSettings", null);
 __decorate([
     (0, common_1.Post)('knowledge-base'),
@@ -71,7 +78,7 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AiController.prototype, "previewVoice", null);
-exports.AiController = AiController = __decorate([
+exports.AiController = AiController = AiController_1 = __decorate([
     (0, common_1.Controller)('ai'),
     __metadata("design:paramtypes", [ai_service_1.AiService])
 ], AiController);

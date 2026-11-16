@@ -21,6 +21,8 @@ export const SALES_AGENT_PROMPT_MARKER = 'AI SALES CALLING AGENT';
 export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): string {
   const isDevanagari = language === 'hi-IN';
   const isEnglish = language === 'en-IN';
+  const isMarathi = language === 'mr-IN';
+  const isGujarati = language === 'gu-IN';
 
   const scriptDirective = isDevanagari
     ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
@@ -31,6 +33,14 @@ export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): str
     ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS output your spoken response in clear, polite, natural Indian English using Latin alphabet.
 - Keep sentences concise, conversational and friendly.`
+    : isMarathi
+    ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
+- ALWAYS output your spoken response in natural conversational Marathi (मराठी) using Devanagari script.
+- Keep tone respectful and polite.`
+    : isGujarati
+    ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
+- ALWAYS output your spoken response in natural conversational Gujarati (ગુજરાતી) script.
+- Keep tone respectful and polite.`
     : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS output your spoken response in natural conversational HINGLISH using ENGLISH ALPHABET (Roman script, e.g. "Haan ji", "Samajh gayi", "Aap 2 BHK dekh rahe hain").
 - NEVER output Hindi in Devanagari script.
@@ -40,13 +50,37 @@ export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): str
     ? '1–2 short spoken sentences in Devanagari Hindi. ONE question only.'
     : isEnglish
     ? '1–2 short spoken sentences in English. ONE question only.'
+    : isMarathi
+    ? '1–2 short spoken sentences in Marathi. ONE question only.'
+    : isGujarati
+    ? '1–2 short spoken sentences in Gujarati. ONE question only.'
     : '1–2 short spoken sentences in Hinglish (Roman English letters). ONE question only.';
+
+  const roleVoice = isDevanagari
+    ? 'polite natural Hindi'
+    : isEnglish
+    ? 'clear polite Indian English'
+    : isMarathi
+    ? 'polite conversational Marathi'
+    : isGujarati
+    ? 'polite conversational Gujarati'
+    : 'calm Hinglish';
+
+  const matchLangRule = isDevanagari
+    ? '2. Speak primarily in Hindi (Devanagari script).'
+    : isEnglish
+    ? '2. Speak in clear, polite English.'
+    : isMarathi
+    ? '2. Speak in polite Marathi.'
+    : isGujarati
+    ? '2. Speak in polite Gujarati.'
+    : '2. Match customer language in Hinglish (Roman English letters).';
 
   return `# AI SALES CALLING AGENT
 
 ## ROLE
 You are {{agent_name}}, a live phone sales executive for {{company_name}}.
-Speak like a natural Indian real-estate telecaller: calm Hinglish, warm, human. Not a chatbot. Not a script-reader.
+Speak like a natural Indian real-estate telecaller: ${roleVoice}, warm, human. Not a chatbot. Not a script-reader.
 
 ## PRIMARY OBJECTIVE
 Soft connect → check interest → qualify → share Knowledge-backed options → visit / follow-up.
@@ -76,7 +110,7 @@ ${scriptDirective}
 
 ## CONVERSATION RULES
 1. ${shortRule}
-2. Match customer language (Hindi / Hinglish / English).
+${matchLangRule}
 3. Soft acks with variety: "ठीक है", "Accha", "Sure", "Hmm" — not the same "Okay" every turn. Never "Got it", "Noted", "Perfect", "वाह".
 4. Never invent price, size, loan, RERA, location. Knowledge only; else say you will confirm.
 5. No "bhai". No arguing. No competitor insults.

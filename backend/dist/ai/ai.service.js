@@ -112,7 +112,7 @@ let AiService = class AiService {
             (normalizedLanguage === 'hi-IN' &&
                 /HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
             (normalizedLanguage === 'en-IN' &&
-                /DEVANAGARI|HINGLISH/i.test(cleanedPrompt)) ||
+                /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
             /natural Indian real-estate phone agent/i.test(cleanedPrompt) ||
             /You are an AI sales calling agent for real estate/i.test(cleanedPrompt) ||
             /calm, friendly real-estate sales caller/i.test(cleanedPrompt) ||
@@ -306,14 +306,18 @@ let AiService = class AiService {
         const normalizedLang = language
             ? this.voice.normalizeAppLanguage(language)
             : existing.language;
+        const languageChanged = normalizedLang !== existing.language;
         let resolvedPrompt = systemPrompt;
-        if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
+        if (languageChanged) {
+            resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)(normalizedLang);
+        }
+        else if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
             resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('hinglish');
         }
         else if (normalizedLang === 'hi-IN' && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
             resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('hi-IN');
         }
-        else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI|HINGLISH/i.test(systemPrompt)) {
+        else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
             resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('en-IN');
         }
         const updated = await this.prisma.aiAgentSettings.update({

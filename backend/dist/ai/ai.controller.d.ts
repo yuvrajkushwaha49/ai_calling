@@ -2,6 +2,7 @@ import { AiService } from './ai.service';
 import { UpdateAiSettingsDto } from './dto/ai-settings.dto';
 export declare class AiController {
     private aiService;
+    private readonly logger;
     constructor(aiService: AiService);
     getSettings(): Promise<{
         llmConfigured: boolean;

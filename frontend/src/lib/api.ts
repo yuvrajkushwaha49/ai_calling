@@ -1,4 +1,15 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+function getApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const configured = process.env.NEXT_PUBLIC_API_URL;
+    if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
+      return configured.replace(/\/$/, '');
+    }
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return '/api';
+    }
+  }
+  return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api').replace(/\/$/, '');
+}
 
 export class ApiError extends Error {
   constructor(
@@ -26,8 +37,12 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
+  const baseUrl = getApiUrl();
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${baseUrl}${path}`;
+
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(url, {
       ...rest,
       headers,
     });
@@ -46,7 +61,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     if (err instanceof ApiError) throw err;
     throw new ApiError(
       0,
-      `Cannot reach API at ${API_URL}. Make sure the backend is running on port 4000.`,
+      `Cannot reach API at ${url}. Make sure the backend is running.`,
     );
   }
 }
