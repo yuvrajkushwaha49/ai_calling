@@ -105,6 +105,24 @@ describe('CustomerMemoryService', () => {
       expect(mockRedis.set).toHaveBeenCalled();
     });
 
+    it('should treat placeholder lead names like Lead 3089 as null in lookupCustomer', async () => {
+      (mockRedis.get as jest.Mock).mockResolvedValue(null);
+      mockPrisma.lead.findFirst.mockResolvedValueOnce({
+        id: 'lead-placeholder',
+        name: 'Lead 3089',
+        phone: '9565763089',
+        status: 'NEW',
+        aiSummary: null,
+        updatedAt: new Date(),
+        project: null,
+        calls: [],
+      });
+
+      const result = await service.lookupCustomer('+919565763089');
+      expect(result).not.toBeNull();
+      expect(result?.name).toBeNull();
+    });
+
     it('should gracefully return null without throwing when Redis fails and lead not in DB', async () => {
       (mockRedis.get as jest.Mock).mockRejectedValueOnce(new Error('Redis connection lost'));
       mockPrisma.lead.findFirst.mockResolvedValueOnce(null);

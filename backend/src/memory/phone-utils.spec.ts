@@ -4,6 +4,7 @@ import {
   isValidPhoneNumber,
   maskPhoneNumber,
 } from './phone-utils';
+import { isPlaceholderLeadName } from '../calls/call-scripts';
 
 describe('PhoneUtils', () => {
   describe('normalizePhoneNumber', () => {
@@ -49,6 +50,32 @@ describe('PhoneUtils', () => {
       expect(maskPhoneNumber('+919876543210')).toBe('+919****3210');
       expect(maskPhoneNumber('9876543210')).toBe('98****3210');
       expect(maskPhoneNumber('123')).toBe('***');
+    });
+  });
+
+  describe('isPlaceholderLeadName', () => {
+    it('should detect any placeholder name starting with Lead or generic label', () => {
+      expect(isPlaceholderLeadName('Lead 3089')).toBe(true);
+      expect(isPlaceholderLeadName('Lead-9565')).toBe(true);
+      expect(isPlaceholderLeadName('Lead_1234')).toBe(true);
+      expect(isPlaceholderLeadName('Lead')).toBe(true);
+      expect(isPlaceholderLeadName('lead 1234')).toBe(true);
+      expect(isPlaceholderLeadName('Inbound Caller')).toBe(true);
+      expect(isPlaceholderLeadName('Guest')).toBe(true);
+      expect(isPlaceholderLeadName('Unknown')).toBe(true);
+      expect(isPlaceholderLeadName('Caller')).toBe(true);
+      expect(isPlaceholderLeadName('Customer')).toBe(true);
+      expect(isPlaceholderLeadName('कस्टमर')).toBe(true);
+      expect(isPlaceholderLeadName('')).toBe(true);
+      expect(isPlaceholderLeadName(null)).toBe(true);
+    });
+
+    it('should identify real customer names as not placeholder', () => {
+      expect(isPlaceholderLeadName('Rahul')).toBe(false);
+      expect(isPlaceholderLeadName('Rahul Sharma')).toBe(false);
+      expect(isPlaceholderLeadName('Pooja Verma')).toBe(false);
+      expect(isPlaceholderLeadName('Amit')).toBe(false);
+      expect(isPlaceholderLeadName('युवराज')).toBe(false);
     });
   });
 });

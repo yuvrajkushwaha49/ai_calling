@@ -435,6 +435,19 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 updatedAt: new Date(),
                 project: null,
             };
+            if (session.memory?.customer?.name && lead?.id && lead.id !== 'guest-lead') {
+                const rawLeadName = (lead.name || '').trim();
+                if ((0, call_scripts_1.isPlaceholderLeadName)(rawLeadName)) {
+                    const freshName = session.memory.customer.name;
+                    lead.name = freshName;
+                    void this.prisma.lead.update({
+                        where: { id: lead.id },
+                        data: { name: freshName },
+                    }).then(() => {
+                        this.logger.log(`[MCube] 👤 Updated lead name in DB from placeholder to: ${freshName}`);
+                    }).catch((e) => this.logger.warn(`[MCube] Failed to update lead name: ${e}`));
+                }
+            }
             const companyName = settings?.companyName ||
                 lead.project?.companyName ||
                 lead.project?.builder ||
@@ -445,7 +458,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             const isHinglish = activeLang.toLowerCase().includes('hinglish');
             const follow = (0, call_scripts_1.buildFollowUpReply)({
                 transcript: userMessage,
-                leadName: lead.name,
+                leadName: (0, call_scripts_1.isPlaceholderLeadName)(lead.name) ? 'जी' : lead.name,
                 language: activeLang,
                 tone: settings.tone || 'friendly',
                 priorTranscript: liveTranscript,
@@ -542,6 +555,9 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     languageDetected = result.languageDetected || languageDetected;
                 }
                 if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
+                    if (result.qualification.callerName && !(0, call_scripts_1.isPlaceholderLeadName)(result.qualification.callerName)) {
+                        lead.name = result.qualification.callerName;
+                    }
                     void this.conversation
                         .applyQualificationToLead(lead.id, {
                         ...result.qualification,

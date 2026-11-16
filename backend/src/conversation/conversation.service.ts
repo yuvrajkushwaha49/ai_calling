@@ -14,6 +14,7 @@ import {
   inferBudgetFromShortReply,
   isSameTalk,
   isShortAffirmation,
+  isPlaceholderLeadName,
   isShortDecline,
   lastAgentLine,
   lastAgentAskedTalkPermission,
@@ -459,15 +460,13 @@ export class ConversationService {
       'Saya Group';
 
     const rawLeadName = (options.lead.name || '').trim();
-    const isGenericLeadName =
-      !rawLeadName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawLeadName);
+    const isGenericLead = isPlaceholderLeadName(rawLeadName);
     const rawMemName = (options.memory?.customer?.name || '').trim();
-    const isGenericMemName =
-      !rawMemName || /^(inbound|guest|unknown|lead\s*\d+)/i.test(rawMemName);
+    const isGenericMem = isPlaceholderLeadName(rawMemName);
 
     const realCustomerName =
-      (!isGenericMemName && rawMemName) ||
-      (!isGenericLeadName && rawLeadName) ||
+      (!isGenericMem && rawMemName) ||
+      (!isGenericLead && rawLeadName) ||
       null;
 
     const knownBhk =
@@ -575,7 +574,7 @@ export class ConversationService {
       } else {
         const fallback = buildFollowUpReply({
           transcript: options.userMessage,
-          leadName: realCustomerName || options.lead.name,
+          leadName: realCustomerName || 'जी',
           language: this.scriptLanguage(replyLang),
           tone: options.tone || 'friendly',
           priorTranscript: options.priorTranscript,
@@ -875,7 +874,7 @@ Answer thoughtfully in one short spoken reply.`
               : buildDefaultSalesAgentPrompt();
           return fillSalesAgentPrompt(template, {
             company_name: company,
-            customer_name: realCustomerName ? `${realCustomerName} जी` : 'कस्टमर',
+            customer_name: realCustomerName ? `${realCustomerName} ji` : '',
             product_name: productName,
             lead_source: options.isInbound ? 'helpline call' : 'enquiry',
             previous_interaction: recentTranscript
@@ -1000,10 +999,9 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
         200,
       );
       const callerKnownName =
-        known.callerName ||
-        (options.lead.name && options.lead.name !== 'Inbound Caller' && options.lead.name !== 'Guest'
-          ? options.lead.name
-          : null);
+        known.callerName && !isPlaceholderLeadName(known.callerName)
+          ? known.callerName
+          : realCustomerName;
 
       const quickSystem = options.isInbound
         ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
@@ -1022,7 +1020,7 @@ CRITICAL ANTI-REPETITION & NATURAL DIALOGUE RULES:
   1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
   2) If caller asks ANY question about project, flat, price, location, amenities, possession: ALWAYS answer their question first from Available Projects & Knowledge.
   3) PROGRESSIVE DETAIL COLLECTION (Check what is already answered in the transcript):
-     * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'Ask: "Vaise main aapka shubh naam jaan sakti hoon?"'}
+     * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'UNKNOWN (CRITICAL: Politely ask their name early in call: "Vaise main aapka shubh naam jaan sakti hoon?")'}
      * Configuration: ${known.bhk ? `Known (${known.bhk}) - DO NOT ask BHK again!` : 'Ask: "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"'}
      * Purpose: ${known.purpose ? `Known (${known.purpose}) - DO NOT ask purpose again!` : 'Ask: "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"'}
      * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak lene ka plan hai?"'}
@@ -1153,8 +1151,8 @@ ${learned ? learned : ''}`;
                 : ` और कुछ जानना हो तो बताइए।`;
         const prefix =
           replyLang === 'en-IN' || this.scriptLanguage(replyLang) === 'en-IN'
-            ? `Sure ${options.lead.name}. `
-            : `अच्छा ${options.lead.name}. `;
+            ? (realCustomerName ? `Sure ${realCustomerName}. ` : `Sure! `)
+            : (realCustomerName ? `अच्छा ${realCustomerName} जी. ` : `अच्छा! `);
         replyText = `${prefix}${snippet}${
           snippet.length >= 160 ? '…' : ''
         }${suffix}`;
@@ -1692,7 +1690,7 @@ ${learned ? learned : ''}`;
       ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
     };
 
-    if (callerName && callerName.length >= 2 && !/^(?:caller|unknown|inbound|guest|lead\s*\d+)$/i.test(callerName)) {
+    if (callerName && callerName.length >= 2 && !isPlaceholderLeadName(callerName)) {
       data.name = callerName;
     }
     if (projectId) {

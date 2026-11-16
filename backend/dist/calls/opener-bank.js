@@ -119,12 +119,13 @@ function personalizeOpeningTip(tipNote, ctx) {
         .replace(/\s+/g, ' ')
         .trim()
         .replace(/[,\s]+$/g, '');
-    const leadFirst = (ctx.leadName || '')
+    const rawFirst = (ctx.leadName || '')
         .trim()
         .replace(/\s*जी\s*$/u, '')
         .replace(/\s+ji$/i, '')
-        .split(/\s+/)[0] || 'जी';
-    t = t.replace(/^(Namaste|Hi|नमस्ते|सादर\s*Hi)\s+[^\s,]+(\s*जी)?/i, (_m, g, ji) => `${g} ${leadFirst}${ji || ' जी'}`);
+        .split(/\s+/)[0] || '';
+    const leadFirst = (0, call_scripts_1.isPlaceholderLeadName)(rawFirst) ? 'जी' : rawFirst;
+    t = t.replace(/^(Namaste|Hi|नमस्ते|सादर\s*Hi)\s+[^\s,]+(\s*जी)?/i, (_m, g, ji) => leadFirst === 'जी' ? `${g} जी` : `${g} ${leadFirst}${ji || ' जी'}`);
     t = t.replace(/\bNeha\b/gi, ctx.agentName);
     t = t.replace(/\bAria\b/gi, ctx.agentName);
     t = t.replace(/बोल रही हूँ|बोल रहा हूँ/g, `${ctx.bolHi} हूँ`);
@@ -146,6 +147,9 @@ function firstName(name) {
         .replace(/\s*जी\s*$/u, '')
         .replace(/\s+ji$/i, '');
     const first = (n.split(/\s+/)[0] || '').trim();
+    if ((0, call_scripts_1.isPlaceholderLeadName)(first)) {
+        return 'जी';
+    }
     return first || 'जी';
 }
 function speakAgentName(raw) {

@@ -80,5 +80,40 @@ describe('FactExtractorService', () => {
       expect(res.facts.bhk).toBe('3 BHK');
     });
   });
+
+  describe('Name extraction', () => {
+    it('should extract name from "Mera naam Rahul Sharma hai"', () => {
+      const res = service.extractFacts('Mera naam Rahul Sharma hai');
+      expect(res.facts.name).toBe('Rahul Sharma');
+      expect(res.confidenceMap.name).toBe('confirmed');
+    });
+
+    it('should extract name from "Rahul bol raha hoon"', () => {
+      const res = service.extractFacts('Haan main Rahul bol raha hoon');
+      expect(res.facts.name).toBe('Rahul');
+    });
+
+    it('should extract name from "Amit baat kar raha hoon"', () => {
+      const res = service.extractFacts('Ji Amit baat kar raha hoon');
+      expect(res.facts.name).toBe('Amit');
+    });
+
+    it('should extract name from English "This is Vikram"', () => {
+      const res = service.extractFacts('Hello, this is Vikram');
+      expect(res.facts.name).toBe('Vikram');
+    });
+
+    it('should extract direct short answer "Rahul Sharma"', () => {
+      const res = service.extractFacts('Rahul Sharma');
+      expect(res.facts.name).toBe('Rahul Sharma');
+    });
+
+    it('should not extract generic words or placeholder names', () => {
+      expect(service.extractFacts('Haan ji').facts.name).toBeUndefined();
+      expect(service.extractFacts('2 BHK flat dekhna hai').facts.name).toBeUndefined();
+      expect(service.extractFacts('Saya Group me project dekh raha hu').facts.name).toBeUndefined();
+      expect(service.extractFacts('Lead 3089').facts.name).toBeUndefined();
+    });
+  });
 });
 

@@ -11,6 +11,7 @@ import {
 import { maskPhoneNumber, normalizePhoneNumber } from './phone-utils';
 import { ExtractedTurnFacts } from './fact-extractor.service';
 import { Prisma } from '@prisma/client';
+import { isPlaceholderLeadName } from '../calls/call-scripts';
 
 @Injectable()
 export class CustomerMemoryService {
@@ -142,7 +143,7 @@ export class CustomerMemoryService {
     if (initialFacts.purpose) answeredFields.push('purpose');
     if (initialFacts.location) answeredFields.push('location');
     if (initialFacts.timeline) answeredFields.push('timeline');
-    if (initialFacts.name && initialFacts.name !== 'Inbound Caller') answeredFields.push('name');
+    if (initialFacts.name && !isPlaceholderLeadName(initialFacts.name)) answeredFields.push('name');
 
     const confirmedFacts: Record<string, FactEntry> = {};
     for (const field of answeredFields) {
@@ -244,7 +245,7 @@ export class CustomerMemoryService {
     if (c.purpose) fields.add('purpose');
     if (c.location) fields.add('location');
     if (c.timeline || c.possession) fields.add('timeline');
-    if (c.name && c.name !== 'Inbound Caller') fields.add('name');
+    if (c.name && !isPlaceholderLeadName(c.name)) fields.add('name');
     if (c.siteVisit?.interested) fields.add('siteVisit');
     state.answeredFields = Array.from(fields);
 
@@ -406,7 +407,7 @@ export class CustomerMemoryService {
         const leadUpdate: Prisma.LeadUpdateInput = {};
         const c = state.customer;
 
-        if (c.name && c.name !== 'Inbound Caller') leadUpdate.name = c.name;
+        if (c.name && !isPlaceholderLeadName(c.name)) leadUpdate.name = c.name;
         if (c.bhk) leadUpdate.bhkPreference = c.bhk;
         if (c.budget) leadUpdate.budget = c.budget;
         if (c.location) leadUpdate.preferredLocation = c.location;
@@ -426,7 +427,7 @@ export class CustomerMemoryService {
       if (state.phone) {
         const profile: CustomerProfileCache = {
           leadId: state.leadId,
-          name: state.customer.name || null,
+          name: state.customer.name && !isPlaceholderLeadName(state.customer.name) ? state.customer.name : null,
           phone: state.phone,
           purpose: state.customer.purpose || null,
           bhk: state.customer.bhk || null,
@@ -547,11 +548,7 @@ export class CustomerMemoryService {
       return {
         leadId: lead.id,
         name:
-          lead.name &&
-          !/inbound/i.test(lead.name) &&
-          !/^lead\s*\d+/i.test(lead.name) &&
-          !/unknown/i.test(lead.name) &&
-          !/guest/i.test(lead.name)
+          lead.name && !isPlaceholderLeadName(lead.name)
             ? lead.name
             : null,
         phone: normalizedPhone || lead.phone,

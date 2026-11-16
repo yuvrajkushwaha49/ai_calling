@@ -15,7 +15,7 @@ import { ConversationState } from '../memory/memory.types';
 import { maskPhoneNumber } from '../memory/phone-utils';
 import { CallOutcome, CallStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
-import { buildFollowUpReply } from './call-scripts';
+import { buildFollowUpReply, isPlaceholderLeadName } from './call-scripts';
 import {
   asNodeBuffer,
   boostPcm16,
@@ -534,6 +534,20 @@ export class McubeStreamService {
         project: null,
       };
 
+      if (session.memory?.customer?.name && lead?.id && lead.id !== 'guest-lead') {
+        const rawLeadName = (lead.name || '').trim();
+        if (isPlaceholderLeadName(rawLeadName)) {
+          const freshName = session.memory.customer.name;
+          lead.name = freshName;
+          void this.prisma.lead.update({
+            where: { id: lead.id },
+            data: { name: freshName },
+          }).then(() => {
+            this.logger.log(`[MCube] 👤 Updated lead name in DB from placeholder to: ${freshName}`);
+          }).catch((e) => this.logger.warn(`[MCube] Failed to update lead name: ${e}`));
+        }
+      }
+
       const companyName =
         (settings as { companyName?: string })?.companyName ||
         lead.project?.companyName ||
@@ -549,7 +563,7 @@ export class McubeStreamService {
 
       const follow = buildFollowUpReply({
         transcript: userMessage,
-        leadName: lead.name,
+        leadName: isPlaceholderLeadName(lead.name) ? 'जी' : lead.name,
         language: activeLang,
         tone: (settings as { tone?: string }).tone || 'friendly',
         priorTranscript: liveTranscript,
@@ -664,6 +678,9 @@ export class McubeStreamService {
 
         // Real-time CRM lead update with customer details (name, BHK, budget, project, site visit)
         if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
+          if (result.qualification.callerName && !isPlaceholderLeadName(result.qualification.callerName as string)) {
+            lead.name = result.qualification.callerName as string;
+          }
           void this.conversation
             .applyQualificationToLead(lead.id, {
               ...result.qualification,

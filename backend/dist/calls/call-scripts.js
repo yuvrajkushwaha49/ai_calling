@@ -4,6 +4,7 @@ exports.inferGenderFromName = inferGenderFromName;
 exports.agentGenderFromVoice = agentGenderFromVoice;
 exports.resolveSpeechGender = resolveSpeechGender;
 exports.ag = ag;
+exports.isPlaceholderLeadName = isPlaceholderLeadName;
 exports.normalizeLanguage = normalizeLanguage;
 exports.normalizeTone = normalizeTone;
 exports.phoneSpeechGuide = phoneSpeechGuide;
@@ -242,6 +243,18 @@ function resolveSpeechGender(options) {
 function ag(gender, male, female) {
     return gender === 'female' ? female : male;
 }
+function isPlaceholderLeadName(name) {
+    if (!name || typeof name !== 'string')
+        return true;
+    const n = name.trim();
+    if (n.length < 2)
+        return true;
+    if (/^lead(\b|\s|\d|_|-|$)/i.test(n) || /^lead/i.test(n))
+        return true;
+    if (/^(?:inbound|guest|unknown|caller|customer|user|कस्टमर|कॉलर)/i.test(n))
+        return true;
+    return false;
+}
 function normalizeLanguage(language) {
     const allowed = [
         'en-IN',
@@ -455,12 +468,15 @@ function extractFactsFromText(raw) {
         if (n?.[1])
             facts.bhk = `${n[1]}BHK`;
     }
-    const nameMatch = text.match(/(?:mera\s+naam|my\s+name\s+is|this\s+is|myself|main|naam)\s+([a-zA-Z\u0900-\u097F]{2,20})(?:\s+(?:hai|bol|speaking|here))?/i);
+    const nameMatch = text.match(/(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([a-zA-Z\u0900-\u097F]{2,25}(?:\s+[a-zA-Z\u0900-\u097F]{2,25})?)/i) ||
+        text.match(/([a-zA-Z\u0900-\u097F]{2,25}(?:\s+[a-zA-Z\u0900-\u097F]{2,25})?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ)/i) ||
+        text.match(/(?:main|mai|मैं)\s+([a-zA-Z\u0900-\u097F]{2,25}(?:\s+[a-zA-Z\u0900-\u097F]{2,25})?)\s+(?:bol\s*(?:raha|rahi)|baat\s*kar\s*(?:raha|rahi)|hoon|हु|हूँ)/i) ||
+        text.match(/(?:naam|name)\s+([a-zA-Z\u0900-\u097F]{2,25})\s+(?:hai|h)/i);
     if (nameMatch?.[1]) {
         const rawName = nameMatch[1].trim();
-        const banned = /^(?:hai|bol|raha|rahi|calling|sir|ji|madam|haan|nahi|kya|kaun|customer|agent|inbound|saya|hello|namaste)$/i;
-        if (!banned.test(rawName)) {
-            facts.callerName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        const banned = /^(?:hai|bol|raha|rahi|calling|sir|ji|madam|haan|nahi|kya|kaun|customer|agent|inbound|saya|hello|namaste|bhk|flat|budget|property|house|plot)$/i;
+        if (!banned.test(rawName) && !isPlaceholderLeadName(rawName)) {
+            facts.callerName = rawName.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
     }
     if (/rehne\s+ke\s+liye|end\s*use|self\s*use|family\s+ke\s+liye|khud\s+ke\s+liye/i.test(text)) {
@@ -794,7 +810,9 @@ function detectIntent(text) {
 function buildFollowUpReply(options) {
     const language = normalizeLanguage(options.language);
     const tone = normalizeTone(options.tone);
-    const leadName = options.leadName || 'जी';
+    const rawLeadName = (options.leadName || '').trim();
+    const hasRealName = !isPlaceholderLeadName(rawLeadName);
+    const leadName = hasRealName ? rawLeadName : 'जी';
     const gender = options.speechGender ||
         resolveSpeechGender({
             agentVoice: options.agentVoice,
@@ -932,15 +950,15 @@ function buildFollowUpReply(options) {
         explain_why_call: {
             'en-IN': options.isInbound
                 ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
-                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
+                : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
             'hi-IN': options.isInbound
                 ? `जी नमस्ते! मैं ${options.companyName || 'Saya Group'} helpline से ${options.agentName || 'नेहा'} बात कर रही हूँ। बताएं मैं आपकी क्या सहायता कर सकती हूँ?`
-                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी घर/flat देखना चालू है क्या?`,
+                : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी घर/flat देखना चालू है क्या?`,
             hinglish: options.isInbound
                 ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
-                : `${leadName} जी, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
-            'mr-IN': `${leadName}, property enquiry आली होती म्हणून कॉल — आता पाहत आहात का?`,
-            'gu-IN': `${leadName}, property enquiry આવી હતી એટલે કૉલ — અત્યારે જોઈ રહ્યા છો?`,
+                : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
+            'mr-IN': `${hasRealName ? `${leadName}, ` : ''}property enquiry आली होती म्हणून कॉल — आता पाहत आहात का?`,
+            'gu-IN': `${hasRealName ? `${leadName}, ` : ''}property enquiry આવી હતી એટલે કૉલ — અત્યારે જોઈ રહ્યા છો?`,
         },
         greeting_inbound: {
             'en-IN': `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
@@ -976,11 +994,11 @@ function buildFollowUpReply(options) {
             'gu-IN': `હા, હું જોઉં છું, એક સેકન્ડ...`,
         },
         ask_planning: {
-            'en-IN': `${leadName} जी, घर / flat देखना अभी चालू है क्या आपके side?`,
-            'hi-IN': `${leadName} जी, घर या flat देखना अभी चालू है क्या आपके side?`,
-            hinglish: `${leadName} जी, घर या flat देखना अभी चालू है क्या आपके side?`,
-            'mr-IN': `${leadName}, घर पाहणे सुरू आहे का?`,
-            'gu-IN': `${leadName}, ઘર જોવાનું ચાલુ છે?`,
+            'en-IN': `${hasRealName ? `${leadName} जी, ` : ''}घर / flat देखना अभी चालू है क्या आपके side?`,
+            'hi-IN': `${hasRealName ? `${leadName} जी, ` : ''}घर या flat देखना अभी चालू है क्या आपके side?`,
+            hinglish: `${hasRealName ? `${leadName} जी, ` : ''}घर या flat देखना अभी चालू है क्या आपके side?`,
+            'mr-IN': `${hasRealName ? `${leadName}, ` : ''}घर पाहणे सुरू आहे का?`,
+            'gu-IN': `${hasRealName ? `${leadName}, ` : ''}ઘર જોવાનું ચાલુ છે?`,
         },
         ask_bhk: {
             'en-IN': `Accha — configuration कौनसी सोच रहे हो, दो bedroom या तीन?`,

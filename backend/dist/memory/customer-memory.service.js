@@ -15,6 +15,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const redis_service_1 = require("../redis/redis.service");
 const phone_utils_1 = require("./phone-utils");
+const call_scripts_1 = require("../calls/call-scripts");
 let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryService {
     prisma;
     redis;
@@ -110,7 +111,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             answeredFields.push('location');
         if (initialFacts.timeline)
             answeredFields.push('timeline');
-        if (initialFacts.name && initialFacts.name !== 'Inbound Caller')
+        if (initialFacts.name && !(0, call_scripts_1.isPlaceholderLeadName)(initialFacts.name))
             answeredFields.push('name');
         const confirmedFacts = {};
         for (const field of answeredFields) {
@@ -197,7 +198,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             fields.add('location');
         if (c.timeline || c.possession)
             fields.add('timeline');
-        if (c.name && c.name !== 'Inbound Caller')
+        if (c.name && !(0, call_scripts_1.isPlaceholderLeadName)(c.name))
             fields.add('name');
         if (c.siteVisit?.interested)
             fields.add('siteVisit');
@@ -324,7 +325,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             if (state.leadId) {
                 const leadUpdate = {};
                 const c = state.customer;
-                if (c.name && c.name !== 'Inbound Caller')
+                if (c.name && !(0, call_scripts_1.isPlaceholderLeadName)(c.name))
                     leadUpdate.name = c.name;
                 if (c.bhk)
                     leadUpdate.bhkPreference = c.bhk;
@@ -348,7 +349,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             if (state.phone) {
                 const profile = {
                     leadId: state.leadId,
-                    name: state.customer.name || null,
+                    name: state.customer.name && !(0, call_scripts_1.isPlaceholderLeadName)(state.customer.name) ? state.customer.name : null,
                     phone: state.phone,
                     purpose: state.customer.purpose || null,
                     bhk: state.customer.bhk || null,
@@ -446,11 +447,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             const previousSummary = lead.aiSummary || lastCall?.summary || null;
             return {
                 leadId: lead.id,
-                name: lead.name &&
-                    !/inbound/i.test(lead.name) &&
-                    !/^lead\s*\d+/i.test(lead.name) &&
-                    !/unknown/i.test(lead.name) &&
-                    !/guest/i.test(lead.name)
+                name: lead.name && !(0, call_scripts_1.isPlaceholderLeadName)(lead.name)
                     ? lead.name
                     : null,
                 phone: normalizedPhone || lead.phone,

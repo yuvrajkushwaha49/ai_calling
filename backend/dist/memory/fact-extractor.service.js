@@ -28,6 +28,7 @@ const HINDI_LAKH_WORDS = {
     'ग्यारह': 11, 'बारह': 12, 'तेरह': 13, 'चौदह': 14, 'पंद्रह': 15, 'सोलह': 16, 'सत्रह': 17, 'अठारह': 18, 'उन्नीस': 19, 'बीस': 20,
 };
 const common_1 = require("@nestjs/common");
+const call_scripts_1 = require("../calls/call-scripts");
 let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
     logger = new common_1.Logger(FactExtractorService_1.name);
     projectPatterns = [
@@ -281,22 +282,46 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         return matched;
     }
     extractName(text) {
-        let match = text.match(/(?:mera\s*naam|मेरा\s*नाम|my\s*name\s*is)\s*(?:hai|h)?\s*([A-Za-z\u0900-\u097F]+)/i);
+        const clean = (text || '').trim();
+        if (clean.length < 2)
+            return null;
+        let match = clean.match(/(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)/i);
         if (!match) {
-            match = text.match(/naam\s+([A-Za-z\u0900-\u097F]+)\s+(?:hai|h)/i);
+            match = clean.match(/([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ)/i);
         }
         if (!match) {
-            match = text.match(/मैं\s+([A-Za-z\u0900-\u097F]+)\s+(?:बोल|बात)\s*(?:रहा|कर)/i);
+            match = clean.match(/(?:main|mai|मैं)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)|baat\s*kar\s*(?:raha|rahi)|hoon|हु|हूँ)/i);
+        }
+        if (!match) {
+            match = clean.match(/(?:naam|name)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:hai|h)/i);
+        }
+        if (!match) {
+            const direct = clean.match(/^(?:haan|ji|haanji|yes)?\s*(?:mera\s*naam\s*)?([A-Za-z\u0900-\u097F]{2,20}(?:\s+[A-Za-z\u0900-\u097F]{2,20})?)\s*(?:hai|ji|sir)?$/i);
+            if (direct) {
+                match = direct;
+            }
         }
         if (match && match[1]) {
             const candidate = match[1].trim();
-            const forbidden = /^(?:nahi|haan|bhk|flat|budget|ha|yes|no|sir|madam|ji|apne|apna|apni|अपने|अपना|अपनी|ek|do|teen|chaar|two|three|four|main|mai|hum|ham|property|plot|ghar|house|saaya|saya|group|noida|delhi)$/i;
-            if (candidate.length >= 3 && !forbidden.test(candidate)) {
-                return {
-                    name: candidate,
-                    confidence: 'confirmed',
-                    snippet: match[0],
-                };
+            const forbidden = /^(?:nahi|haan|nhi|ha|yes|no|ok|okay|theek|bhk|flat|budget|cr|crore|lakh|sir|madam|ji|bhai|apne|apna|apni|अपने|अपना|अपनी|ek|do|teen|chaar|two|three|four|main|mai|hum|ham|property|plot|ghar|house|saaya|saya|group|noida|delhi|extension|greater|gurgaon|ghaziabad|price|rate|villa|calling|inbound|customer|agent|hello|namaste|details|whatsapp|kya|kaun|kaha|kab|bol|baat|raha|rahi|hoon|shubh|naam|name)$/i;
+            let words = candidate.split(/\s+/).filter(Boolean);
+            while (words.length > 0 && forbidden.test(words[0])) {
+                words.shift();
+            }
+            while (words.length > 0 && forbidden.test(words[words.length - 1])) {
+                words.pop();
+            }
+            if (words.length > 0 && words.length <= 3) {
+                const allValid = words.every((w) => w.length >= 2 && !forbidden.test(w));
+                const joined = words.join(' ');
+                if (allValid && !(0, call_scripts_1.isPlaceholderLeadName)(joined)) {
+                    const formatted = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    return {
+                        name: formatted,
+                        confidence: 'confirmed',
+                        snippet: match[0],
+                    };
+                }
             }
         }
         return null;

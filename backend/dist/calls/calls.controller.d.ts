@@ -39,6 +39,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -49,7 +50,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -108,6 +108,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -118,7 +119,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -164,6 +164,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         projectId: string | null;
@@ -173,7 +174,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         languageDetected: string | null;
@@ -206,7 +206,7 @@ export declare class CallsController {
         audioBase64: string;
         mimeType: string;
         transcript: string;
-        languageDetected: "hinglish" | "hi-IN" | "en-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";
+        languageDetected: "hinglish" | "en-IN" | "hi-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";
         sources: {
             chunkId: string;
             score: number;
@@ -251,6 +251,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -261,7 +262,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -304,6 +304,8 @@ export declare class CallsController {
             createdAt: Date;
             updatedAt: Date;
             budget: number | null;
+            preferredLocation: string | null;
+            bhkPreference: string | null;
             phone: string;
             source: import("@prisma/client").$Enums.LeadSource;
             propertyType: import("@prisma/client").$Enums.PropertyType | null;
@@ -312,8 +314,6 @@ export declare class CallsController {
             projectId: string | null;
             aiSummary: string | null;
             preferredLanguage: string | null;
-            preferredLocation: string | null;
-            bhkPreference: string | null;
             purchaseTimeline: string | null;
             interestLevel: string | null;
             interestScore: number | null;
@@ -343,6 +343,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -353,7 +354,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -371,6 +371,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -381,7 +382,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -399,6 +399,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -409,7 +410,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;
@@ -421,6 +421,7 @@ export declare class CallsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        outcome: import("@prisma/client").$Enums.CallOutcome;
         summary: string | null;
         leadId: string;
         status: import("@prisma/client").$Enums.CallStatus;
@@ -431,7 +432,6 @@ export declare class CallsController {
         duration: number;
         transcript: string | null;
         recordingUrl: string | null;
-        outcome: import("@prisma/client").$Enums.CallOutcome;
         provider: string;
         providerCallId: string | null;
         greetingText: string | null;

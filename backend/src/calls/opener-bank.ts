@@ -1,4 +1,4 @@
-import { ag, normalizeTone, resolveSpeechGender } from './call-scripts';
+import { ag, isPlaceholderLeadName, normalizeTone, resolveSpeechGender } from './call-scripts';
 import type { AppLanguage, AppTone, SpeechGender } from './call-scripts';
 
 /** Opening styles — short, natural phone openers. */
@@ -161,16 +161,18 @@ export function personalizeOpeningTip(
     .trim()
     .replace(/[,\s]+$/g, '');
 
-  const leadFirst =
+  const rawFirst =
     (ctx.leadName || '')
       .trim()
       .replace(/\s*जी\s*$/u, '')
       .replace(/\s+ji$/i, '')
-      .split(/\s+/)[0] || 'जी';
+      .split(/\s+/)[0] || '';
+  const leadFirst = isPlaceholderLeadName(rawFirst) ? 'जी' : rawFirst;
 
   t = t.replace(
     /^(Namaste|Hi|नमस्ते|सादर\s*Hi)\s+[^\s,]+(\s*जी)?/i,
-    (_m, g: string, ji?: string) => `${g} ${leadFirst}${ji || ' जी'}`,
+    (_m, g: string, ji?: string) =>
+      leadFirst === 'जी' ? `${g} जी` : `${g} ${leadFirst}${ji || ' जी'}`,
   );
 
   t = t.replace(/\bNeha\b/gi, ctx.agentName);
@@ -206,6 +208,9 @@ function firstName(name: string) {
     .replace(/\s*जी\s*$/u, '')
     .replace(/\s+ji$/i, '');
   const first = (n.split(/\s+/)[0] || '').trim();
+  if (isPlaceholderLeadName(first)) {
+    return 'जी';
+  }
   return first || 'जी';
 }
 

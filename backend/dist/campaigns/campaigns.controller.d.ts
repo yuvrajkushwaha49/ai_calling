@@ -68,8 +68,8 @@ export declare class CampaignsController {
             };
             call: {
                 id: string;
-                status: import("@prisma/client").$Enums.CallStatus;
                 outcome: import("@prisma/client").$Enums.CallOutcome;
+                status: import("@prisma/client").$Enums.CallStatus;
             } | null;
         } & {
             id: string;
@@ -128,8 +128,8 @@ export declare class CampaignsController {
             };
             call: {
                 id: string;
-                status: import("@prisma/client").$Enums.CallStatus;
                 outcome: import("@prisma/client").$Enums.CallOutcome;
+                status: import("@prisma/client").$Enums.CallStatus;
             } | null;
         } & {
             id: string;

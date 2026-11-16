@@ -149,7 +149,7 @@ export declare class ConversationService {
         memory?: ConversationState | null;
     }): Promise<{
         replyText: string;
-        languageDetected: "hinglish" | "hi-IN" | "en-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";
+        languageDetected: "hinglish" | "en-IN" | "hi-IN" | "mr-IN" | "gu-IN" | "ta-IN" | "te-IN" | "kn-IN" | "bn-IN" | "pa-IN";
         sources: {
             chunkId: string;
             score: number;
@@ -193,6 +193,8 @@ export declare class ConversationService {
         createdAt: Date;
         updatedAt: Date;
         budget: number | null;
+        preferredLocation: string | null;
+        bhkPreference: string | null;
         phone: string;
         source: import("@prisma/client").$Enums.LeadSource;
         propertyType: import("@prisma/client").$Enums.PropertyType | null;
@@ -201,8 +203,6 @@ export declare class ConversationService {
         projectId: string | null;
         aiSummary: string | null;
         preferredLanguage: string | null;
-        preferredLocation: string | null;
-        bhkPreference: string | null;
         purchaseTimeline: string | null;
         interestLevel: string | null;
         interestScore: number | null;
