@@ -31,8 +31,8 @@ export class VoiceService {
   /** App language tags for CRM / UI. */
   normalizeAppLanguage(language?: string): string {
     const lang = (language || '').toLowerCase().trim();
-    if (!lang) return 'hi-IN';
-    if (lang.includes('hinglish')) return 'hi-IN';
+    if (!lang) return 'hinglish';
+    if (lang.includes('hinglish')) return 'hinglish';
     if (lang.startsWith('hi')) return 'hi-IN';
     if (lang.startsWith('en')) return 'en-IN';
     if (lang.startsWith('mr')) return 'mr-IN';
@@ -42,7 +42,7 @@ export class VoiceService {
     if (lang.startsWith('kn')) return 'kn-IN';
     if (lang.startsWith('bn')) return 'bn-IN';
     if (lang.startsWith('pa')) return 'pa-IN';
-    return 'hi-IN';
+    return 'hinglish';
   }
 
   normalizeLanguage(language?: string) {

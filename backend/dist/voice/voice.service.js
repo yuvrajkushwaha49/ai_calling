@@ -35,9 +35,9 @@ let VoiceService = VoiceService_1 = class VoiceService {
     normalizeAppLanguage(language) {
         const lang = (language || '').toLowerCase().trim();
         if (!lang)
-            return 'hi-IN';
+            return 'hinglish';
         if (lang.includes('hinglish'))
-            return 'hi-IN';
+            return 'hinglish';
         if (lang.startsWith('hi'))
             return 'hi-IN';
         if (lang.startsWith('en'))
@@ -56,7 +56,7 @@ let VoiceService = VoiceService_1 = class VoiceService {
             return 'bn-IN';
         if (lang.startsWith('pa'))
             return 'pa-IN';
-        return 'hi-IN';
+        return 'hinglish';
     }
     normalizeLanguage(language) {
         return this.normalizeAppLanguage(language);

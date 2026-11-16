@@ -121,7 +121,7 @@ export class AiService {
           .replace(/\s{2,}/g, ' ')
           .trim()
       : prompt;
-    const defaultSalesPrompt = buildDefaultSalesAgentPrompt();
+    const defaultSalesPrompt = buildDefaultSalesAgentPrompt(normalizedLanguage);
     const promptNeedsSalesRewrite =
       !cleanedPrompt.trim() ||
       !isSalesAgentPrompt(cleanedPrompt) ||

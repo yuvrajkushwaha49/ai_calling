@@ -440,10 +440,12 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 'Saya Group';
             const agentName = settings?.agentName || 'Neha';
             const liveTranscript = session.transcript || call?.transcript || 'Agent: Hello?\n';
+            const activeLang = settings?.language || call?.languageDetected || 'hinglish';
+            const isHinglish = activeLang.toLowerCase().includes('hinglish');
             const follow = (0, call_scripts_1.buildFollowUpReply)({
                 transcript: userMessage,
                 leadName: lead.name,
-                language: call?.languageDetected || 'hi-IN',
+                language: activeLang,
                 tone: settings.tone || 'friendly',
                 priorTranscript: liveTranscript,
                 agentVoice: settings?.agentVoice || 'rachel',
@@ -452,14 +454,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 isInbound: true,
             });
             let replyText = follow.text;
-            let languageDetected = call?.languageDetected || 'hi-IN';
+            let languageDetected = activeLang;
             let ttsChain = Promise.resolve();
             let streamedAnyAudio = false;
             let fillerTimeout = setTimeout(async () => {
                 if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN)
                     return;
                 try {
-                    const filler = 'हाँ जी, मैं देख रही हूँ...';
+                    const filler = isHinglish ? 'Haan ji, main dekh rahi hoon...' : 'हाँ जी, मैं देख रही हूँ...';
                     this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
                     const audioBuffer = await this.synthesizeForSession(filler, session, settings);
                     if (audioBuffer && !streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
@@ -480,7 +482,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         lead.project?.companyName ||
                         lead.project?.builder ||
                         'Saya Group',
-                    defaultLanguage: call?.languageDetected || 'hi-IN',
+                    defaultLanguage: activeLang,
                     tone: settings?.tone || 'friendly',
                     systemPrompt: settings?.systemPrompt || undefined,
                     llmModel: settings?.llmModel ||

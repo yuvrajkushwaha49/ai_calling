@@ -69,6 +69,7 @@ export class QuestionValidatorService {
 
     const answered = new Set((state.answeredFields || []).map((f) => f.toLowerCase()));
     const customer = state.customer || {};
+    const isRoman = !/[\u0900-\u097F]/.test(raw);
 
     // 1. Check BHK question repetition
     if (
@@ -78,8 +79,12 @@ export class QuestionValidatorService {
       this.logger.warn(
         `[Anti-Repetition] Blocked repeated BHK question for callId=${state.callId}. Customer already provided: ${customer.bhk}`,
       );
-      const ack = customer.bhk ? `जी बिल्कुल, आप ${customer.bhk} देख रहे हैं। ` : '';
-      const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'bhk')}`;
+      const ack = customer.bhk
+        ? isRoman
+          ? `Ji bilkul, aap ${customer.bhk} dekh rahe hain. `
+          : `जी बिल्कुल, आप ${customer.bhk} देख रहे हैं। `
+        : '';
+      const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'bhk', isRoman)}`;
       return {
         sanitized: replacement,
         sanitizedText: replacement,
@@ -99,8 +104,12 @@ export class QuestionValidatorService {
       this.logger.warn(
         `[Anti-Repetition] Blocked repeated Budget question for callId=${state.callId}. Customer already provided: ${customer.budgetLabel || customer.budget}`,
       );
-      const ack = customer.budgetLabel ? `जी, आपका बजट ${customer.budgetLabel} हमने नोट कर लिया है। ` : '';
-      const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'budget')}`;
+      const ack = customer.budgetLabel
+        ? isRoman
+          ? `Ji, aapka budget ${customer.budgetLabel} humne note kar liya hai. `
+          : `जी, आपका बजट ${customer.budgetLabel} हमने नोट कर लिया है। `
+        : '';
+      const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'budget', isRoman)}`;
       return {
         sanitized: replacement,
         sanitizedText: replacement,
@@ -120,7 +129,7 @@ export class QuestionValidatorService {
       this.logger.warn(
         `[Anti-Repetition] Blocked repeated Purpose question for callId=${state.callId}. Customer purpose is: ${customer.purpose}`,
       );
-      const replacement = this.getNextUnaskedQuestion(state, 'purpose');
+      const replacement = this.getNextUnaskedQuestion(state, 'purpose', isRoman);
       return {
         sanitized: replacement,
         sanitizedText: replacement,
@@ -140,7 +149,7 @@ export class QuestionValidatorService {
       this.logger.warn(
         `[Anti-Repetition] Blocked repeated Name question for callId=${state.callId}. Caller name is: ${customer.name}`,
       );
-      const replacement = this.getNextUnaskedQuestion(state, 'name');
+      const replacement = this.getNextUnaskedQuestion(state, 'name', isRoman);
       return {
         sanitized: replacement,
         sanitizedText: replacement,
@@ -160,7 +169,7 @@ export class QuestionValidatorService {
       this.logger.warn(
         `[Anti-Repetition] Blocked repeated Timeline question for callId=${state.callId}.`,
       );
-      const replacement = this.getNextUnaskedQuestion(state, 'timeline');
+      const replacement = this.getNextUnaskedQuestion(state, 'timeline', isRoman);
       return {
         sanitized: replacement,
         sanitizedText: replacement,
@@ -191,32 +200,48 @@ export class QuestionValidatorService {
   /**
    * Determine the next logical, unasked question in the real-estate qualification journey.
    */
-  private getNextUnaskedQuestion(state: ConversationState, skipField?: string): string {
+  private getNextUnaskedQuestion(
+    state: ConversationState,
+    skipField?: string,
+    isRoman = false,
+  ): string {
     const answered = new Set((state.answeredFields || []).map((f) => f.toLowerCase()));
     const asked = new Set((state.askedQuestions || []).map((q) => q.toLowerCase()));
     const c = state.customer || {};
 
     if (skipField !== 'bhk' && !c.bhk && !answered.has('bhk') && !asked.has('ask_bhk')) {
-      return 'आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?';
+      return isRoman
+        ? 'Aap 2 BHK flat dekh rahe hain ya 3 BHK?'
+        : 'आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?';
     }
 
     if (skipField !== 'purpose' && !c.purpose && !answered.has('purpose') && !asked.has('ask_purpose')) {
-      return 'क्या आप इसमें रहने के लिए फ्लैट चाहते हैं या इन्वेस्टमेंट के लिए?';
+      return isRoman
+        ? 'Kya aap isme rehne ke liye flat dekh rahe hain ya investment ke liye?'
+        : 'क्या आप इसमें रहने के लिए फ्लैट चाहते हैं या इन्वेस्टमेंट के लिए?';
     }
 
     if (skipField !== 'budget' && !c.budget && !c.budgetLabel && !answered.has('budget') && !asked.has('ask_budget')) {
-      return 'आपका लगभग बजट कितना है?';
+      return isRoman
+        ? 'Aapka lagbhag budget kitna hai?'
+        : 'आपका लगभग बजट कितना है?';
     }
 
     if (skipField !== 'timeline' && !c.timeline && !answered.has('timeline') && !asked.has('ask_timeline')) {
-      return 'आप कब तक शिफ्ट करने का प्लान कर रहे हैं — रेडी टू मूव या अंडर कंस्ट्रक्शन चलेगा?';
+      return isRoman
+        ? 'Aap kab tak shift karne ka plan kar rahe hain — ready to move ya under construction chalega?'
+        : 'आप कब तक शिफ्ट करने का प्लान कर रहे हैं — रेडी टू मूव या अंडर कंस्ट्रक्शन चलेगा?';
     }
 
     if (!c.siteVisit?.interested && !asked.has('offer_visit')) {
-      return 'क्या आप इस वीकेंड प्रोजेक्ट का सैंपल फ्लैट देखने के लिए साइट विजिट प्लान करना चाहेंगे?';
+      return isRoman
+        ? 'Kya aap is weekend project ka sample flat dekhne ke liye site visit plan karna chahenge?'
+        : 'क्या आप इस वीकेंड प्रोजेक्ट का सैंपल फ्लैट देखने के लिए साइट विजिट प्लान करना चाहेंगे?';
     }
 
     // If all essential fields are known, close gently
-    return 'क्या इस प्रोजेक्ट के बारे में आप कुछ और भी जानना चाहते हैं?';
+    return isRoman
+      ? 'Kya is project ke baare mein aap kuch aur bhi jaanna chahte hain?'
+      : 'क्या इस प्रोजेक्ट के बारे में आप कुछ और भी जानना चाहते हैं?';
   }
 }

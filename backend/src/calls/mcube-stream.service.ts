@@ -542,10 +542,13 @@ export class McubeStreamService {
       const liveTranscript =
         session.transcript || call?.transcript || 'Agent: Hello?\n';
 
+      const activeLang = settings?.language || call?.languageDetected || 'hinglish';
+      const isHinglish = activeLang.toLowerCase().includes('hinglish');
+
       const follow = buildFollowUpReply({
         transcript: userMessage,
         leadName: lead.name,
-        language: call?.languageDetected || 'hi-IN',
+        language: activeLang,
         tone: (settings as { tone?: string }).tone || 'friendly',
         priorTranscript: liveTranscript,
         agentVoice: settings?.agentVoice || 'rachel',
@@ -555,7 +558,7 @@ export class McubeStreamService {
       });
 
       let replyText = follow.text;
-      let languageDetected = call?.languageDetected || 'hi-IN';
+      let languageDetected = activeLang;
 
       let ttsChain = Promise.resolve();
       let streamedAnyAudio = false;
@@ -563,7 +566,7 @@ export class McubeStreamService {
       let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
         if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
         try {
-          const filler = 'हाँ जी, मैं देख रही हूँ...';
+          const filler = isHinglish ? 'Haan ji, main dekh rahi hoon...' : 'हाँ जी, मैं देख रही हूँ...';
           this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
           const audioBuffer = await this.synthesizeForSession(
             filler,
@@ -590,7 +593,7 @@ export class McubeStreamService {
             lead.project?.companyName ||
             lead.project?.builder ||
             'Saya Group',
-          defaultLanguage: call?.languageDetected || 'hi-IN',
+          defaultLanguage: activeLang,
           tone: (settings as { tone?: string })?.tone || 'friendly',
           systemPrompt: settings?.systemPrompt || undefined,
           llmModel:

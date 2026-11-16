@@ -240,9 +240,9 @@ export class ConversationService {
   private languageInstruction(lang: DetectedLanguage): string {
     switch (lang) {
       case 'en-IN':
-        return 'Reply ONLY in natural Indian English. Do not switch to Hindi.';
+        return 'Reply ONLY in natural Indian English using Latin alphabet. Do not switch to Hindi.';
       case 'hi-IN':
-        return 'Reply ONLY in Hindi using Devanagari script. Keep common nouns like budget/BHK in English if natural. Do not switch to English sentences.';
+        return 'Reply ONLY in Hindi using Devanagari script (देवनागरी लिपि). Keep common terms like 2 BHK/3 BHK/budget in phonetics ("2 बीएचके", "बजट"). Do not use English alphabet.';
       case 'mr-IN':
         return 'Reply ONLY in Marathi. Do not switch language.';
       case 'gu-IN':
@@ -260,7 +260,7 @@ export class ConversationService {
       case 'hinglish':
       case 'mixed':
       default:
-        return "Reply in Hinglish: Hindi in Devanagari + simple English nouns (budget, bedroom, location, meeting). Match the customer's mix. Do not suddenly switch to pure English.";
+        return 'Reply ONLY in conversational Hinglish using English alphabet (Roman script, e.g. "Haan ji, main samajh gayi", "aap 2 BHK dekh rahe hain"). NEVER use Devanagari script. Keep words naturally spelled in English letters.';
     }
   }
 
@@ -689,6 +689,15 @@ If they have not named a project yet, ask ONE short question: which project / pr
       ? await this.getProjectsOverview()
       : '';
 
+    const isHinglish =
+      String(replyLang) === 'hinglish' ||
+      (!replyLang.startsWith('hi') &&
+        !replyLang.startsWith('en') &&
+        !replyLang.startsWith('mr') &&
+        !replyLang.startsWith('gu'));
+    const isDevanagari = replyLang.startsWith('hi') && replyLang !== 'hinglish';
+    const isEnglish = replyLang.startsWith('en');
+
     // Phone: think + answer customer first (LLM); script only if LLM fails
     const system = options.phoneLatency
       ? options.isInbound
@@ -709,31 +718,55 @@ ${isReturning
   : `NEW CALLER (First time enquiry, no previous records).`}
 
 RULES (HUMAN HELPLINE ADVISOR):
-1) GREETING / IDENTITY / FIRST TURN OPENER (IN DEVANAGARI HINDI):
+1) GREETING / IDENTITY / FIRST TURN OPENER (${isHinglish ? 'IN NATURAL HINGLISH - ROMAN SCRIPT' : isEnglish ? 'IN ENGLISH' : 'IN DEVANAGARI HINDI'}):
    - When caller says "Hello" / "Haan ji" / "Namaste" / "Kaun" at start of call:
 ${realCustomerName
   ? `     * RECOGNIZED RETURNING CLIENT: Name is "${realCustomerName}".
-       Greet warmly by name in Devanagari Hindi!
+       Greet warmly by name!
        ${pastRequirement
-         ? `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         ? isHinglish
+           ? `PITCH THIS EXACT LINE: "Namaste ${realCustomerName} ji! ${company} mein aapka phir se swaagat hai. Pichhli baar hamari baat ${pastRequirement} ko lekar hui thi — kya aaj usi ke regarding baat karna chahenge ya kuch naya dekhna hai?"`
+           : isEnglish
+           ? `PITCH THIS EXACT LINE: "Hello ${realCustomerName} ji! Welcome back to ${company}. Last time we spoke about ${pastRequirement} — would you like to discuss that further or explore something new today?"`
+           : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         : isHinglish
+         ? `PITCH THIS EXACT LINE: "Namaste ${realCustomerName} ji! Dobara call karne ke liye dhanyavaad. Main ${options.agentName} baat kar rahi hoon, bataiye aaj aapki kya sahayata kar sakti hoon?"`
+         : isEnglish
+         ? `PITCH THIS EXACT LINE: "Hello ${realCustomerName} ji! Thank you for calling again. I am ${options.agentName}, how can I help you today?"`
          : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?"`}`
   : `     * NEW CALLER (NO DATABASE RECORD / UNKNOWN NAME):
-       PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+       ${isHinglish
+         ? `PITCH THIS EXACT LINE: "Haan ji namaste! ${company} helpline mein aapka swaagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"`
+         : isEnglish
+         ? `PITCH THIS EXACT LINE: "Hello! Welcome to ${company} helpline. I am ${options.agentName}, how may I help you today?"`
+         : `PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`}`
 }
-   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": "जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या सहायता कर सकती हूँ?"
-   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: "हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!"
+   - If caller asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": ${
+     isHinglish
+       ? `"Ji namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Bataiye main aapki kya sahayata kar sakti hoon?"`
+       : isEnglish
+       ? `"Hello! I am ${options.agentName} calling from ${company} real estate helpline. How can I assist you today?"`
+       : `"जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+   }
+   - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: ${
+     isHinglish
+       ? `"Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"`
+       : isEnglish
+       ? `"Yes, I can hear you clearly! Please go ahead."`
+       : `"हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!"`
+   }
 2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
    - The customer called you. If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge below. Never ignore or dodge their question!
 3) EXPLAIN PROJECTS WHEN ASKED:
    - If caller asks what projects are available or where flats are: introduce Palace Heights by Rudra (GH-02B, Sector 1, Greater Noida West) for 1/2/3/4 BHK with 50:50 payment plan & NCR Monarch (GH-02C, Sector 1, Greater Noida West) for 1/2/3 BHK & commercial shops.
 4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
    - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
-     * If caller's name is unknown (${!realCustomerName ? 'Name not known yet' : 'Name is ALREADY KNOWN (' + realCustomerName + ') - NEVER ASK NAME'}): "वैसे मैं आपका शुभ नाम जान सकती हूँ?"
-     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ALREADY KNOWN (' + known.bhk + ') - NEVER ASK BHK'}): "आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?"
-     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ALREADY KNOWN (' + known.purpose + ') - NEVER ASK PURPOSE'}): "आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?"
-     * If location or timeline unknown: "आप सेक्टर 1 नोएडा एक्सटेंशन में देख रहे हैं? और कब तक shift karne ka plan hai?"
-     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ALREADY KNOWN (' + known.budgetLabel + ') - NEVER ASK BUDGET'}): "आपका लगभग बजट कितना है?"
-     * Once interested in a project: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
+     * If caller's name is unknown (${!realCustomerName ? 'Name not known yet' : 'Name is ALREADY KNOWN (' + realCustomerName + ') - NEVER ASK NAME'}): ${isHinglish ? '"Vaise main aapka shubh naam jaan sakti hoon?"' : isEnglish ? '"May I know your name, please?"' : '"वैसे मैं आपका शुभ नाम जान सकती हूँ?"'}
+     * If BHK unknown (${!known.bhk ? 'BHK not known' : 'BHK is ALREADY KNOWN (' + known.bhk + ') - NEVER ASK BHK'}): ${isHinglish ? '"Aap 2 BHK flat dekh rahe hain ya 3 BHK?"' : isEnglish ? '"Are you looking for a 2 BHK or 3 BHK apartment?"' : '"आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?"'}
+     * If purpose unknown (${!known.purpose ? 'Purpose not known' : 'Purpose is ALREADY KNOWN (' + known.purpose + ') - NEVER ASK PURPOSE'}): ${isHinglish ? '"Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"' : isEnglish ? '"Are you looking for self-use or investment?"' : '"आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?"'}
+     * If location or timeline unknown: ${isHinglish ? '"Aap Sector 1 Noida Extension mein dekh rahe hain? Aur kab tak shift karne ka plan hai?"' : isEnglish ? '"Are you looking in Sector 1 Noida Extension? And when are you planning to shift?"' : '"आप सेक्टर 1 नोएडा एक्सटेंशन में देख रहे हैं? और कब तक shift karne ka plan hai?"'}
+     * If budget unknown (${!known.budgetLabel ? 'Budget not known' : 'Budget is ALREADY KNOWN (' + known.budgetLabel + ') - NEVER ASK BUDGET'}): ${isHinglish ? '"Aapka lagbhag budget kitna hai?"' : isEnglish ? '"What is your approximate budget?"' : '"आपका लगभग बजट कितना है?"'}
+     * Once interested in a project: ${isHinglish ? '"Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"' : isEnglish ? '"Would you like to plan a site visit this weekend to see the sample flat?"' : '"क्या आप इस वीकेंड प्रोजेक्ट का सैंपल फ्लैट देखने के लिए साइट विजिट प्लान करना चाहेंगे?"'}
 5) Never ask multiple questions in one turn. Answer first + ask ONE single question.
 6) If checking details: "Ji main dekh rahi hoon, ek second..."
 7) If wrong number or not interested: polite thank-you and end.
@@ -811,19 +844,31 @@ ${speechGender === 'female'
   : 'You are male. Hindi first-person: बोल रहा हूँ, समझ गया, सकता हूँ, चाहता हूँ, बताऊँगा, करूँगा. NEVER female forms.'}
 Tone: ${compactToneGuide(options.tone || 'friendly')}
 CRITICAL HUMAN TELECALLER RULES:
-1) GREETING / IDENTITY / FIRST TURN OPENER (MANDATORY IN DEVANAGARI):
+1) GREETING / IDENTITY / FIRST TURN OPENER (${isHinglish ? 'IN HINGLISH - ROMAN SCRIPT' : isEnglish ? 'IN ENGLISH' : 'IN DEVANAGARI HINDI'}):
    - When customer says "Hello" / "Haan ji" / "Namaste" / "Kaun" at start of call:
 ${realCustomerName
   ? `     * RECOGNIZED RETURNING CLIENT: Name is "${realCustomerName}".
-       Greet warmly by name in Devanagari Hindi!
+       Greet warmly by name!
        ${pastRequirement
-         ? `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         ? isHinglish
+           ? `PITCH THIS EXACT LINE: "Namaste ${realCustomerName} ji! ${company} mein aapka phir se swaagat hai. Pichhli baar hamari baat ${pastRequirement} ko lekar hui thi — kya aaj usi ke regarding baat karna chahenge ya kuch naya dekhna hai?"`
+           : isEnglish
+           ? `PITCH THIS EXACT LINE: "Hello ${realCustomerName} ji! Welcome back to ${company}. Last time we spoke about ${pastRequirement} — would you like to discuss that further or explore something new today?"`
+           : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! ${company} में आपका फिर से स्वागत है। पिछली बार हमारी बात ${pastRequirement} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+         : isHinglish
+         ? `PITCH THIS EXACT LINE: "Namaste ${realCustomerName} ji! Dobara call karne ke liye dhanyavaad. Main ${options.agentName} बात kar rahi hoon, bataiye aaj aapki kya sahayata kar sakti hoon?"`
+         : isEnglish
+         ? `PITCH THIS EXACT LINE: "Hello ${realCustomerName} ji! Thank you for calling again. I am ${options.agentName}, how can I help you today?"`
          : `PITCH THIS EXACT LINE: "नमस्ते ${realCustomerName} जी! दोबारा कॉल करने के लिए धन्यवाद। मैं ${options.agentName} बात कर रही हूँ, बताइए आज आपकी क्या सहायता कर सकती हूँ?"`}`
   : `     * NEW CALLER (NO DATABASE RECORD / UNKNOWN NAME):
-       PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+       ${isHinglish
+         ? `PITCH THIS EXACT LINE: "Haan ji namaste! ${company} helpline mein aapka swaagat hai. Main ${options.agentName} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"`
+         : isEnglish
+         ? `PITCH THIS EXACT LINE: "Hello! Welcome to ${company} helpline. I am ${options.agentName}, how may I help you today?"`
+         : `PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`}`
 }
-   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" MID-CALL: Reassure immediately: "हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!"
-   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: "जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या मदद कर सकती हूँ?"
+   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" MID-CALL: Reassure immediately: ${isHinglish ? '"Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!"' : isEnglish ? '"Yes, I can hear you clearly! Please go ahead."' : '"हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!"'}
+   - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: ${isHinglish ? `"Ji namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Bataiye main aapki kya madad kar sakti hoon?"` : isEnglish ? `"Hello! I am ${options.agentName} calling from ${company} real estate helpline. How may I assist you?"` : `"जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या मदद कर सकती हूँ?"`}
    - If asked for project/property details: Give facts simply; if looking up: "Ji main dekh rahi hoon, ek second..."
 2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
 3) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.

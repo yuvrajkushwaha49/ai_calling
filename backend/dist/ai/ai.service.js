@@ -100,7 +100,7 @@ let AiService = class AiService {
                 .replace(/\s{2,}/g, ' ')
                 .trim()
             : prompt;
-        const defaultSalesPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)();
+        const defaultSalesPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)(normalizedLanguage);
         const promptNeedsSalesRewrite = !cleanedPrompt.trim() ||
             !(0, sales_agent_prompt_1.isSalesAgentPrompt)(cleanedPrompt) ||
             ((0, sales_agent_prompt_1.isSalesAgentPrompt)(cleanedPrompt) &&
