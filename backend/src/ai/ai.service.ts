@@ -129,6 +129,12 @@ export class AiService {
         !/HARD RULE — FRESH WORDING/i.test(cleanedPrompt)) ||
       (isSalesAgentPrompt(cleanedPrompt) &&
         !/Banned \/ never reuse these sample phrases/i.test(cleanedPrompt)) ||
+      (normalizedLanguage === 'hinglish' &&
+        /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(cleanedPrompt)) ||
+      (normalizedLanguage === 'hi-IN' &&
+        /HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
+      (normalizedLanguage === 'en-IN' &&
+        /DEVANAGARI|HINGLISH/i.test(cleanedPrompt)) ||
       /natural Indian real-estate phone agent/i.test(cleanedPrompt) ||
       /You are an AI sales calling agent for real estate/i.test(cleanedPrompt) ||
       /calm, friendly real-estate sales caller/i.test(cleanedPrompt) ||
@@ -356,11 +362,26 @@ export class AiService {
 
   async updateSettings(dto: UpdateAiSettingsDto) {
     const existing = await this.getSettings();
-    const { workingHours, llmModel, ...rest } = dto;
+    const { workingHours, llmModel, language, systemPrompt, ...rest } = dto;
+    const normalizedLang = language
+      ? this.voice.normalizeAppLanguage(language)
+      : existing.language;
+
+    let resolvedPrompt = systemPrompt;
+    if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
+      resolvedPrompt = buildDefaultSalesAgentPrompt('hinglish');
+    } else if (normalizedLang === 'hi-IN' && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
+      resolvedPrompt = buildDefaultSalesAgentPrompt('hi-IN');
+    } else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI|HINGLISH/i.test(systemPrompt)) {
+      resolvedPrompt = buildDefaultSalesAgentPrompt('en-IN');
+    }
+
     const updated = await this.prisma.aiAgentSettings.update({
       where: { id: existing.id },
       data: {
         ...rest,
+        language: normalizedLang,
+        ...(resolvedPrompt !== undefined && { systemPrompt: resolvedPrompt }),
         ...(llmModel !== undefined && {
           llmModel: this.normalizeLlmModel(llmModel),
         }),

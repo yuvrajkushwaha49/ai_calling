@@ -51,7 +51,7 @@ export default function AiSettingsPage() {
     defaultValues: {
       agentName: '',
       agentVoice: 'custom',
-      language: 'hi-IN',
+      language: 'hinglish',
       tone: 'friendly',
       llmModel: 'gemini-flash-lite-latest',
       systemPrompt: '',
@@ -66,7 +66,7 @@ export default function AiSettingsPage() {
       form.reset({
         agentName: settings.agentName || '',
         agentVoice: settings.agentVoice || 'custom',
-        language: (settings.language as AiSettingsFormData['language']) || 'hi-IN',
+        language: (settings.language as AiSettingsFormData['language']) || 'hinglish',
         tone: (settings.tone as AiSettingsFormData['tone']) || 'friendly',
         llmModel: (settings.llmModel as AiSettingsFormData['llmModel']) || 'gemini-flash-lite-latest',
         systemPrompt: settings.systemPrompt || '',
@@ -470,6 +470,18 @@ export default function AiSettingsPage() {
               )}
             </CardContent>
           </Card>
+
+          {Object.keys(form.formState.errors).length > 0 && (
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+              Please fix errors before saving: {Object.values(form.formState.errors).map((e) => e?.message).filter(Boolean).join(', ')}
+            </div>
+          )}
+
+          {updateSettings.isError && (
+            <p className="text-center text-sm text-destructive">
+              {(updateSettings.error as any)?.response?.data?.message || (updateSettings.error as any)?.message || 'Failed to save settings'}
+            </p>
+          )}
 
           <Button
             type="submit"
