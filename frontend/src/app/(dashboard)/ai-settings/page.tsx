@@ -84,6 +84,10 @@ export default function AiSettingsPage() {
     updateSettings.mutate(data);
   };
 
+  const onInvalid = (errors: any) => {
+    console.error('AI Settings validation errors:', errors);
+  };
+
   const toggleDay = (day: string) => {
     const current = form.getValues('workingHours.days') || [];
     const updated = current.includes(day)
@@ -133,7 +137,7 @@ export default function AiSettingsPage() {
       {isError && <ErrorMessage message={(error as Error).message} />}
 
       {settings && (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-3xl space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="mx-auto max-w-3xl space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -46,7 +46,7 @@ export const appointmentSchema = z.object({
 });
 
 export const aiSettingsSchema = z.object({
-  agentName: z.string().min(2, 'Agent name is required'),
+  agentName: z.string().min(1, 'Agent name is required'),
   agentVoice: z.string().min(1, 'Voice selection is required'),
   language: z.enum(['en-IN', 'hi-IN', 'hinglish', 'mr-IN', 'gu-IN']),
   tone: z.enum(['professional', 'friendly', 'persuasive', 'warm', 'formal']),
@@ -68,13 +68,13 @@ export const aiSettingsSchema = z.object({
     'gpt-4.1-nano',
     'o4-mini',
   ]),
-  systemPrompt: z.string().min(10, 'Prompt must be at least 10 characters'),
+  systemPrompt: z.string().optional(),
   workingHours: z.object({
-    start: z.string(),
-    end: z.string(),
-    days: z.array(z.string()),
-  }),
-  isActive: z.boolean(),
+    start: z.string().optional(),
+    end: z.string().optional(),
+    days: z.array(z.string()).optional(),
+  }).optional(),
+  isActive: z.boolean().optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
