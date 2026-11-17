@@ -13,14 +13,43 @@ const call_scripts_1 = require("../calls/call-scripts");
 let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValidatorService {
     logger = new common_1.Logger(QuestionValidatorService_1.name);
     questionDetectors = {
-        bhk: /(?:2\s*(?:bhk|बीएचके).*?(?:ya|या|or).*?3\s*(?:bhk|बीएचके)|kitne\s*bhk|कितने\s*(?:bhk|बीएचके)|kaunsa\s*bhk|कौनसा\s*(?:bhk|बीएचके)|configuration|कॉन्फ़िगरेशन|दो\s*bedroom\s*या\s*तीन|two\s*bedroom\s*ya\s*three)/i,
-        budget: /(?:budget|kitna\s*budget|approximate\s*budget|बजट|कितना\s*बजट)/i,
+        bhk: /(?:2\s*(?:bhk|बीएचके).*?(?:ya|या|or).*?3\s*(?:bhk|बीएचके)|kitne\s*bhk|कितने\s*(?:bhk|बीएचके)|kaunsa\s*bhk|कौनसा\s*(?:bhk|बीएचके)|configuration|कॉन्फ़िगरेशन|दो\s*(?:bhk|बीएचके|bedroom)\s*या\s*तीन|two\s*bedroom\s*ya\s*three)/i,
+        budget: /(?:(?:aapka|approximate|lagbhag|kya|kitna)\s*(?:kitna\s*)?budget|budget\s*(?:kitna|kya|hoga|bataiye|bataen|hona\s*chahiye)|kitne\s*budget\s*tak|कितना\s*बजट|बजट\s*(?:कितना|क्या|बताइए|होगा)|आपका\s*बजट)/i,
         purpose: /(?:rehne\s*ke\s*liye|investment\s*ke\s*liye|end\s*use|रहने\s*के\s*लिए|इन्वेस्टमेंट)/i,
         name: /(?:shubh\s*naam|aapka\s*naam|शुभ\s*नाम|आपका\s*नाम)/i,
         timeline: /(?:kab\s*tak\s*shift|possession\s*kab|कब\s*तक|पजेशन|शिफ्ट)/i,
         location: /(?:kaunsi\s*location|kaha\s*pe|kahan\s*dekh|preferred\s*location|लोकेशन|कहाँ\s*पर)/i,
         siteVisit: /(?:site\s*visit|sample\s*flat|साइट\s*विजिट|सैंपल\s*फ्लैट)/i,
     };
+    isBudgetInformingOrPermission(text) {
+        const s = text.toLowerCase();
+        if (/(?:budget\s*se\s*(?:upar|jyada|extra|above|exceed|\d+)|बजट\s*से\s*(?:ऊपर|ज्यादा|\d+))/i.test(s)) {
+            return true;
+        }
+        if (/(?:₹?\d+(?:\.\d+)?\s*(?:lakh|cr|लाख|करोड़).*?(?:upar|above|diff|extra)|(?:upar|above|difference|diff).*?₹?\d+(?:\.\d+)?\s*(?:lakh|cr|लाख|करोड़))/i.test(s)) {
+            return true;
+        }
+        if (/(?:stretch\s*budget|details\s*(?:aapko\s*)?bataun|aur\s*details\s*bataun|iski\s*details\s*bataun|details\s*share\s*karun|kya\s*main\s*iski|kya\s*aap\s*dekhna\s*chahenge|kya\s*hum\s*discuss\s*karein)/i.test(s)) {
+            return true;
+        }
+        if (/(?:budget\s*mein|budget\s*ke\s*(?:hisaab|mutabik|andar)|बजट\s*में|बजट\s*के\s*अनुसार)/i.test(s)) {
+            return true;
+        }
+        return false;
+    }
+    isAskingCustomerBudget(text) {
+        if (this.isBudgetInformingOrPermission(text)) {
+            return false;
+        }
+        return this.questionDetectors.budget.test(text);
+    }
+    isAskingCustomerBhk(text) {
+        const s = text.toLowerCase();
+        if (/(?:start\s*hota|available\s*hai|available\s*hain|ka\s*size|sqft|sq\.?\s*ft|₹|bsp)/i.test(s)) {
+            return false;
+        }
+        return this.questionDetectors.bhk.test(text);
+    }
     splitInfoAndQuestion(sentence) {
         const raw = sentence.trim();
         const lastPunctuation = Math.max(raw.lastIndexOf('. '), raw.lastIndexOf('! '), raw.lastIndexOf('। '), raw.lastIndexOf('? '));
@@ -29,6 +58,19 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 prefix: raw.slice(0, lastPunctuation + 1).trim(),
                 questionClause: raw.slice(lastPunctuation + 1).trim(),
             };
+        }
+        const clauseMarkers = [
+            /\s+—\s+(?=(?:kya|aap|क्या|आप))/i,
+            /\s+-\s+(?=(?:kya|aap|क्या|आप))/i,
+            /,\s+(?=(?:kya|aap|bataiye|क्या|आप|बताइए))/i,
+        ];
+        for (const marker of clauseMarkers) {
+            const match = marker.exec(raw);
+            if (match && match.index > 8) {
+                const prefix = raw.slice(0, match.index).trim();
+                const questionClause = raw.slice(match.index + match[0].length).trim();
+                return { prefix, questionClause };
+            }
         }
         return { prefix: '', questionClause: raw };
     }
@@ -62,12 +104,12 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
         const isRoman = !/[\u0900-\u097F]/.test(raw);
         const buildSanitized = (blockedField, ackText) => {
             const nextQ = this.getNextUnaskedQuestion(state, blockedField, isRoman);
-            if (prefix) {
-                return `${prefix} ${nextQ}`.trim();
+            if (prefix && prefix.trim().length > 8) {
+                return `${prefix.trim()} ${nextQ}`.trim();
             }
             return `${ackText}${nextQ}`.trim();
         };
-        if (this.questionDetectors.bhk.test(targetText) &&
+        if (this.isAskingCustomerBhk(targetText) &&
             (customer.bhk || answered.has('bhk'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated BHK question for callId=${state.callId}. Customer already provided: ${customer.bhk}`);
             const ack = customer.bhk
@@ -86,7 +128,7 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 replacementApplied: Boolean(replacement),
             };
         }
-        if (this.questionDetectors.budget.test(targetText) &&
+        if (this.isAskingCustomerBudget(targetText) &&
             (customer.budget || customer.budgetLabel || answered.has('budget'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated Budget question for callId=${state.callId}. Customer already provided: ${customer.budgetLabel || customer.budget}`);
             const ack = customer.budgetLabel
@@ -195,14 +237,9 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 ? 'Aap kab tak shift karne ka plan kar rahe hain — ready to move ya under construction chalega?'
                 : 'आप कब तक शिफ्ट करने का प्लान कर रहे हैं — रेडी टू मूव या अंडर कंस्ट्रक्शन चलेगा?';
         }
-        if (!c.siteVisit?.interested && !asked.has('offer_visit')) {
-            return isRoman
-                ? 'Kya aap is weekend project ka sample flat dekhne ke liye site visit plan karna chahenge?'
-                : 'क्या आप इस वीकेंड प्रोजेक्ट का सैंपल फ्लैट देखने के लिए साइट विजिट प्लान करना चाहेंगे?';
-        }
         return isRoman
-            ? 'Kya is project ke baare mein aap kuch aur bhi jaanna chahte hain?'
-            : 'क्या इस प्रोजेक्ट के बारे में आप कुछ और भी जानना चाहते हैं?';
+            ? 'Kya is project ke baare mein aap kuch aur jaanna chahte hain?'
+            : 'क्या इस प्रोजेक्ट के बारे में आप कुछ और जानना चाहते हैं?';
     }
 };
 exports.QuestionValidatorService = QuestionValidatorService;

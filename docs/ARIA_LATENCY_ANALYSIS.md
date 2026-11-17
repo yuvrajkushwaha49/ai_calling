@@ -112,3 +112,4 @@ onSentence: (sentence) => {
 | **LLM First Token** | 500 ms | 850 ms | Optimized |
 | **TTS First Audio** | 450 ms | 750 ms | Optimized |
 | **Total Voice Turn (Ear-to-Mouth)** | **< 2,200 ms** | **< 2,800 ms** | Verified in architecture |
+

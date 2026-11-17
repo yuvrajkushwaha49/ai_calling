@@ -88,3 +88,4 @@ Following the Round 1 deployment (12/12 critical fix tests passing, 91 total tes
 | **ISSUE-5** | Canonical Log Mismatch | `isSameTalk` overwriting streamed reply | `conversation.service.ts` | 12/12 Passed | `PENDING LIVE SESSION` |
 | **ISSUE-6** | Gemini Latency | Invalid model names & repeated DB hits | `llm.service.ts` & caching | 12/12 Passed | `PENDING LIVE SESSION` |
 | **ISSUE-7** | Natural Opening | Static "Hello?" string | `mcube-stream.service.ts` | 12/12 Passed | `PENDING LIVE SESSION` |
+

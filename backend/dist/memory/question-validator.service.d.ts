@@ -12,7 +12,13 @@ export interface ValidationResult {
 export declare class QuestionValidatorService {
     private readonly logger;
     private readonly questionDetectors;
-    private splitInfoAndQuestion;
+    isBudgetInformingOrPermission(text: string): boolean;
+    isAskingCustomerBudget(text: string): boolean;
+    isAskingCustomerBhk(text: string): boolean;
+    splitInfoAndQuestion(sentence: string): {
+        prefix: string;
+        questionClause: string;
+    };
     validateAndSanitize(first: ConversationState | string, second: ConversationState | string): ValidationResult;
     private getNextUnaskedQuestion;
 }

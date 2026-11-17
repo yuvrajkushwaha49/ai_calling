@@ -558,11 +558,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             let languageDetected = activeLang;
             let ttsChain = Promise.resolve();
             let streamedAnyAudio = false;
-            const spokenValidatedSentences = [];
+            const rawLlmSentences = [];
+            const validatedSentences = [];
+            const actuallyQueuedSentences = [];
+            const actuallySentSentences = [];
             const llmStartTime = Date.now();
             let llmFirstTokenMs = 0;
             let llmFirstSentenceMs = 0;
-            let ttsFirstAudioMs = 0;
+            let ttsRequestStartMs = null;
+            let ttsFirstByteMs = null;
+            let ttsFirstAudioMs = null;
+            let ttsFirstPlayAudioSentMs = null;
             let fillerTimeout = setTimeout(async () => {
                 if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN)
                     return;
@@ -625,6 +631,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         const cleaned = (0, phone_audio_1.truncateForPhone)(String(sentence || '').trim(), 300);
                         if (!cleaned)
                             return;
+                        rawLlmSentences.push(cleaned);
                         let validatedSentence = cleaned;
                         if (session.memory) {
                             const check = this.questionValidator.validateAndSanitize(session.memory, cleaned);
@@ -635,19 +642,31 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         }
                         if (!validatedSentence)
                             return;
-                        spokenValidatedSentences.push(validatedSentence);
+                        validatedSentences.push(validatedSentence);
+                        actuallyQueuedSentences.push(validatedSentence);
                         this.logger.log(`[MCube] 🤖 AI Speaking: "${validatedSentence}"`);
                         ttsChain = ttsChain
                             .then(async () => {
                             if (aborted() || ws.readyState !== ws.OPEN)
                                 return;
+                            if (!ttsRequestStartMs)
+                                ttsRequestStartMs = Date.now() - llmStartTime;
+                            const t0Synth = Date.now();
                             const audioBuffer = await this.synthesizeForSession(validatedSentence, session, settings);
+                            if (!ttsFirstByteMs && audioBuffer)
+                                ttsFirstByteMs = Date.now() - t0Synth;
                             if (!ttsFirstAudioMs && audioBuffer) {
                                 ttsFirstAudioMs = Date.now() - llmStartTime;
                             }
                             if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
                                 streamedAnyAudio = true;
+                                if (!ttsFirstPlayAudioSentMs)
+                                    ttsFirstPlayAudioSentMs = Date.now() - llmStartTime;
                                 await this.sendPlayAudio(ws, session, audioBuffer);
+                                if (!aborted()) {
+                                    actuallySentSentences.push(validatedSentence);
+                                    this.logger.log(`[MCube] 🔊 Actually Spoken: "${validatedSentence}"`);
+                                }
                             }
                         })
                             .catch((err) => {
@@ -659,27 +678,30 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     clearTimeout(fillerTimeout);
                     fillerTimeout = null;
                 }
+                await ttsChain;
                 if (aborted()) {
                     session.cancelPlay = false;
                     session.busy = false;
                     return;
                 }
+                const rawLlmText = rawLlmSentences.join(' ').trim();
+                const validatedText = validatedSentences.join(' ').trim();
+                const actuallyQueuedText = actuallyQueuedSentences.join(' ').trim();
+                const actuallySentText = actuallySentSentences.join(' ').trim();
+                if (actuallySentSentences.length === 0 && aborted()) {
+                    this.logger.log(`[MCube] 🛑 Turn cancelled by barge-in before audio was sent. Not recording un-spoken speech.`);
+                    session.busy = false;
+                    session.cancelPlay = false;
+                    return;
+                }
+                const finalTranscriptText = actuallySentSentences.length > 0
+                    ? actuallySentText
+                    : (result?.replyText?.trim() || validatedText || rawLlmText);
+                replyText = finalTranscriptText;
+                this.logger.log(`[MCube] 📝 Transcript Parity: rawLlm="${rawLlmText}" | validated="${validatedText}" | queued="${actuallyQueuedText}" | sent="${actuallySentText}" | final="${finalTranscriptText}"`);
                 const llmTotalMs = Date.now() - llmStartTime;
                 const turnTotalMs = Date.now() - turnStartTime;
-                this.logger.log(`[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first_token=${llmFirstTokenMs}ms, LLM_first_sentence=${llmFirstSentenceMs}ms, TTS_first_audio=${ttsFirstAudioMs}ms, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`);
-                if (spokenValidatedSentences.length > 0) {
-                    replyText = spokenValidatedSentences.join(' ');
-                }
-                else if (result?.replyText?.trim()) {
-                    const raw = result.replyText.trim();
-                    if (session.memory) {
-                        const check = this.questionValidator.validateAndSanitize(session.memory, raw);
-                        replyText = check.sanitized || raw;
-                    }
-                    else {
-                        replyText = raw;
-                    }
-                }
+                this.logger.log(`[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first_token=${llmFirstTokenMs ? `${llmFirstTokenMs}ms` : 'NOT_MEASURED'}, LLM_first_sentence=${llmFirstSentenceMs ? `${llmFirstSentenceMs}ms` : 'NOT_MEASURED'}, TTS_req_start=${ttsRequestStartMs != null ? `${ttsRequestStartMs}ms` : 'NOT_MEASURED'}, TTS_first_byte=${ttsFirstByteMs != null ? `${ttsFirstByteMs}ms` : 'NOT_MEASURED'}, TTS_first_audio=${ttsFirstAudioMs != null ? `${ttsFirstAudioMs}ms` : 'NOT_MEASURED'}, TTS_first_playAudio=${ttsFirstPlayAudioSentMs != null ? `${ttsFirstPlayAudioSentMs}ms` : 'NOT_MEASURED'}, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`);
                 if (result?.languageDetected) {
                     languageDetected = result.languageDetected;
                 }

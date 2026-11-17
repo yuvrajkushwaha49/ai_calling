@@ -213,6 +213,7 @@ export class LlmService {
       maxOutputTokens: options?.maxOutputTokens ?? (options?.json ? 400 : 120),
       ...(options?.json ? { responseMimeType: 'application/json' } : {}),
       temperature: options?.temperature ?? 0.4,
+      ...(options?.lowLatency ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
     };
 
     const body: Record<string, unknown> = {

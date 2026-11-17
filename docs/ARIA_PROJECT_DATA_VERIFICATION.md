@@ -113,3 +113,4 @@ To prevent AI hallucination during live customer calls (such as inventing floor 
 2. **Budget Permission:** If a property exceeds customer budget (e.g. Future Estate ₹86.3L or VVIP ₹90.6L for an ₹80L budget), state the exact price difference upfront and ask permission before describing.
 3. **No Unbacked Fixture Claims:** Never claim specific brands for modular kitchens, air conditioners, or specific balcony fittings unless documented in project specifications.
 4. **Missing Detail Protocol:** When asked about unverified specifications, reply: *"Is specific detail ki verified information main team se confirm karke WhatsApp par share karwa doongi."*
+
