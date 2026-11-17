@@ -317,12 +317,42 @@ export class McubeStreamService {
               );
             }
 
-            // Natural human telecaller: start with a soft, warm "Hello?"
+            // Natural human telecaller: contextual greeting (Issue 7)
             const settings = await this.ai.getSettings();
             session.settings = settings;
-            const initialOpener = 'Hello?';
+            const companyName =
+              (settings as { companyName?: string })?.companyName ||
+              call?.lead?.project?.companyName ||
+              'Saya Group';
+            const agentName = settings?.agentName || 'Aria';
+
+            let initialOpener: string;
+            const isReturning = Boolean(session.memory?.isReturningCustomer);
+            const customerName = session.memory?.customer?.name || call?.lead?.name;
+            const hasRealName = customerName && !isPlaceholderLeadName(customerName);
+
+            if (isReturning) {
+              const pastReq =
+                session.memory?.customer?.bhk ||
+                session.memory?.customer?.budgetLabel ||
+                'property requirement';
+              const nameGreet = hasRealName ? `${customerName} ji` : 'ji';
+              initialOpener = `Namaste ${nameGreet}! Main ${agentName}, ${companyName} se bol rahi hoon. Pichhli baar hamari baat ${pastReq} ko lekar hui thi. Kya aaj usi ko continue karein?`;
+            } else {
+              initialOpener = `Namaste ji! Main ${agentName}, ${companyName} se bol rahi hoon. Aapki property requirement ke baare mein baat kar sakti hoon?`;
+            }
+
             session.lastAgentText = initialOpener;
             session.turnCount = 1;
+            session.transcript = `Agent: ${initialOpener}\n`;
+
+            if (session.callId) {
+              void this.customerMemory.recordTurn(session.callId, {
+                role: 'assistant',
+                content: initialOpener,
+                timestamp: Date.now(),
+              });
+            }
 
             const audioBuf = await this.synthesizeForSession(
               initialOpener,
@@ -330,7 +360,9 @@ export class McubeStreamService {
               settings,
             );
             if (audioBuf && ws.readyState === ws.OPEN) {
-              this.logger.log(`[MCube] 🤖 AI Opener: "${initialOpener}"`);
+              this.logger.log(
+                `[MCube] 🤖 AI Opener (${isReturning ? 'Returning' : 'New'}): "${initialOpener}"`,
+              );
               await this.sendPlayAudio(ws, session, audioBuf);
             }
           } catch (err) {
@@ -672,6 +704,7 @@ export class McubeStreamService {
       const spokenValidatedSentences: string[] = [];
       const llmStartTime = Date.now();
       let llmFirstTokenMs = 0;
+      let llmFirstSentenceMs = 0;
       let ttsFirstAudioMs = 0;
 
       let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
@@ -732,6 +765,9 @@ export class McubeStreamService {
             if (!llmFirstTokenMs) {
               llmFirstTokenMs = Date.now() - llmStartTime;
             }
+            if (!llmFirstSentenceMs) {
+              llmFirstSentenceMs = Date.now() - llmStartTime;
+            }
             if (fillerTimeout) {
               clearTimeout(fillerTimeout);
               fillerTimeout = null;
@@ -788,7 +824,7 @@ export class McubeStreamService {
         const llmTotalMs = Date.now() - llmStartTime;
         const turnTotalMs = Date.now() - turnStartTime;
         this.logger.log(
-          `[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first=${llmFirstTokenMs}ms, TTS_first_audio=${ttsFirstAudioMs}ms, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`,
+          `[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first_token=${llmFirstTokenMs}ms, LLM_first_sentence=${llmFirstSentenceMs}ms, TTS_first_audio=${ttsFirstAudioMs}ms, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`,
         );
 
         // Canonical reply: exactly what was validated and spoken

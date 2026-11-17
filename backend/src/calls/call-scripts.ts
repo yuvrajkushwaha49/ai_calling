@@ -1426,11 +1426,11 @@ export function buildFollowUpReply(options: {
       'gu-IN': `બરાબર, પછી કૉલ કરીશ.`,
     },
     confirm_details: {
-      'en-IN': `Theek hai — details WhatsApp pe bhej ${letaHi} हूँ, ek baar check kar lena.`,
-      'hi-IN': `ठीक है — details WhatsApp पे भेज ${letaHi} हूँ, एक बार check कर लेना।`,
-      hinglish: `Theek hai — details WhatsApp pe bhej ${letaHi} हूँ, ek baar check kar lena.`,
-      'mr-IN': `ठीक, details WhatsApp वर पाठवतो.`,
-      'gu-IN': `બરાબર, details WhatsApp પર મોકલીશ.`,
+      'en-IN': `Theek hai — main team ko note karwa deti hoon, wo details aur layout verify karke aapke WhatsApp pe share kar denge.`,
+      'hi-IN': `ठीक है — मैं team को note करवा देती हूँ, वो details और layout verify करके आपके WhatsApp पे share कर देंगे।`,
+      hinglish: `Theek hai — main team ko note karwa deti hoon, wo details aur layout verify karke aapke WhatsApp pe share kar denge.`,
+      'mr-IN': `ठीक आहे, आमची टीम पडताळणी करून WhatsApp वर माहिती पाठवेल.`,
+      'gu-IN': `બરાબર, અમારી ટીમ ચકાસણી કરીને WhatsApp પર વિગતો મોકલશે.`,
     },
     explain_why_call: {
       'en-IN': options.isInbound

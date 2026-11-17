@@ -153,11 +153,9 @@ export class LlmService {
     const model = this.resolveChatModel(options?.model);
     if (this.getProvider() === 'gemini') {
       const candidates = [
-        'gemini-flash-lite-latest',
-        'gemini-3.5-flash',
-        'gemini-3.6-flash',
-        'gemini-flash-latest',
         model,
+        'gemini-flash-lite-latest',
+        'gemini-flash-latest',
       ].filter((m, idx, arr) => Boolean(m) && arr.indexOf(m) === idx);
 
       for (const m of candidates) {
@@ -411,8 +409,7 @@ export class LlmService {
     if (options?.lowLatency) {
       for (const alt of [
         'gemini-flash-lite-latest',
-        'gemini-3.5-flash',
-        'gemini-3.6-flash',
+        'gemini-flash-latest',
       ]) {
         if (alt === model) continue;
         const hit = await this.chatGeminiOnce(messages, alt, {

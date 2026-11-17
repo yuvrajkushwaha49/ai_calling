@@ -489,7 +489,8 @@ let ConversationService = ConversationService_1 = class ConversationService {
                 resolvedProject = matched;
             }
         }
-        const asksDetail = /detail|details|बताओ|बताइए|price|rera|emi|amenit|possession|payment|floor|website|location|क्या है|कितना|सुविधा|about|info|information|features|brochure|configuration|config/i.test(options.userMessage);
+        const asksDetail = /detail|details|बताओ|बताइए|price|rera|emi|amenit|possession|payment|floor|size|sizes|साइज़|area|sqft|sq\.?\s*ft|layout|map|नक्शा|website|location|क्या है|कितना|सुविधा|about|info|information|features|brochure|configuration|config/i.test(options.userMessage);
+        const asksFloorPlanOrSize = /size|sizes|साइज़|area|sqft|sq\.?\s*ft|layout|floor\s*plan|floorplan|नक्शा|map/i.test(options.userMessage);
         const newlyMatched = Boolean(projectId && !options.lead.projectId);
         const sources = projectId && (asksDetail || (!options.phoneLatency && newlyMatched))
             ? await this.knowledge.retrieve(projectId, options.userMessage, options.phoneLatency ? 1 : newlyMatched ? 3 : 2, {
@@ -579,8 +580,12 @@ If they have not named a project yet, ask ONE short question: which project / pr
         const genderLines = speechGender === 'female'
             ? 'Female Hindi: बोल रही हूँ / समझ गई. Never male forms.'
             : 'Male Hindi: बोल रहा हूँ / समझ गया. Never female forms.';
+        const customerBudgetRupees = options.memory?.customer?.budget ||
+            (options.lead.budget != null && Number(options.lead.budget) > 0 ? Number(options.lead.budget) : 0) ||
+            (0, call_scripts_1.parseBudgetToNumber)(known.budgetLabel || '') ||
+            undefined;
         const projectsOverview = options.isInbound
-            ? await this.getProjectsOverview()
+            ? await this.getProjectsOverview(customerBudgetRupees)
             : '';
         const isHinglish = String(replyLang) === 'hinglish' ||
             (!replyLang.startsWith('hi') &&
@@ -798,6 +803,7 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
             lowLatency: true,
         };
         let llmOut = null;
+        let streamed = false;
         const knowledgeText = sources.map((s) => s.content).join(' ');
         const onSentence = options.onSentence
             ? (sentence) => {
@@ -822,14 +828,28 @@ ${projectsOverview}
 
 CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
 - PRIORITY 1 (DIRECT ANSWER & INTENT): Always answer the customer's direct question or statement first!
+  * DIRECT SIZES & FLOOR PLANS: If customer asks for sizes ("मुझे sizes बता दीजिए एक एक", "size batao", "area kitna hai", "sqft") or floor plan ("floor plan बता दो", "map", "layout"):
+    - ALWAYS ANSWER the exact configuration sizes directly from Available Projects (e.g. "Palace Heights mein 1 BHK 700 sq.ft, 2 BHK 1015 se 1088 sq.ft, 3 BHK 1341 se 1568 sq.ft, aur 4 BHK 1841 se 2285 sq.ft available hain").
+    - If customer asks for floor plan map: state the configuration sizes, and say: "Main team ko bolkar floor plan layout map aapke WhatsApp par share karwa doongi."
+    - NEVER replace or dodge a floor plan / sizes question by pitching a site visit instead!
   * If asked how you know their details/budget ("tumko kaise pata chala mera budget..."): Answer directly from history: "Ji, humari pichhli baat-cheet mein aapne bataya tha, usi aadhar par maine options suggest kiye hain. Agar isme koi badlav hai to aap bata sakte hain."
   * If customer asks an incomplete or ambiguous question like "क्या अभी?", "अभी?", "Kya abhi?": Clarify directly what they mean: "Ji, kya aap abhi site visit ke baare mein pooch rahe hain, ya abhi call par details discuss karna chahte hain?" NEVER treat "क्या अभी" as agreement or book an appointment on it!
   * If asked about project details, prices, possession, amenities: Answer from Available Projects & Knowledge first.
   * If they switch topics or ask something new: Immediately prioritize answering their new query! Never drag them back to site visit scheduling until answered.
   * If they correct information (e.g. "Actually mera budget 90 lakh hai" or "Nahi mujhe ready-to-move chahiye"): Immediately accept and update to their latest preference!
-- PRIORITY 2 (RESIDENTIAL VS COMMERCIAL & BUDGET TRANSPARENCY):
-  * For residential requirements (flats, apartments, living), NEVER recommend commercial projects (e.g. Saya Piazza, Saya South X shops) unless customer explicitly asks for commercial/shops. If intent is ambiguous (e.g. "investment"), clarify: "Aap residential flat mein invest karna chahte hain ya commercial retail shop mein?" before pitching projects.
-  * BUDGET MATCHING & TRANSPARENT DISCLOSURE: Strictly match verified CRM inventory starting prices. Never pitch a property that exceeds their budget as if it fits. If proposing an option that exceeds their budget (e.g. ₹86 Lakh starting for an ₹80 Lakh budget), YOU MUST TRANSPARENTLY DISCLOSE UPFRONT: "Yeh option aapke ₹80 lakh budget se thoda sa upar hai, ₹86 lakh se shuru hota hai. Kya aap iska layout dekhna chahenge?" Always ask permission before suggesting stretch options.
+- PRIORITY 2 (STRICT BUDGET MATCHING, SOURCE FACTS & WHATSAPP RULES):
+  * STRICT BUDGET MATCHING: When customer budget is known (e.g. ₹80 Lakh):
+    - ALWAYS recommend matching in-budget properties first (<= budget, e.g. Saya Pre-Launch starting ₹69L, Palace Heights starting ₹60.9L, NCR Monarch starting ₹64L).
+    - NEVER recommend above-budget properties (like Future Estate at ₹86 Lakh or VVIP at ₹91 Lakh) without FIRST stating clearly that it exceeds their budget and asking permission: e.g. "Yeh options aapke ₹80 Lakh budget se thoda upar hain — Future Estate lagbhag ₹86 Lakh aur VVIP ₹91 Lakh se start hote hain. Kya aap unhe bhi dekhna chahenge?"
+    - NEVER invent or guess property prices.
+  * SOURCE-BACKED PROJECT FACTS ONLY:
+    - Only share facts verified in Available Projects / Knowledge (e.g. VVIP: 5 acres, 5 towers, G+30, 60,000 sq.ft modern clubhouse, starting ₹90.6 Lakh).
+    - If a specific detail (like specific kitchen fittings or balcony dimensions) is not in Knowledge, state: "Is specific detail ki verified information main team se confirm karke WhatsApp par share karwa doongi." NEVER hallucinate unverified fittings.
+  * WHATSAPP DISCLAIMER:
+    - NEVER claim you have sent WhatsApp or that WhatsApp is already delivered.
+    - Always say: "Main team ko note karwa deti hoon, wo details aur layout verify karke aapke WhatsApp number par share kar denge."
+  * RESIDENTIAL VS COMMERCIAL:
+    - For residential requirements (flats, apartments, living), NEVER recommend commercial projects (e.g. Saya Piazza, Saya South X shops) unless customer explicitly asks for commercial/shops.
   * APPOINTMENT BOOKING: Never consider an appointment booked from generic acks ("theek hai", "haan"). Only book when date, time, and project are explicitly confirmed by customer.
 - PRIORITY 3 (ANTI-REPETITION & NATURAL DIALOGUE):
   * YOUR LAST SPOKEN STATEMENT WAS: "${(previousAgent || '').slice(0, 140)}"
@@ -878,7 +898,7 @@ ${learned ? learned : ''}`;
                 },
             ];
             const t0 = Date.now();
-            let streamed = false;
+            streamed = false;
             if (options.stream && onSentence) {
                 llmOut = await this.consumeLlmStream(quickMessages, llmOpts, {
                     onTextDelta: options.onTextDelta,
@@ -916,7 +936,7 @@ ${learned ? learned : ''}`;
         if (replyText == null && llmOut) {
             replyText = llmOut;
             usedLlm = true;
-            if (previousAgent && (0, call_scripts_1.isSameTalk)(replyText, previousAgent)) {
+            if (!streamed && previousAgent && (0, call_scripts_1.isSameTalk)(replyText, previousAgent)) {
                 const fallback = (0, call_scripts_1.buildFollowUpReply)({
                     transcript: options.userMessage,
                     leadName: options.lead.name,
@@ -1049,86 +1069,198 @@ ${learned ? learned : ''}`;
         void emitted;
         return full.trim();
     }
-    cachedProjectsOverview = null;
-    async getProjectsOverview() {
+    cachedProjects = null;
+    async getCachedProjects() {
         const now = Date.now();
-        if (this.cachedProjectsOverview && this.cachedProjectsOverview.expiresAt > now) {
-            return this.cachedProjectsOverview.text;
+        if (this.cachedProjects && this.cachedProjects.expiresAt > now) {
+            return this.cachedProjects.data;
         }
         try {
             const projects = await this.prisma.project.findMany({
                 select: {
+                    id: true,
                     name: true,
+                    companyName: true,
+                    builder: true,
                     location: true,
                     propertyType: true,
                     startingPrice: true,
                     endingPrice: true,
+                    reraNumber: true,
+                    possessionDate: true,
+                    amenities: true,
                     description: true,
                 },
                 take: 50,
             });
-            let overview = '';
-            if (projects.length) {
-                const residential = projects.filter((p) => p.propertyType !== 'COMMERCIAL');
-                const commercial = projects.filter((p) => p.propertyType === 'COMMERCIAL');
-                const formatProj = (p) => {
-                    const price = p.startingPrice != null
-                        ? `Price: ₹${p.startingPrice >= 10000000 ? (p.startingPrice / 10000000).toFixed(2) + ' Cr' : (p.startingPrice / 100000).toFixed(0) + ' L'} onwards`
-                        : '';
-                    const desc = p.description ? ` (${p.description.slice(0, 80)})` : '';
-                    return `- ${p.name} [${p.location}]: ${p.propertyType} ${price}${desc}`.trim();
-                };
-                const sections = [];
-                if (residential.length) {
-                    sections.push(`[RESIDENTIAL PROJECTS (Flats/Apartments/Villas)]:\n${residential.map(formatProj).join('\n')}`);
-                }
-                if (commercial.length) {
-                    sections.push(`[COMMERCIAL PROJECTS (Shops/Offices/Retail)]:\n${commercial.map(formatProj).join('\n')}`);
-                }
-                overview = sections.join('\n\n');
-            }
-            else {
-                overview = `[RESIDENTIAL PROJECTS]:
-- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3, 4 BHK Luxury Apartments, ₹8,700/sq.ft (from ₹60.9 L onwards, 1 BHK fully furnished). 30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months.
-- NCR Monarch (GH-02C, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3 BHK Luxury Apartments, ₹8,888/sq.ft (from ₹64 L onwards).
-
-[COMMERCIAL PROJECTS]:
-- Saya Piazza (Noida Expressway): Commercial High-Street Retail & Shops, from ₹49 L onwards.
-- Saya South X (Greater Noida West): Commercial Retail Shops, Dining & Entertainment, from ₹55 L onwards.`;
-            }
-            this.cachedProjectsOverview = { text: overview, expiresAt: now + 60_000 };
-            return overview;
+            this.cachedProjects = { data: projects, expiresAt: now + 300_000 };
+            return projects;
         }
         catch {
-            return `[RESIDENTIAL PROJECTS]:
-- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension): 1, 2, 3, 4 BHK Flats, ₹8,700/sq.ft, 50:50 payment plan
-- NCR Monarch (GH-02C, Sector 1, Noida Extension): 1, 2, 3 BHK Flats, ₹8,888/sq.ft
-
-[COMMERCIAL PROJECTS]:
-- Saya Piazza (Noida Expressway): Commercial retail shops from ₹49 Lakhs
-- Saya South X (Greater Noida West): Commercial retail & entertainment from ₹55 Lakhs`;
+            return [];
         }
+    }
+    async getProjectsOverview(customerBudgetRupees) {
+        const projects = await this.getCachedProjects();
+        const verifiedDetails = {
+            'palace heights': {
+                sizes: '1 BHK (700 sq.ft, from ₹60.9L furnished), 2 BHK (1015-1088 sq.ft), 3 BHK (1341-1568 sq.ft), 4 BHK (1841-2285 sq.ft)',
+                club: '30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months',
+                bsp: '₹8,700/sq.ft',
+            },
+            'ncr monarch': {
+                sizes: '1 BHK (720-1010 sq.ft, from ₹64L), 2 BHK (1075-1255 sq.ft), 3 BHK (1345-1810 sq.ft)',
+                club: 'Modern clubhouse & sports facilities',
+                bsp: '₹8,888/sq.ft',
+            },
+            'future estate': {
+                sizes: '2 BHK (1110, 1130, 1170, 1240 sq.ft), 2 BHK + Study (1335 sq.ft), 3 BHK (2050 sq.ft), 4 BHK (2500 sq.ft)',
+                club: '7.9 Acres, 9 Towers (G+10/S+22), 2 Clubhouses (32,000 sq.ft + 10,000 sq.ft), SWAMIH/SBI funded',
+                bsp: '₹7,777/sq.ft (Pre-launch Tower DEF ₹9,500/sq.ft)',
+            },
+            'vvip pre-launch': {
+                sizes: '2 BHK (1250 sq.ft, ~₹90.6L-₹91L), 3 BHK (1800 sq.ft), 4 BHK (2400 sq.ft)',
+                club: '5 Acres, 5 Towers (G+30 floors, 750 units, 4 lifts/floor), 60,000 sq.ft modern clubhouse',
+                bsp: '₹7,250/sq.ft',
+            },
+            'vvip namah': {
+                sizes: '3 BHK (1635, 1650, 1970, 1980, 2320 sq.ft), 4 BHK + Servant (2950, 3105 sq.ft)',
+                club: '2.75 Acres, 3 Towers (G+23 floors)',
+                bsp: '₹10,040 - ₹10,540/sq.ft',
+            },
+            'saya pre-launch': {
+                sizes: '2 BHK (1000 sq.ft, from ₹69L), 2+S BHK (1200 sq.ft), 3 BHK (1400, 1600, 1800 sq.ft), 4 BHK (2600 sq.ft)',
+                club: '18 Acres, 17-18 Towers (G+22-25, 2200 units), 1,50,000 sq.ft mega luxury clubhouse, 20*5 payment plan',
+                bsp: '₹6,900/sq.ft',
+            },
+            'aarya heights': {
+                sizes: '3 BHK + 3T (1880, 2065 sq.ft), 4 BHK + 4T (2465 sq.ft)',
+                club: '1.2 Acres, 1 iconic tower (G+27 floors, 160 units)',
+                bsp: '₹5,750/sq.ft',
+            },
+        };
+        const getVerifiedMeta = (name) => {
+            const lower = name.toLowerCase();
+            for (const [key, val] of Object.entries(verifiedDetails)) {
+                if (lower.includes(key))
+                    return val;
+            }
+            return null;
+        };
+        let residentialList = [];
+        let commercialList = [];
+        if (projects.length) {
+            residentialList = projects.filter((p) => p.propertyType !== 'COMMERCIAL');
+            commercialList = projects.filter((p) => p.propertyType === 'COMMERCIAL');
+        }
+        else {
+            residentialList = [
+                {
+                    name: 'Saya Pre-Launch',
+                    location: 'Raj Nagar Extension, Ghaziabad',
+                    propertyType: 'APARTMENT',
+                    startingPrice: 6900000,
+                    description: '18 Acres, 17-18 Towers, 1,50,000 sq.ft luxury club. 2/3/4 BHK',
+                },
+                {
+                    name: 'Palace Heights by Rudra',
+                    location: 'GH-02B, Sector 1, Greater Noida West',
+                    propertyType: 'APARTMENT',
+                    startingPrice: 6090000,
+                    description: '1/2/3/4 BHK Luxury Apartments, 50:50 payment plan',
+                },
+                {
+                    name: 'NCR Monarch',
+                    location: 'GH-02C, Sector 1, Greater Noida West',
+                    propertyType: 'APARTMENT',
+                    startingPrice: 6400000,
+                    description: '1/2/3 BHK Luxury Apartments, ₹8,888/sq.ft',
+                },
+                {
+                    name: 'Future Estate by Future World',
+                    location: 'Plot No 16 E, Sector 1, Greater Noida West',
+                    propertyType: 'APARTMENT',
+                    startingPrice: 8632470,
+                    description: '7.9 Acres, 9 Towers. 2 BHK (1110-1240 sq.ft), SWAMIH funded',
+                },
+                {
+                    name: 'VVIP Pre-Launch',
+                    location: 'Raj Nagar Extension, Ghaziabad',
+                    propertyType: 'APARTMENT',
+                    startingPrice: 9062500,
+                    description: '5 Acres, 5 Towers (G+30, 750 units), 60,000 sq.ft club. 2/3/4 BHK',
+                },
+            ];
+            commercialList = [
+                {
+                    name: 'Saya Piazza',
+                    location: 'Noida Expressway',
+                    propertyType: 'COMMERCIAL',
+                    startingPrice: 4900000,
+                    description: 'Commercial High-Street Retail & Shops',
+                },
+                {
+                    name: 'Saya South X',
+                    location: 'Greater Noida West',
+                    propertyType: 'COMMERCIAL',
+                    startingPrice: 5500000,
+                    description: 'Commercial Retail Shops, Dining & Entertainment',
+                },
+            ];
+        }
+        const formatProjectEntry = (p, budget) => {
+            const meta = getVerifiedMeta(p.name);
+            const startPriceNum = p.startingPrice != null ? Number(p.startingPrice) : null;
+            const priceStr = startPriceNum != null
+                ? startPriceNum >= 10000000
+                    ? `₹${(startPriceNum / 10000000).toFixed(2)} Cr onwards`
+                    : `₹${Math.round(startPriceNum / 100000)} Lakh onwards`
+                : 'Price on request';
+            const diffNotice = budget && startPriceNum && startPriceNum > budget
+                ? ` [STRETCH OPTION: ₹${Math.round((startPriceNum - budget) / 100000)} Lakh above customer's budget - Disclose price difference upfront & ask permission!]`
+                : '';
+            const lines = [
+                `- ${p.name} [Location: ${p.location}]: ${priceStr}${diffNotice}`,
+            ];
+            if (meta?.sizes)
+                lines.push(`  * Verified Unit Sizes: ${meta.sizes}`);
+            if (meta?.bsp)
+                lines.push(`  * Verified BSP: ${meta.bsp}`);
+            if (meta?.club)
+                lines.push(`  * Project Details: ${meta.club}`);
+            else if (p.description)
+                lines.push(`  * Overview: ${p.description.slice(0, 140)}`);
+            return lines.join('\n');
+        };
+        const sections = [];
+        if (customerBudgetRupees && customerBudgetRupees > 0) {
+            const budgetLakh = Math.round(customerBudgetRupees / 100000);
+            const inBudget = residentialList.filter((p) => p.startingPrice != null && Number(p.startingPrice) <= customerBudgetRupees);
+            const stretchBudget = residentialList.filter((p) => p.startingPrice == null || Number(p.startingPrice) > customerBudgetRupees);
+            if (inBudget.length) {
+                sections.push(`[VERIFIED IN-BUDGET RESIDENTIAL PROPERTIES (<= ₹${budgetLakh} Lakh) - RECOMMEND FIRST]:\n` +
+                    inBudget.map((p) => formatProjectEntry(p, customerBudgetRupees)).join('\n'));
+            }
+            if (stretchBudget.length) {
+                sections.push(`[STRETCH-BUDGET RESIDENTIAL PROPERTIES (> ₹${budgetLakh} Lakh) - STRICT RULE: DISCLOSE PRICE DIFFERENCE UPFRONT & ASK PERMISSION BEFORE DISCUSSING]:\n` +
+                    stretchBudget.map((p) => formatProjectEntry(p, customerBudgetRupees)).join('\n'));
+            }
+        }
+        else {
+            sections.push(`[RESIDENTIAL PROJECTS (Flats/Apartments)]:\n` +
+                residentialList.map((p) => formatProjectEntry(p)).join('\n'));
+        }
+        if (commercialList.length) {
+            sections.push(`[COMMERCIAL PROJECTS (Shops/Offices/Retail - ONLY IF CUSTOMER EXPLICITLY ASKS COMMERCIAL)]:\n` +
+                commercialList.map((p) => formatProjectEntry(p)).join('\n'));
+        }
+        return sections.join('\n\n');
     }
     async matchProjectFromSpeech(text) {
         const raw = (text || '').trim();
         if (raw.length < 3)
             return null;
-        const projects = await this.prisma.project.findMany({
-            select: {
-                id: true,
-                name: true,
-                companyName: true,
-                builder: true,
-                location: true,
-                startingPrice: true,
-                endingPrice: true,
-                reraNumber: true,
-                possessionDate: true,
-                amenities: true,
-                description: true,
-            },
-            take: 50,
-        });
+        const projects = await this.getCachedProjects();
         if (!projects.length)
             return null;
         const norm = (s) => s

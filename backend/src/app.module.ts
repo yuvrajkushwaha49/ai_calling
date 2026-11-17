@@ -18,6 +18,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { RedisModule } from './redis/redis.module';
 import { MemoryModule } from './memory/memory.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -42,6 +43,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     AppointmentsModule,
     AiModule,
     AnalyticsModule,
+    WhatsAppModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

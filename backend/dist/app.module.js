@@ -27,6 +27,7 @@ const campaigns_module_1 = require("./campaigns/campaigns.module");
 const feedback_module_1 = require("./feedback/feedback.module");
 const redis_module_1 = require("./redis/redis.module");
 const memory_module_1 = require("./memory/memory.module");
+const whatsapp_module_1 = require("./whatsapp/whatsapp.module");
 const jwt_auth_guard_1 = require("./auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const global_exception_filter_1 = require("./common/filters/global-exception.filter");
@@ -54,6 +55,7 @@ exports.AppModule = AppModule = __decorate([
             appointments_module_1.AppointmentsModule,
             ai_module_1.AiModule,
             analytics_module_1.AnalyticsModule,
+            whatsapp_module_1.WhatsAppModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },
