@@ -784,9 +784,13 @@ export class CustomerMemoryService {
       let rememberedPropertyType: 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null = null;
       let rememberedSizePref: string | null = null;
       let rememberedPossessionPref: string | null = null;
+      let rememberedLastDiscussedProject: string | null = null;
 
       for (const mem of pastMemories) {
         const facts = (mem.customerFacts || {}) as CustomerFacts;
+        if (!rememberedLastDiscussedProject && (facts.lastDiscussedProject || (facts.interestedProjects && facts.interestedProjects[0]))) {
+          rememberedLastDiscussedProject = facts.lastDiscussedProject || facts.interestedProjects[0];
+        }
         if (Array.isArray(facts.rejectedBuilders)) {
           facts.rejectedBuilders.forEach((b) => mergedRejectedBuilders.add(b));
         }
@@ -831,6 +835,7 @@ export class CustomerMemoryService {
           : lead.preferredLocation ? [lead.preferredLocation] : [],
         purchaseTimeline: lead.purchaseTimeline || null,
         interestedProjects: lead.project?.name ? [lead.project.name] : [],
+        lastDiscussedProject: rememberedLastDiscussedProject || lead.project?.name || null,
         preferredProjects: Array.from(mergedPreferredProjects),
         rejectedProjects: Array.from(mergedRejectedProjects),
         preferredBuilders: Array.from(mergedPreferredBuilders),

@@ -19,4 +19,9 @@ export declare class WhatsAppService {
         documentType: 'brochure' | 'floor_plan' | 'price_sheet';
         documentUrl?: string;
     }): Promise<WhatsAppSendResult>;
+    handleWebhookStatus(messageId: string, status: 'sent' | 'delivered' | 'read' | 'failed', timestamp?: string): {
+        messageId: string;
+        status: WhatsAppDeliveryStatus;
+        timestamp: string;
+    };
 }

@@ -235,39 +235,45 @@ export function numberToHindiWords(num: number): string {
  * Speech-normalization layer:
  * Converts currency amounts, decimal values, and measurement units to natural spoken words
  * before passing to ElevenLabs TTS synthesis.
+ * Ensures clean word boundary spacing to prevent word concatenation (e.g. "2 BHKsaath lakh").
  */
 export function normalizeTextForSpeech(text: string, lang = 'hinglish'): string {
   if (!text) return '';
   let s = text;
 
+  // 0. Ensure space around currency symbols, BHK, and numbers to prevent word concatenation
+  s = s.replace(/([a-zA-Z0-9])([₹])/g, '$1 $2');
+  s = s.replace(/([₹])([a-zA-Z0-9])/g, '$1 $2');
+  s = s.replace(/\b([1-5])\s*bhk\b/gi, '$1 BHK');
+
   // 1. BSP pattern: ₹8,888 per sq.ft / ₹8,888/sq.ft / ₹8888 per sq.ft
   s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2}),([0-9]{3})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, th, rest) => {
     const val = parseInt(th, 10) * 1000 + parseInt(rest, 10);
-    return `${numberToHindiWords(val)} rupaye per square foot`;
+    return ` ${numberToHindiWords(val)} rupaye per square foot `;
   });
   s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{4,5})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, raw) => {
     const val = parseInt(raw, 10);
-    return `${numberToHindiWords(val)} rupaye per square foot`;
+    return ` ${numberToHindiWords(val)} rupaye per square foot `;
   });
 
-  // 2. Currency with decimals: ₹60.9 Lakh / ₹63.99 Lakh / 60.9L / 60.9 Lakh
+  // 2. Currency with decimals: ₹60.90 Lakh / ₹60.9 Lakh / ₹63.99 Lakh / ₹86.32 Lakh / 60.9L / 60.9 Lakh
   s = s.replace(/(?:₹|rs\.?|inr)?\s*([0-9]{1,3})\.([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr, decStr) => {
     const lk = parseInt(lkStr, 10);
-    // Pad decimal to 2 digits for thousand calculation: e.g. .9 -> 90 thousand, .99 -> 99 thousand, .32 -> 32 thousand
+    // Pad decimal to 2 digits for thousand calculation: e.g. .9 -> 90 thousand, .90 -> 90 thousand, .99 -> 99 thousand, .32 -> 32 thousand
     const decNorm = decStr.length === 1 ? `${decStr}0` : decStr.slice(0, 2);
     const th = parseInt(decNorm, 10);
     const lkWords = HINDI_ONES[lk] || String(lk);
     const thWords = HINDI_ONES[th] || String(th);
     return th > 0
-      ? `${lkWords} lakh ${thWords} hazaar rupaye`
-      : `${lkWords} lakh rupaye`;
+      ? ` ${lkWords} lakh ${thWords} hazaar rupaye `
+      : ` ${lkWords} lakh rupaye `;
   });
 
   // 3. Integer Lakhs: ₹69 Lakh / ₹80 Lakh / ₹64 Lakh
   s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr) => {
     const lk = parseInt(lkStr, 10);
     const lkWords = HINDI_ONES[lk] || String(lk);
-    return `${lkWords} lakh rupaye`;
+    return ` ${lkWords} lakh rupaye `;
   });
 
   // 4. Crores: ₹1.5 Cr / ₹2 Cr
@@ -276,21 +282,25 @@ export function normalizeTextForSpeech(text: string, lang = 'hinglish'): string 
     const crWords = HINDI_ONES[cr] || String(cr);
     const decVal = parseInt(decStr.length === 1 ? `${decStr}0` : decStr, 10);
     const lkWords = HINDI_ONES[decVal] || String(decVal);
-    return `${crWords} crore ${lkWords} lakh rupaye`;
+    return ` ${crWords} crore ${lkWords} lakh rupaye `;
   });
   s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2})\s*(?:cr|crore|करोड़)\b/gi, (_, crStr) => {
     const cr = parseInt(crStr, 10);
-    return `${HINDI_ONES[cr] || String(cr)} crore rupaye`;
+    return ` ${HINDI_ONES[cr] || String(cr)} crore rupaye `;
   });
 
-  // 5. Units normalization:
+  // 5. Area / sq.ft measurements:
+  // 1,250 sq.ft -> 1250 square feet
+  s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1$2 square feet ');
+  // 720 sq.ft -> 720 square feet
+  s = s.replace(/\b([0-9]{2,5})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1 square feet ');
   // per sq.ft / /sq.ft -> per square foot
-  s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot');
-  // sq.ft / sqft / sq ft -> square feet
-  s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, 'square feet');
+  s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot ');
+  // remaining sq.ft / sqft / sq ft -> square feet
+  s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, ' square feet ');
 
   // 6. Generic ₹ / Rs. symbol removal if remaining
-  s = s.replace(/[₹]/g, 'rupaye ');
+  s = s.replace(/[₹]/g, ' rupaye ');
 
   return s.replace(/\s+/g, ' ').trim();
 }

@@ -923,6 +923,10 @@ function buildContextualLivenessAck(options) {
 }
 function detectIntent(text) {
     const t = text.toLowerCase();
+    const asksPastProject = /(?:pichhli|pichle|last|pehle|previous)\s*(?:baar|call|time)?\s*(?:humne|maine|aapne)?\s*(?:kis|konsa|kaunse|kiske|what)\s*(?:project|property|flat|builder|details)/i.test(t) ||
+        /(?:which|what)\s*project\s*(?:did\s*we|was\s*discussed|last\s*time|previously)/i.test(t);
+    const asksAlternatives = /(?:uske|inke|iske)?\s*(?:alawa|chhod\s*kar|other\s*than|apart\s*from)\s*(?:aur\s*)?(?:kya|konsa|kaunse|other)?\s*(?:options?|projects?|flats?)/i.test(t) ||
+        /(?:kisi\s*aur|dusra|doosra|dusre|doosre|koi\s*aur|aur\s*koi)\s*(?:ka\s*)?(?:chahiye|dikhao|batao|options?)/i.test(t);
     const wantsCallback = /callback|call\s*back|call\s*later|baad\s*me(?:in)?|बाद\s*में|नंतर|પછી|busy|व्यस्त|abhi\s*(?:nahi|nhi)\s*(?:kar|kr|bol|baat|time)|(?:nahi|nhi)\s*(?:kar|kr)\s*sak|baad\s*me(?:in)?\s*call|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call/i.test(t) && !/weekend|saturday|sunday|friday|site\s*visit/i.test(t);
     const isGreetingOnly = /^(?:hello|helo|halo|haan\s*ji|ha\s*ji|namaste|pranam|hello\s*ji|suno|boliye|haan|han|ha)[!?.\s]*$/i.test(t.trim()) ||
         /^(?:नमस्ते|हेलो|हाँजी|प्रणाम|हाँ\s*जी|सुनिए|हाँ)[!?.\s]*$/.test(t.trim()) ||
@@ -965,6 +969,8 @@ function detectIntent(text) {
             /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(t) &&
             !/nahi|nhi|नहीं|rakho phone|kis liye|kyu|kyun/i.test(t),
         incompleteOrAmbiguous: isIncompleteOrAmbiguous,
+        askingPastProject: asksPastProject,
+        askingAlternatives: asksAlternatives,
     };
 }
 function buildFollowUpReply(options) {
@@ -1019,8 +1025,21 @@ function buildFollowUpReply(options) {
         kind = 'reject_builder_pivot';
         outcome = client_1.CallOutcome.CONNECTED;
     }
+    else if (intent.askingPastProject) {
+        kind = 'recall_past_project';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.askingAlternatives) {
+        kind = 'show_alternatives';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
     else if (/^(?:क्या\s*(?:नहीं|नही)\s*है|kya\s*(?:nahi|nhi)\s*hai)[!?.\s]*$/i.test(current.trim())) {
         kind = 'clarify_missing_feature';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (/(?:whatsapp|वाट्सएप|व्हाट्सएप).*(?:bhej|send|share|kar|do|karo|dena)/i.test(current) ||
+        /(?:bhej|send|share)\s*(?:do|dena|karo|kar\s*do)?.*(?:whatsapp|वाट्सएप|व्हाट्सएप)/i.test(current)) {
+        kind = 'confirm_details';
         outcome = client_1.CallOutcome.CONNECTED;
     }
     else if (/(?:^|\b)(?:ncr\s*(?:ke\s*baare|batao|kya\s*hai|project)|एनसीआर\s*(?:के\s*बारे|बताओ|प्रोजेक्ट)|about\s*ncr)(?:\b|$)/i.test(current) &&
@@ -1276,6 +1295,26 @@ function buildFollowUpReply(options) {
             'gu-IN': facts.bhk
                 ? `ચોક્કસ! શું તમે ફ્લોર પ્લાન જોવા માંગો છો કે કિંમતની વિગતો જાણવા માંગો છો?`
                 : `હા, તમે ૨ BHK કે ૩ BHK ફ્લેટ શોધી રહ્યા છો?`,
+        },
+        recall_past_project: {
+            'en-IN': options.knownFacts?.lastDiscussedProject
+                ? `Last time we discussed ${options.knownFacts.lastDiscussedProject}! Would you like to check its layout and price, or explore new options today?`
+                : `Last time we noted your requirements for a ${options.knownFacts?.bhk || 'home'} in Sector 1 Greater Noida West! Would you like to review those options?`,
+            'hi-IN': options.knownFacts?.lastDiscussedProject
+                ? `जी, पिछली बार हमने ${options.knownFacts.lastDiscussedProject} के बारे में बात की थी! क्या आप इसकी details दोबारा चेक करना चाहते हैं या कोई नया प्रोजेक्ट देखना है?`
+                : `जी, पिछली बार हमने आपके ${options.knownFacts?.bhk || 'प्रॉपर्टी'} रिक्वायरमेंट्स नोट किए थे! क्या आप आज के ताज़ा ऑप्शन्स देखना चाहेंगे?`,
+            hinglish: options.knownFacts?.lastDiscussedProject
+                ? `Ji, pichhli baar humne ${options.knownFacts.lastDiscussedProject} ke baare mein baat ki thi! Kya aap iski details recall karna chahte hain ya koi naya option dekhna hai?`
+                : `Ji, pichhli baar humne aapke ${options.knownFacts?.bhk || 'property'} requirements note kiye the! Kya aap aaj ke fresh options check karna chahenge?`,
+            'mr-IN': `मागील वेळी आम्ही प्रकल्पाबद्दल चर्चा केली होती. तुम्हाला त्याची माहिती हवी आहे का?`,
+            'gu-IN': `ગઈ વખતે અમે પ્રોજેક્ટ વિશે વાત કરી હતી. શું તમે તેની વિગતો જાણવા માંગો છો?`,
+        },
+        show_alternatives: {
+            'en-IN': `Certainly! Apart from that, we have top verified options like Palace Heights by Rudra and NCR Monarch in Sector 1 Greater Noida West. Would you like to know their unit sizes and pricing?`,
+            'hi-IN': `जी बिल्कुल! इसके अलावा हमारे पास सेक्टर 1 ग्रेटर नोएडा वेस्ट में Palace Heights by Rudra और NCR Monarch जैसे टॉप ऑप्शन्स हैं। क्या आप इनके साइज़ और प्राइस चेक करना चाहेंगे?`,
+            hinglish: `Ji bilkul! Iske alawa hamare paas Sector 1 Greater Noida West mein Palace Heights by Rudra aur NCR Monarch jaise top verified options available hain. Kya aap inke unit sizes aur pricing check karna chahenge?`,
+            'mr-IN': `नक्कीच! याव्यतिरिक्त आमच्याकडे इतर उत्तम प्रकल्प उपलब्ध आहेत.`,
+            'gu-IN': `ચોક્કસ! આ સિવાય અમારી પાસે અન્ય ઉત્તમ પ્રોજેક્ટ્સ ઉપલબ્ધ છે.`,
         },
         default: {
             'en-IN': `बताइए, अभी property देखना आपके mind में है?`,

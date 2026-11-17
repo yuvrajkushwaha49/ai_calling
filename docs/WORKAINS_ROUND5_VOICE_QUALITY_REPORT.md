@@ -62,3 +62,4 @@ We introduced a rolling metric tracking module that monitors the latency of each
    - Every user turn increments `session.flushGen`. Any late-arriving TTS audio chunks tagged with an earlier generation are immediately dropped in memory before reaching the network socket.
 3. **In-Flight Cancellation:**
    - Streaming LLM and TTS tasks bind to `session.turnAbortController`. When user interrupts, the controller is aborted, immediately cutting off outgoing bandwidth and API token consumption.
+

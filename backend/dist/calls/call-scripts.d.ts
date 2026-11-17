@@ -18,7 +18,7 @@ export declare function getThinkingFiller(options: {
     userMessage?: string;
     usedFillers?: string[];
 }): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'clarify_missing_feature' | 'clarify_ncr' | 'generic_ack' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'clarify_missing_feature' | 'clarify_ncr' | 'generic_ack' | 'recall_past_project' | 'show_alternatives' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;
@@ -30,6 +30,7 @@ export type ConversationFacts = {
     askedVisit?: boolean;
     callerName?: string;
     purpose?: string;
+    lastDiscussedProject?: string | null;
 };
 export declare function normalizeLanguage(language?: string): AppLanguage;
 export declare function normalizeTone(tone?: string): AppTone;
@@ -110,6 +111,8 @@ export declare function detectIntent(text: string): {
     incompleteOrAmbiguous: boolean;
     builderRejection?: boolean;
     specificProjectInquiry?: boolean;
+    askingPastProject?: boolean;
+    askingAlternatives?: boolean;
 };
 export declare function buildFollowUpReply(options: {
     transcript: string;

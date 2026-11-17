@@ -665,8 +665,12 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             let rememberedPropertyType = null;
             let rememberedSizePref = null;
             let rememberedPossessionPref = null;
+            let rememberedLastDiscussedProject = null;
             for (const mem of pastMemories) {
                 const facts = (mem.customerFacts || {});
+                if (!rememberedLastDiscussedProject && (facts.lastDiscussedProject || (facts.interestedProjects && facts.interestedProjects[0]))) {
+                    rememberedLastDiscussedProject = facts.lastDiscussedProject || facts.interestedProjects[0];
+                }
                 if (Array.isArray(facts.rejectedBuilders)) {
                     facts.rejectedBuilders.forEach((b) => mergedRejectedBuilders.add(b));
                 }
@@ -713,6 +717,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                     : lead.preferredLocation ? [lead.preferredLocation] : [],
                 purchaseTimeline: lead.purchaseTimeline || null,
                 interestedProjects: lead.project?.name ? [lead.project.name] : [],
+                lastDiscussedProject: rememberedLastDiscussedProject || lead.project?.name || null,
                 preferredProjects: Array.from(mergedPreferredProjects),
                 rejectedProjects: Array.from(mergedRejectedProjects),
                 preferredBuilders: Array.from(mergedPreferredBuilders),

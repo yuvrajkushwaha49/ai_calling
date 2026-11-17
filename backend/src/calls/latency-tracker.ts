@@ -53,3 +53,4 @@ export class LatencyTracker {
 }
 
 export const globalLatencyTracker = new LatencyTracker();
+

@@ -105,6 +105,21 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             };
         }
     }
+    handleWebhookStatus(messageId, status, timestamp) {
+        const deliveryStatusMap = {
+            sent: 'SENT',
+            delivered: 'DELIVERED',
+            read: 'DELIVERED',
+            failed: 'FAILED',
+        };
+        const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';
+        this.logger.log(`[WhatsApp-Webhook] Delivery status update: messageId=${messageId} status=${resolvedStatus}`);
+        return {
+            messageId,
+            status: resolvedStatus,
+            timestamp: timestamp || new Date().toISOString(),
+        };
+    }
 };
 exports.WhatsAppService = WhatsAppService;
 exports.WhatsAppService = WhatsAppService = WhatsAppService_1 = __decorate([

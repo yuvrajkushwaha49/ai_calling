@@ -88,6 +88,9 @@ type McubeSession = {
   bargeThreshold: number;
   filterState: AudioFilterState;
   turnAbortController?: AbortController | null;
+  lastAudioChunkSentAt?: number;
+  lastAudioChunkSegment?: string;
+  actualCancellationConfirmed?: boolean;
 };
 
 @Injectable()
@@ -167,18 +170,38 @@ export class McubeStreamService {
       session.bargeHits += 1;
       if (session.bargeHits < 2) return;
 
-      this.logger.log(`[MCube] Caller barge-in on stream=${session.streamId} gen=${session.flushGen}`);
+      const tStart = Date.now();
+      session.actualCancellationConfirmed = false;
+
+      // 1. Barge-in detected
+      this.logger.log(`[MCube-BargeIn] [Step 1: DETECTED] Caller speech triggered barge-in on stream=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
+
+      // 3. Local queue cleared
+      const droppedCount = session.pendingSegments.size;
       session.cancelPlay = true;
       session.agentPlaying = false;
       session.pendingSegments.clear();
       session.flushGen += 1;
+      this.logger.log(`[MCube-BargeIn] [Step 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
+
+      // 4. In-flight generation aborted
       if (session.turnAbortController) {
         session.turnAbortController.abort();
         session.turnAbortController = null;
+        this.logger.log(`[MCube-BargeIn] [Step 4: IN_FLIGHT_ABORTED] In-flight LLM/TTS generation aborted`);
+      } else {
+        this.logger.log(`[MCube-BargeIn] [Step 4: IN_FLIGHT_ABORTED] No active in-flight LLM/TTS generation`);
       }
 
-      // Send clearAudio to immediately interrupt playback on caller's phone
+      // 5. Last audio chunk sent info
+      this.logger.log(`[MCube-BargeIn] [Step 5: LAST_AUDIO_CHUNK] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`);
+
+      // 2. MCube clear command sent
       this.sendClearAudio(ws, session.streamId);
+      this.logger.log(`[MCube-BargeIn] [Step 2: CLEAR_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`);
+
+      // 6. Cancellation confirmation status
+      this.logger.log(`[MCube-BargeIn] [Step 6: CONFIRMATION_STATUS] clearAudio dispatched. Carrier playback stop status: ${session.actualCancellationConfirmed ? 'CONFIRMED' : 'AWAITING_CARRIER_ACK_OR_DRAIN'}`);
     };
 
     ws.on('message', (raw) => {
@@ -400,6 +423,15 @@ export class McubeStreamService {
             `[MCube] Ignored playedStream for old/cancelled segment name=${segName} streamId=${msg.streamId}`,
           );
         }
+        return;
+      }
+
+      // 2b. Explicit clearAudio / stop confirmation from carrier
+      if (msg.event === 'cleared' || msg.event === 'clearAudioDone' || msg.event === 'stop') {
+        session.actualCancellationConfirmed = true;
+        this.logger.log(
+          `[MCube-BargeIn] [Step 6: CONFIRMED] Carrier explicit playback cancellation confirmed on stream=${session.streamId} event=${msg.event}`,
+        );
         return;
       }
 
@@ -1114,8 +1146,11 @@ export class McubeStreamService {
     };
     ws.send(JSON.stringify(checkpointMsg));
 
+    session.lastAudioChunkSentAt = Date.now();
+    session.lastAudioChunkSegment = segmentName;
+
     this.logger.debug(
-      `[MCube] Sent playAudio and checkpoint name=${segmentName} streamId=${session.streamId}`,
+      `[MCube-AudioLifecycle] [Step 5: AUDIO_CHUNK_SENT] Sent segment=${segmentName} streamId=${session.streamId} gen=${expectedGen} size=${audioBuffer.length}b`,
     );
   }
 

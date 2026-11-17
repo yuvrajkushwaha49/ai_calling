@@ -138,5 +138,31 @@ export class WhatsAppService {
       };
     }
   }
+
+  /**
+   * Process incoming Meta Cloud API delivery webhook status callbacks.
+   * Lifecycle states: sent -> delivered -> read | failed
+   */
+  handleWebhookStatus(
+    messageId: string,
+    status: 'sent' | 'delivered' | 'read' | 'failed',
+    timestamp?: string,
+  ): { messageId: string; status: WhatsAppDeliveryStatus; timestamp: string } {
+    const deliveryStatusMap: Record<string, WhatsAppDeliveryStatus> = {
+      sent: 'SENT',
+      delivered: 'DELIVERED',
+      read: 'DELIVERED',
+      failed: 'FAILED',
+    };
+    const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';
+    this.logger.log(
+      `[WhatsApp-Webhook] Delivery status update: messageId=${messageId} status=${resolvedStatus}`,
+    );
+    return {
+      messageId,
+      status: resolvedStatus,
+      timestamp: timestamp || new Date().toISOString(),
+    };
+  }
 }
 

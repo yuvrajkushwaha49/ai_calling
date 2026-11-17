@@ -93,3 +93,4 @@ $ npm --prefix backend run build
 ```
 - No TypeScript compiler errors (`Found 0 error(s)`).
 - Strict types enforced across all services and interfaces.
+

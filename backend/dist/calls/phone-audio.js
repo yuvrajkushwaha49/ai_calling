@@ -200,13 +200,16 @@ function normalizeTextForSpeech(text, lang = 'hinglish') {
     if (!text)
         return '';
     let s = text;
+    s = s.replace(/([a-zA-Z0-9])([₹])/g, '$1 $2');
+    s = s.replace(/([₹])([a-zA-Z0-9])/g, '$1 $2');
+    s = s.replace(/\b([1-5])\s*bhk\b/gi, '$1 BHK');
     s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2}),([0-9]{3})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, th, rest) => {
         const val = parseInt(th, 10) * 1000 + parseInt(rest, 10);
-        return `${numberToHindiWords(val)} rupaye per square foot`;
+        return ` ${numberToHindiWords(val)} rupaye per square foot `;
     });
     s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{4,5})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, raw) => {
         const val = parseInt(raw, 10);
-        return `${numberToHindiWords(val)} rupaye per square foot`;
+        return ` ${numberToHindiWords(val)} rupaye per square foot `;
     });
     s = s.replace(/(?:₹|rs\.?|inr)?\s*([0-9]{1,3})\.([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr, decStr) => {
         const lk = parseInt(lkStr, 10);
@@ -215,28 +218,30 @@ function normalizeTextForSpeech(text, lang = 'hinglish') {
         const lkWords = HINDI_ONES[lk] || String(lk);
         const thWords = HINDI_ONES[th] || String(th);
         return th > 0
-            ? `${lkWords} lakh ${thWords} hazaar rupaye`
-            : `${lkWords} lakh rupaye`;
+            ? ` ${lkWords} lakh ${thWords} hazaar rupaye `
+            : ` ${lkWords} lakh rupaye `;
     });
     s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr) => {
         const lk = parseInt(lkStr, 10);
         const lkWords = HINDI_ONES[lk] || String(lk);
-        return `${lkWords} lakh rupaye`;
+        return ` ${lkWords} lakh rupaye `;
     });
     s = s.replace(/(?:₹|rs\.?|inr)?\s*([0-9]{1,2})\.([0-9]{1,2})\s*(?:cr|crore|करोड़)\b/gi, (_, crStr, decStr) => {
         const cr = parseInt(crStr, 10);
         const crWords = HINDI_ONES[cr] || String(cr);
         const decVal = parseInt(decStr.length === 1 ? `${decStr}0` : decStr, 10);
         const lkWords = HINDI_ONES[decVal] || String(decVal);
-        return `${crWords} crore ${lkWords} lakh rupaye`;
+        return ` ${crWords} crore ${lkWords} lakh rupaye `;
     });
     s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2})\s*(?:cr|crore|करोड़)\b/gi, (_, crStr) => {
         const cr = parseInt(crStr, 10);
-        return `${HINDI_ONES[cr] || String(cr)} crore rupaye`;
+        return ` ${HINDI_ONES[cr] || String(cr)} crore rupaye `;
     });
-    s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot');
-    s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, 'square feet');
-    s = s.replace(/[₹]/g, 'rupaye ');
+    s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1$2 square feet ');
+    s = s.replace(/\b([0-9]{2,5})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1 square feet ');
+    s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot ');
+    s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, ' square feet ');
+    s = s.replace(/[₹]/g, ' rupaye ');
     return s.replace(/\s+/g, ' ').trim();
 }
 //# sourceMappingURL=phone-audio.js.map

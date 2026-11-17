@@ -69,3 +69,4 @@ Production testing and real MCube call recordings revealed several critical beha
 | **TTS Splitter & Audio Normalizer** | Decimal-aware & abbreviation-aware sentence boundary detection (`pullSpokenSentences`); Hindi speech normalization (`normalizeTextForSpeech`) | `VERIFIED IN SOURCE` |
 | **McubeStreamService** | Turn-level `AbortController`; `flushGen` generation tracking; drops stale chunks; sends `clearAudio` & `clear` | `VERIFIED IN SOURCE` |
 | **WhatsAppService** | Honest customer-facing disclaimers based on real Meta Cloud API dispatch status | `VERIFIED IN SOURCE` |
+

@@ -62,6 +62,9 @@ type McubeSession = {
     bargeThreshold: number;
     filterState: AudioFilterState;
     turnAbortController?: AbortController | null;
+    lastAudioChunkSentAt?: number;
+    lastAudioChunkSegment?: string;
+    actualCancellationConfirmed?: boolean;
 };
 export declare class McubeStreamService {
     private config;
