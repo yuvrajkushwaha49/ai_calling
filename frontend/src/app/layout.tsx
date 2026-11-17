@@ -11,8 +11,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'RealEstate AI Calling CRM',
-  description: 'Production-ready Real Estate AI Calling CRM',
+  title: 'Workains Reality — Real Estate Channel Partner CRM',
+  description: 'Workains Reality — Multi-Builder Real Estate Channel Partner AI Calling CRM',
 };
 
 export default function RootLayout({

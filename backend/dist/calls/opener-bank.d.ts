@@ -23,6 +23,7 @@ export declare function personalizeOpeningTip(tipNote: string, ctx: {
     hasProject: boolean;
 }): string;
 export declare function speakAgentName(raw?: string | null): string;
+export declare function speakCompanyName(raw?: string, language?: AppLanguage): string;
 export declare function buildVariedOpening(options: {
     leadName: string;
     agentName: string;

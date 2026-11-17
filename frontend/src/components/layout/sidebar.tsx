@@ -58,10 +58,10 @@ export function Sidebar() {
             </div>
             <div>
               <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-                RealEstate
+                Workains Reality
               </p>
               <p className="text-[0.7rem] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                AI Calling CRM
+                Channel Partner CRM
               </p>
             </div>
           </Link>

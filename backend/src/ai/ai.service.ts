@@ -145,8 +145,8 @@ export class AiService {
     const promptNeedsClean = nextPrompt !== prompt;
 
     let companyName = (settings as { companyName?: string }).companyName || '';
-    if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
-      companyName = 'Workains Realty';
+    if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName) || /workains\s*realty/i.test(companyName)) {
+      companyName = 'Workains Reality';
     }
     let agentName = (settings as { agentName?: string }).agentName || 'Aria';
     if (!agentName || /real\s*estate/i.test(agentName) || /assistant/i.test(agentName)) {

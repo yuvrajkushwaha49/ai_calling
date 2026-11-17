@@ -841,10 +841,16 @@ If they have not named a project yet, ask ONE short question: which project / pr
     // Phone: think + answer customer first (LLM); script only if LLM fails
     const system = options.phoneLatency
       ? options.isInbound
-        ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
+        ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company} (Independent Multi-Builder Real Estate Channel Partner).
 ${genderLines}
 Speak ${replyLang}. ${this.languageInstruction(replyLang)}
 The caller dialed your helpline to ask questions about properties, projects, locations, prices, or general information.
+
+IMPORTANT CHANNEL PARTNER IDENTITY:
+- ${company} is an independent real estate channel partner working with multiple reputed builders across Delhi NCR (such as Rudra Buildwell, Future World, VVIP Group, Saya Group, Divyansh, Apex, Godrej, etc.).
+- NEVER claim to be an employee of any single developer/builder (e.g. Saya Group or RGBIL) and NEVER claim to own the projects.
+- If a customer inquires about a specific project (e.g., Future Estate), confirm immediately: "Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon."
+- If a customer rejects a specific builder (e.g., "Mujhe Saya Group ka project nahi chahiye"): DO NOT disconnect or end the call! Acknowledge politely and pivot to other developers: "Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon."
 
 AVAILABLE PROJECTS & INVENTORY:
 ${projectsOverview}
@@ -1065,10 +1071,16 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
           : realCustomerName;
 
       const quickSystem = options.isInbound
-        ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company}.
+        ? `You are ${options.agentName}, live customer helpline & real estate property advisor for ${company} (Independent Multi-Builder Real Estate Channel Partner).
 ${genderLines}
 Speak ${replyLang}. ${this.languageInstruction(replyLang)}
 The caller dialed your helpline to ask questions about properties, projects, locations, prices, or general information.
+
+IMPORTANT CHANNEL PARTNER IDENTITY:
+- ${company} is an independent real estate channel partner marketing projects for multiple builders (such as Rudra Buildwell, Future World, VVIP Group, Saya Group, Divyansh, Apex, Godrej, etc.).
+- You are NOT an employee of Saya Group or RGBIL. You are NOT the developer/builder. You represent ${company}.
+- SPECIFIC PROJECT INQUIRY: If customer asks for a project like Future Estate ("Mujhe Future Estate chahiye. Kya aapke paas hai?"): confirm directly and affirmatively: "Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon."
+- BUILDER REJECTION HANDLING: If customer rejects a builder like Saya Group ("Mujhe Saya Group ka project nahi chahiye" / "साया का नहीं चाहिए"): NEVER disconnect or end the call! Politely acknowledge and pivot to other developers: "Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon."
 
 AVAILABLE PROJECTS & INVENTORY:
 ${projectsOverview}
@@ -1451,6 +1463,7 @@ ${learned ? learned : ''}`;
       residentialList = [
         {
           name: 'Saya Pre-Launch',
+          builder: 'Saya Group',
           location: 'Raj Nagar Extension, Ghaziabad',
           propertyType: 'APARTMENT',
           startingPrice: 6900000,
@@ -1458,6 +1471,7 @@ ${learned ? learned : ''}`;
         },
         {
           name: 'Palace Heights by Rudra',
+          builder: 'Rudra Buildwell',
           location: 'GH-02B, Sector 1, Greater Noida West',
           propertyType: 'APARTMENT',
           startingPrice: 6090000,
@@ -1465,6 +1479,7 @@ ${learned ? learned : ''}`;
         },
         {
           name: 'NCR Monarch',
+          builder: 'NCR Group',
           location: 'GH-02C, Sector 1, Greater Noida West',
           propertyType: 'APARTMENT',
           startingPrice: 6400000,
@@ -1472,6 +1487,7 @@ ${learned ? learned : ''}`;
         },
         {
           name: 'Future Estate by Future World',
+          builder: 'Future World',
           location: 'Plot No 16 E, Sector 1, Greater Noida West',
           propertyType: 'APARTMENT',
           startingPrice: 8632470,
@@ -1479,6 +1495,7 @@ ${learned ? learned : ''}`;
         },
         {
           name: 'VVIP Pre-Launch',
+          builder: 'VVIP Group',
           location: 'Raj Nagar Extension, Ghaziabad',
           propertyType: 'APARTMENT',
           startingPrice: 9062500,
@@ -1488,6 +1505,7 @@ ${learned ? learned : ''}`;
       commercialList = [
         {
           name: 'Saya Piazza',
+          builder: 'Saya Group',
           location: 'Noida Expressway',
           propertyType: 'COMMERCIAL',
           startingPrice: 4900000,
@@ -1495,6 +1513,7 @@ ${learned ? learned : ''}`;
         },
         {
           name: 'Saya South X',
+          builder: 'Saya Group',
           location: 'Greater Noida West',
           propertyType: 'COMMERCIAL',
           startingPrice: 5500000,
@@ -1519,8 +1538,9 @@ ${learned ? learned : ''}`;
           ? ` [STRETCH OPTION: ₹${Math.round(diffVal)} Lakh above customer's budget (exact: ₹${diffVal.toFixed(2)} Lakh) - Disclose price difference upfront & ask permission!]`
           : '';
 
+      const devNotice = p.builder ? ` [Developer: ${p.builder}]` : '';
       const lines = [
-        `- ${p.name} [Location: ${p.location}]: ${priceStr}${diffNotice}`,
+        `- ${p.name}${devNotice} [Location: ${p.location}]: ${priceStr}${diffNotice}`,
       ];
       if (meta?.sizes) lines.push(`  * Verified Unit Sizes: ${meta.sizes}`);
       if (meta?.bsp) lines.push(`  * Verified BSP: ${meta.bsp}`);

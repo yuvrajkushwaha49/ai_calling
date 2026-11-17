@@ -122,8 +122,8 @@ let AiService = class AiService {
             : cleanedPrompt;
         const promptNeedsClean = nextPrompt !== prompt;
         let companyName = settings.companyName || '';
-        if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
-            companyName = 'Workains Realty';
+        if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName) || /workains\s*realty/i.test(companyName)) {
+            companyName = 'Workains Reality';
         }
         let agentName = settings.agentName || 'Aria';
         if (!agentName || /real\s*estate/i.test(agentName) || /assistant/i.test(agentName)) {

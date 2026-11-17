@@ -324,9 +324,9 @@ export class McubeStreamService {
             let companyName =
               (settings as { companyName?: string })?.companyName ||
               call?.lead?.project?.companyName ||
-              'Workains Realty';
+              'Workains Reality';
             if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
-              companyName = 'Workains Realty';
+              companyName = 'Workains Reality';
             }
             const rawAgent = settings?.agentName || 'Aria';
             const agentName = speakAgentName(rawAgent) || 'Aria';
@@ -342,9 +342,9 @@ export class McubeStreamService {
                 session.memory?.customer?.budgetLabel ||
                 'property requirement';
               const nameGreet = hasRealName ? `${customerName} ji` : 'ji';
-              initialOpener = `Namaste ${nameGreet}! Main ${agentName}, ${companyName} se bol rahi hoon. Pichhli baar hamari baat ${pastReq} ko lekar hui thi. Kya aaj usi ko continue karein?`;
+              initialOpener = `Namaste ${nameGreet}! Main ${agentName}, ${companyName} se bol rahi hoon. Pichhli baar humne aapki ${pastReq} ke baare mein baat ki thi. Kya aaj usi ko continue karein ya koi naya project dekhna chahenge?`;
             } else {
-              initialOpener = `Namaste ji! Main ${agentName}, ${companyName} se bol rahi hoon. Aapki property requirement ke baare mein baat kar sakti hoon?`;
+              initialOpener = `Namaste ji! Main ${agentName}, ${companyName} se bol rahi hoon. Hum multiple builders ke residential aur commercial projects mein property options provide karte hain. Aap kis location mein property dekh rahe hain?`;
             }
 
             session.lastAgentText = initialOpener;

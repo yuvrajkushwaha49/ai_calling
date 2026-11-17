@@ -63,12 +63,12 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                         ? {
                             document: {
                                 link: options.documentUrl,
-                                caption: `${options.projectName || 'Saya Group'} - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
+                                caption: `${options.projectName ? `${options.projectName} - ` : ''}Workains Reality - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
                             },
                         }
                         : {
                             text: {
-                                body: `Namaste ${options.leadName || ''}! ${options.projectName || 'Saya Group'} ke details aur layout aapke request par share kiye gaye hain.`,
+                                body: `Namaste ${options.leadName || ''}! ${options.projectName ? `${options.projectName} ke ` : ''}details aur layout Workains Reality ke dwara share kiye gaye hain.`,
                             },
                         }),
                 }),

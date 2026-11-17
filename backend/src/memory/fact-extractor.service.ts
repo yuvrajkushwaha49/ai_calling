@@ -43,11 +43,26 @@ export class FactExtractorService {
     { name: 'Aarya Heights by Divyansh', pattern: /(?:aarya\s*heights?|divyansh|आर्या\s*हाइट्स?)/i },
     { name: 'Dholera Capital City', pattern: /(?:dholera|capital\s*city|धोलेरा)/i },
     { name: 'VVIP Pre-Launch / Namah', pattern: /(?:vvip|namah|वीवीआईपी)/i },
-    { name: 'Saya South X / Piazza', pattern: /(?:saya\s*(?:south|piazza|projects?|group)?|साया\s*(?:साउथ|पियाज़ा|प्रोजेक्ट|ग्रुप)?)/i },
+    { name: 'Saya Pre-Launch', pattern: /(?:saya\s*(?:pre\s*-?\s*launch|residential|raj\s*nagar)|साया\s*(?:प्री\s*-?\s*लॉन्च|रेजिडेंशियल))/i },
+    { name: 'Saya South X / Piazza', pattern: /(?:saya\s*(?:south|piazza|commercial|shops?)|साया\s*(?:साउथ|पियाज़ा|कमर्शियल))/i },
     { name: 'Apex The Kremlin / Quebec / Rosario', pattern: /(?:apex|kremlin|quebec|rosario|एपेक्स|क्रेमलिन)/i },
     { name: 'Godrej Golf Links / Business City', pattern: /(?:godrej|golf\s*links|गोदरेज)/i },
     { name: 'Sobha Rivana', pattern: /(?:sobha|rivana|शोभा)/i },
     { name: 'Hummingbird by Gulshan', pattern: /(?:hummingbird|gulshan|गुलशन)/i },
+  ];
+
+  // Verified builders for matching
+  private readonly builderPatterns: Array<{ name: string; pattern: RegExp }> = [
+    { name: 'Saya Group', pattern: /(?:saya\s*group|saya|साया\s*ग्रुप|साया)/i },
+    { name: 'Future World', pattern: /(?:future\s*world|fw\s*group|फ्यूचर\s*वर्ल्ड)/i },
+    { name: 'Rudra Buildwell', pattern: /(?:rudra\s*buildwell|rudra|रुद्रा)/i },
+    { name: 'VVIP Group', pattern: /(?:vvip\s*group|vvip|वीवीआईपी)/i },
+    { name: 'Divyansh', pattern: /(?:divyansh|दिव्यांश)/i },
+    { name: 'Apex Group', pattern: /(?:apex\s*group|apex|एपेक्स)/i },
+    { name: 'Godrej Properties', pattern: /(?:godrej\s*properties|godrej|गोदरेज)/i },
+    { name: 'Sobha Limited', pattern: /(?:sobha\s*limited|sobha|शोभा)/i },
+    { name: 'Gulshan Homz', pattern: /(?:gulshan\s*homz|gulshan|गुलशन)/i },
+    { name: 'NCR Group', pattern: /(?:ncr\s*group|ncr|एनसीआर)/i },
   ];
 
   /**
@@ -132,6 +147,7 @@ export class FactExtractorService {
     const { interested, rejected } = this.extractProjects(raw);
     if (interested.length > 0) {
       result.facts.interestedProjects = interested;
+      result.facts.preferredProjects = interested;
       result.confidenceMap.interestedProjects = 'confirmed';
       result.rawSnippets.interestedProjects = interested.join(', ');
     }
@@ -139,6 +155,22 @@ export class FactExtractorService {
       result.facts.rejectedProjects = rejected;
       result.confidenceMap.rejectedProjects = 'confirmed';
       result.rawSnippets.rejectedProjects = rejected.join(', ');
+    }
+
+    // 6b. Builder Preference & Rejection Extraction
+    const { preferred: prefBuilders, rejected: rejBuilders } = this.extractBuilders(raw);
+    if (prefBuilders.length > 0) {
+      result.facts.preferredBuilders = prefBuilders;
+      result.confidenceMap.preferredBuilders = 'confirmed';
+      result.rawSnippets.preferredBuilders = prefBuilders.join(', ');
+    }
+    if (rejBuilders.length > 0) {
+      result.facts.rejectedBuilders = rejBuilders;
+      result.confidenceMap.rejectedBuilders = 'confirmed';
+      result.rawSnippets.rejectedBuilders = rejBuilders.join(', ');
+      if (rejBuilders.includes('Saya Group') && !result.facts.rejectedProjects?.includes('Saya South X / Piazza')) {
+        result.facts.rejectedProjects = [...(result.facts.rejectedProjects || []), 'Saya South X / Piazza'];
+      }
     }
 
     // 7. Customer Name Extraction
@@ -370,7 +402,7 @@ export class FactExtractorService {
     return null;
   }
 
-  private extractProjects(text: string): { interested: string[]; rejected: string[] } {
+  public extractProjects(text: string): { interested: string[]; rejected: string[] } {
     const interested: string[] = [];
     const rejected: string[] = [];
 
@@ -380,7 +412,10 @@ export class FactExtractorService {
         // Inspect the immediate text segment following the project name (up to 45 characters)
         const after = text.slice(match.index + match[0].length, match.index + match[0].length + 45);
 
-        const isNegativeImmediate = /^\s*(?:ka\s*nahi|nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
+        const isNegativeImmediate =
+          /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(
+            after,
+          );
 
         if (isNegativeImmediate) {
           rejected.push(proj.name);
@@ -390,6 +425,35 @@ export class FactExtractorService {
       }
     }
     return { interested, rejected };
+  }
+
+  public extractBuilders(text: string): { preferred: string[]; rejected: string[] } {
+    const preferred: string[] = [];
+    const rejected: string[] = [];
+
+    for (const b of this.builderPatterns) {
+      const match = b.pattern.exec(text);
+      if (match) {
+        const after = text.slice(match.index + match[0].length, match.index + match[0].length + 45);
+        const isNegativeImmediate =
+          /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(
+            after,
+          );
+
+        if (isNegativeImmediate) {
+          rejected.push(b.name);
+        } else {
+          const isAffirmative =
+            /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:chahiye|chaiye|dikhao|batao|lena\s*hai|dekhna\s*hai|का\s*चाहिए|चाहिए|दिखाओ|बताओ|का\s*है)/i.test(
+              after,
+            );
+          if (isAffirmative || /(?:builder|developer)/i.test(text)) {
+            preferred.push(b.name);
+          }
+        }
+      }
+    }
+    return { preferred, rejected };
   }
 
   private extractName(

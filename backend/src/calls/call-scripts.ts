@@ -457,6 +457,8 @@ type ReplyKind =
   | 'clarify_ambiguous'
   | 'generic_ack'
   | 'price_soft'
+  | 'reject_builder_pivot'
+  | 'confirm_future_estate'
   | 'default';
 
 export type ConversationFacts = {
@@ -1202,6 +1204,8 @@ export function detectIntent(text: string): {
   statingVisitDay: boolean;
   positive: boolean;
   incompleteOrAmbiguous: boolean;
+  builderRejection?: boolean;
+  specificProjectInquiry?: boolean;
 } {
   const t = text.toLowerCase();
   const wantsCallback =
@@ -1245,8 +1249,18 @@ export function detectIntent(text: string): {
       t,
     );
 
+  const isSpecificProject =
+    /(?:future\s*(?:estate|state)|फ्यूचर\s*(?:एस्टेट|स्टेट)).*(?:chahiye|hai\s*kya|hai|details?)/i.test(t) ||
+    /tumhare\s*paas\s*future/i.test(t);
+
+  const isBuilderRej =
+    /(?:saya\s*group|saya|साया\s*ग्रुप|साया|future\s*world|rudra|vvip).*(?:ka\s*nahi|nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(t) ||
+    /(?:kisi\s*aur\s*ka|kisi\s*aur\s*builder|doosre\s*builder|dusre\s*builder)\s*(?:chahiye|dikhao|options?)/i.test(t);
+
   return {
     notInterested: !wantsCallback && rawNotInterested && !isProjectRejection,
+    builderRejection: isBuilderRej,
+    specificProjectInquiry: isSpecificProject,
     callback: wantsCallback,
     askingWhyCall:
       askingIdentityOnly ||
@@ -1344,6 +1358,12 @@ export function buildFollowUpReply(options: {
   if (contextual) {
     kind = contextual.kind;
     outcome = contextual.outcome;
+  } else if (intent.specificProjectInquiry) {
+    kind = 'confirm_future_estate';
+    outcome = CallOutcome.QUALIFIED;
+  } else if (intent.builderRejection) {
+    kind = 'reject_builder_pivot';
+    outcome = CallOutcome.CONNECTED;
   } else if (isIncompleteOrAmbiguousQuery(current)) {
     kind = 'clarify_ambiguous';
     outcome = CallOutcome.CONNECTED;
@@ -1412,6 +1432,20 @@ export function buildFollowUpReply(options: {
   const visitDay = facts.visitDay || 'next weekend';
 
   const scripts: Record<ReplyKind, Record<AppLanguage, string>> = {
+    confirm_future_estate: {
+      'en-IN': `Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon.`,
+      'hi-IN': `जी, Future Estate का प्रोजेक्ट हमारी available inventory में है। मैं आपको उसकी verified details बताती हूँ।`,
+      hinglish: `Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon.`,
+      'mr-IN': `होय, Future Estate प्रकल्प आमच्याकडे उपलब्ध आहे. मी तुम्हाला माहिती सांगते.`,
+      'gu-IN': `હા, Future Estate પ્રોજેક્ટ અમારી પાસે ઉપલબ્ધ છે. હું તમને વિગતો જણાવું છું.`,
+    },
+    reject_builder_pivot: {
+      'en-IN': `Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon.`,
+      'hi-IN': `जी बिल्कुल, कोई बात नहीं। मैं Saya Group के options हटा देती हूँ। आपके लिए दूसरे builders के projects check करती हूँ।`,
+      hinglish: `Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon.`,
+      'mr-IN': `काही हरकत नाही, आम्ही इतर बिल्डर्सचे पर्याय तपासतो.`,
+      'gu-IN': `કોઈ વાંધો નહીં, અમે બીજા બિલ્ડર્સના વિકલ્પો જોઈએ છીએ.`,
+    },
     not_interested: {
       'en-IN': `Koi baat nahi ji. Future me dekhna ho toh connect kar lena — shukriya.`,
       'hi-IN': `कोई बात नहीं जी। Future में देखना हो तो connect कर लेना — शुक्रिया।`,

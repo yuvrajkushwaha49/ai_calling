@@ -7,6 +7,7 @@ exports.bestOpenerStyle = bestOpenerStyle;
 exports.isOpeningStyleTip = isOpeningStyleTip;
 exports.personalizeOpeningTip = personalizeOpeningTip;
 exports.speakAgentName = speakAgentName;
+exports.speakCompanyName = speakCompanyName;
 exports.buildVariedOpening = buildVariedOpening;
 const call_scripts_1 = require("./call-scripts");
 exports.OPENER_STYLES = [
@@ -176,7 +177,7 @@ function speakProjectName(projectRaw, _language) {
 function speakCompanyName(raw, language) {
     const t = (raw || '').trim();
     if (!t || /saya\s*group/i.test(t) || /rgbil/i.test(t)) {
-        return language === 'en-IN' ? 'Workains Realty' : 'वर्केंस रियल्टी';
+        return language === 'hi-IN' ? 'वर्केंस रियलिटी' : 'Workains Reality';
     }
     return t;
 }
@@ -197,11 +198,11 @@ function buildVariedOpening(options) {
             norm(company) === norm(projectRaw) ||
             norm(company).includes(norm(projectRaw)) ||
             norm(projectRaw).includes(norm(company)))) {
-        company = builder || company || 'Saya Group';
+        company = 'Workains Reality';
     }
     if (!company)
-        company = builder || 'Saya Group';
-    const companyHi = speakCompanyName(company || 'Saya Group', 'hi-IN');
+        company = 'Workains Reality';
+    const companyHi = speakCompanyName(company, 'hi-IN');
     const gender = (0, call_scripts_1.resolveSpeechGender)({
         agentName: options.agentName || agent,
         agentVoice: options.agentVoice,

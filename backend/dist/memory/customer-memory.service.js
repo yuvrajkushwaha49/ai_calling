@@ -99,6 +99,17 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             location: customerProfile?.preferredLocation || null,
             timeline: customerProfile?.purchaseTimeline || null,
             interestedProjects: customerProfile?.interestedProjects || [],
+            preferredProjects: customerProfile?.preferredProjects || customerProfile?.interestedProjects || [],
+            rejectedProjects: customerProfile?.rejectedProjects || [],
+            preferredBuilders: customerProfile?.preferredBuilders || [],
+            rejectedBuilders: customerProfile?.rejectedBuilders || [],
+            preferredLocations: customerProfile?.preferredLocations || (customerProfile?.preferredLocation ? [customerProfile.preferredLocation] : []),
+            propertyType: customerProfile?.propertyType || null,
+            sizePreference: customerProfile?.sizePreference || null,
+            possessionPreference: customerProfile?.possessionPreference || null,
+            lastDiscussedProject: customerProfile?.lastDiscussedProject || null,
+            lastDiscussedBuilder: customerProfile?.lastDiscussedBuilder || null,
+            nextRecommendedProjects: customerProfile?.nextRecommendedProjects || [],
         };
         const answeredFields = [];
         if (initialFacts.bhk)
@@ -386,6 +397,23 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                     state.customer.rejectedProjects = Array.from(rejected);
                     state.customer.interestedProjects = state.customer.interestedProjects.filter((p) => !rejected.has(p));
                 }
+                else if (key === 'preferredProjects' && Array.isArray(value)) {
+                    const merged = new Set([...(state.customer.preferredProjects || []), ...value]);
+                    state.customer.preferredProjects = Array.from(merged);
+                }
+                else if (key === 'preferredBuilders' && Array.isArray(value)) {
+                    const merged = new Set([...(state.customer.preferredBuilders || []), ...value]);
+                    state.customer.preferredBuilders = Array.from(merged);
+                }
+                else if (key === 'rejectedBuilders' && Array.isArray(value)) {
+                    const rejected = new Set([...(state.customer.rejectedBuilders || []), ...value]);
+                    state.customer.rejectedBuilders = Array.from(rejected);
+                    state.customer.preferredBuilders = (state.customer.preferredBuilders || []).filter((b) => !rejected.has(b));
+                }
+                else if (key === 'preferredLocations' && Array.isArray(value)) {
+                    const merged = new Set([...(state.customer.preferredLocations || []), ...value]);
+                    state.customer.preferredLocations = Array.from(merged);
+                }
                 else {
                     state.customer[key] = value;
                 }
@@ -480,7 +508,18 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                     budget: state.customer.budget || null,
                     budgetLabel: state.customer.budgetLabel || null,
                     preferredLocation: state.customer.location || null,
+                    preferredLocations: state.customer.preferredLocations || (state.customer.location ? [state.customer.location] : []),
                     purchaseTimeline: state.customer.timeline || null,
+                    propertyType: state.customer.propertyType || null,
+                    sizePreference: state.customer.sizePreference || null,
+                    possessionPreference: state.customer.possessionPreference || null,
+                    preferredBuilders: state.customer.preferredBuilders || [],
+                    rejectedBuilders: state.customer.rejectedBuilders || [],
+                    preferredProjects: state.customer.preferredProjects || state.customer.interestedProjects || [],
+                    rejectedProjects: state.customer.rejectedProjects || [],
+                    lastDiscussedProject: state.customer.lastDiscussedProject || null,
+                    lastDiscussedBuilder: state.customer.lastDiscussedBuilder || null,
+                    nextRecommendedProjects: state.customer.nextRecommendedProjects || [],
                     interestedProjects: state.customer.interestedProjects || [],
                     leadStatus: 'QUALIFIED',
                     lastCallOutcome: 'CONNECTED',

@@ -64,22 +64,21 @@ export default function LoginPage() {
             <Building className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">RealEstate</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">Workains Reality</h1>
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-white/60">
-              AI Calling CRM
+              Channel Partner CRM
             </p>
           </div>
         </div>
         <div className="relative z-10 max-w-lg">
           <h2 className="text-4xl font-semibold leading-tight tracking-tight text-white">
-            Close more deals with AI-powered calling
+            Multi-Builder Real Estate Channel Partner CRM
           </h2>
           <p className="mt-4 text-base leading-relaxed text-white/70">
-            Automate lead qualification, schedule site visits, and track every conversation
-            in one powerful CRM.
+            Workains Reality connects homebuyers with verified projects across top builders in Delhi NCR with AI voice intelligence.
           </p>
         </div>
-        <p className="relative z-10 text-sm text-white/45">© 2026 RealEstate AI Calling CRM</p>
+        <p className="relative z-10 text-sm text-white/45">© 2026 Workains Reality. All rights reserved.</p>
       </div>
 
       <div className="app-atmosphere flex flex-1 items-center justify-center p-6">

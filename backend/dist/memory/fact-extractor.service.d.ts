@@ -9,6 +9,7 @@ export interface ExtractedTurnFacts {
 export declare class FactExtractorService {
     private readonly logger;
     private readonly projectPatterns;
+    private readonly builderPatterns;
     extractFacts(text: string, context?: {
         priorAgentText?: string;
     }): ExtractedTurnFacts;
@@ -22,6 +23,13 @@ export declare class FactExtractorService {
     private extractLocation;
     private extractTimeline;
     private extractPropertyType;
-    private extractProjects;
+    extractProjects(text: string): {
+        interested: string[];
+        rejected: string[];
+    };
+    extractBuilders(text: string): {
+        preferred: string[];
+        rejected: string[];
+    };
     private extractName;
 }

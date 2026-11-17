@@ -941,8 +941,14 @@ function detectIntent(text) {
         /(?:future\s*(?:state|estate)|vvip|palace\s*heights?|ncr\s*monarch).*(?:chahiye|hai\s*kya|hai)/i.test(t) ||
         /(?:continue.*but|continue.*lekin)/i.test(t);
     const rawNotInterested = /not interested|no thanks|don't call|do not call|wrong number|nahi chahiye|nahi chaiye|nhi chahiye|nhi chaiye|नहीं चाहिए|नाही पाहिजे|નથી જોઈએ|not looking|not searching|kuch nahi|kuch bhi nahi|khuch bhi|कुछ नहीं|कुछ भी नहीं|नहीं\s*देख|search नहीं|कोई property search नहीं|अभी नहीं देख|mere liye nahi|अपने लिए नहीं|rakho phone|rakh do phone|cut (?:the )?call|mat call|band karo|hang up|phone rakh|nhi chahiye khuch|nahi chahiye kuch/i.test(t);
+    const isSpecificProject = /(?:future\s*(?:estate|state)|फ्यूचर\s*(?:एस्टेट|स्टेट)).*(?:chahiye|hai\s*kya|hai|details?)/i.test(t) ||
+        /tumhare\s*paas\s*future/i.test(t);
+    const isBuilderRej = /(?:saya\s*group|saya|साया\s*ग्रुप|साया|future\s*world|rudra|vvip).*(?:ka\s*nahi|nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(t) ||
+        /(?:kisi\s*aur\s*ka|kisi\s*aur\s*builder|doosre\s*builder|dusre\s*builder)\s*(?:chahiye|dikhao|options?)/i.test(t);
     return {
         notInterested: !wantsCallback && rawNotInterested && !isProjectRejection,
+        builderRejection: isBuilderRej,
+        specificProjectInquiry: isSpecificProject,
         callback: wantsCallback,
         askingWhyCall: askingIdentityOnly ||
             /kis liye|kyun (?:call|phone)|kyu (?:call|phone)|why (?:did you |have you )?call|kya baat|kaun (?:ho|hai)|reason for (?:call|calling)|phone kyun|phone kis liye|क्यों\s*फोन|किस\s*लिए\s*फोन|किस लिये/i.test(t),
@@ -1004,6 +1010,14 @@ function buildFollowUpReply(options) {
     if (contextual) {
         kind = contextual.kind;
         outcome = contextual.outcome;
+    }
+    else if (intent.specificProjectInquiry) {
+        kind = 'confirm_future_estate';
+        outcome = client_1.CallOutcome.QUALIFIED;
+    }
+    else if (intent.builderRejection) {
+        kind = 'reject_builder_pivot';
+        outcome = client_1.CallOutcome.CONNECTED;
     }
     else if (isIncompleteOrAmbiguousQuery(current)) {
         kind = 'clarify_ambiguous';
@@ -1081,6 +1095,20 @@ function buildFollowUpReply(options) {
             : 'ready / under construction';
     const visitDay = facts.visitDay || 'next weekend';
     const scripts = {
+        confirm_future_estate: {
+            'en-IN': `Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon.`,
+            'hi-IN': `जी, Future Estate का प्रोजेक्ट हमारी available inventory में है। मैं आपको उसकी verified details बताती हूँ।`,
+            hinglish: `Ji, Future Estate ka project hamari available inventory mein hai. Main aapko uski verified details batati hoon.`,
+            'mr-IN': `होय, Future Estate प्रकल्प आमच्याकडे उपलब्ध आहे. मी तुम्हाला माहिती सांगते.`,
+            'gu-IN': `હા, Future Estate પ્રોજેક્ટ અમારી પાસે ઉપલબ્ધ છે. હું તમને વિગતો જણાવું છું.`,
+        },
+        reject_builder_pivot: {
+            'en-IN': `Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon.`,
+            'hi-IN': `जी बिल्कुल, कोई बात नहीं। मैं Saya Group के options हटा देती हूँ। आपके लिए दूसरे builders के projects check करती हूँ।`,
+            hinglish: `Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon.`,
+            'mr-IN': `काही हरकत नाही, आम्ही इतर बिल्डर्सचे पर्याय तपासतो.`,
+            'gu-IN': `કોઈ વાંધો નહીં, અમે બીજા બિલ્ડર્સના વિકલ્પો જોઈએ છીએ.`,
+        },
         not_interested: {
             'en-IN': `Koi baat nahi ji. Future me dekhna ho toh connect kar lena — shukriya.`,
             'hi-IN': `कोई बात नहीं जी। Future में देखना हो तो connect कर लेना — शुक्रिया।`,

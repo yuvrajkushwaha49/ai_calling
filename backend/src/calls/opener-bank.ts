@@ -245,10 +245,10 @@ function speakProjectName(projectRaw: string, _language: AppLanguage): string {
   return projectRaw;
 }
 
-function speakCompanyName(raw: string, language: AppLanguage): string {
+export function speakCompanyName(raw?: string, language?: AppLanguage): string {
   const t = (raw || '').trim();
   if (!t || /saya\s*group/i.test(t) || /rgbil/i.test(t)) {
-    return language === 'en-IN' ? 'Workains Realty' : 'वर्केंस रियल्टी';
+    return language === 'hi-IN' ? 'वर्केंस रियलिटी' : 'Workains Reality';
   }
   return t;
 }
@@ -290,10 +290,10 @@ export function buildVariedOpening(options: {
       norm(company).includes(norm(projectRaw)) ||
       norm(projectRaw).includes(norm(company)))
   ) {
-    company = builder || company || 'Saya Group';
+    company = 'Workains Reality';
   }
-  if (!company) company = builder || 'Saya Group';
-  const companyHi = speakCompanyName(company || 'Saya Group', 'hi-IN');
+  if (!company) company = 'Workains Reality';
+  const companyHi = speakCompanyName(company, 'hi-IN');
 
   const gender: SpeechGender = resolveSpeechGender({
     agentName: options.agentName || agent,
