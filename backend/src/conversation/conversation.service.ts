@@ -857,6 +857,16 @@ If they have not named a project yet, ask ONE short question: which project / pr
     const preferredBuilders = options.memory?.customer?.preferredBuilders || [];
     const preferredProjects = options.memory?.customer?.preferredProjects || [];
     const propertyTypePref = options.memory?.customer?.propertyType || null;
+    const selectedProjectId =
+      options.memory?.customer?.selectedProjectId ||
+      (options.memory as any)?.selectedProjectId ||
+      options.memory?.customer?.lastDiscussedProject ||
+      (options.memory as any)?.lastDiscussedProjectName ||
+      null;
+    const selectedProjectLock = Boolean(
+      options.memory?.customer?.selectedProjectLock ||
+      (options.memory as any)?.selectedProjectLock
+    );
 
     const projectsOverview = options.isInbound
       ? await this.getProjectsOverview({
@@ -865,7 +875,10 @@ If they have not named a project yet, ask ONE short question: which project / pr
           rejectedProjects,
           preferredBuilders,
           preferredProjects,
+          preferredLocations: options.memory?.customer?.preferredLocations || [],
           propertyType: (propertyTypePref as 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null) || null,
+          selectedProjectId,
+          selectedProjectLock,
         })
       : '';
 
@@ -893,7 +906,15 @@ IMPORTANT CHANNEL PARTNER IDENTITY:
 - If a customer rejects a specific builder (e.g., "Mujhe Saya Group ka project nahi chahiye"): DO NOT disconnect or end the call! Acknowledge politely and pivot to other developers: "Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon."
 
 AVAILABLE PROJECTS & INVENTORY:
-${projectsOverview}
+${
+  selectedProjectLock && selectedProjectId
+    ? `PROJECT CONTEXT LOCK (ACTIVE):
+- CURRENT LOCKED PROJECT: ${selectedProjectId}
+- The customer has explicitly locked discussion onto ${selectedProjectId}.
+- STRICT RULE: Continue discussing ${selectedProjectId} ONLY. DO NOT introduce, switch to, or compare other projects unless the customer explicitly asks for alternatives or other options!
+- Answer all questions regarding sizes, prices, layouts, and amenities specifically for ${selectedProjectId}.\n\n`
+    : ''
+}${projectsOverview}
 
 CUSTOMER STATUS:
 ${isReturning
@@ -1121,7 +1142,15 @@ IMPORTANT CHANNEL PARTNER IDENTITY:
 - BUILDER REJECTION HANDLING: If customer rejects a builder like Saya Group ("Mujhe Saya Group ka project nahi chahiye" / "साया का नहीं चाहिए"): NEVER disconnect or end the call! Politely acknowledge and pivot to other developers: "Ji bilkul, koi baat nahi. Main Saya Group ke options hata deti hoon. Aapke liye doosre builders ke projects check karti hoon."
 
 AVAILABLE PROJECTS & INVENTORY:
-${projectsOverview}
+${
+  selectedProjectLock && selectedProjectId
+    ? `PROJECT CONTEXT LOCK (ACTIVE):
+- CURRENT LOCKED PROJECT: ${selectedProjectId}
+- The customer has explicitly locked discussion onto ${selectedProjectId}.
+- STRICT RULE: Continue discussing ${selectedProjectId} ONLY. DO NOT introduce, switch to, or compare other projects unless the customer explicitly asks for alternatives or other options!
+- Answer all questions regarding sizes, prices, layouts, and amenities specifically for ${selectedProjectId}.\n\n`
+    : ''
+}${projectsOverview}
 
 CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
 - PRIORITY 1 (DIRECT ANSWER MUST TAKE PRIORITY OVER SALES CONVERSION): Always answer the customer's direct question first!
@@ -1451,6 +1480,8 @@ ${learned ? learned : ''}`;
           preferredProjects?: string[];
           preferredLocations?: string[];
           propertyType?: 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null;
+          selectedProjectId?: string | null;
+          selectedProjectLock?: boolean;
         },
   ): Promise<string> {
     const options =
@@ -1635,8 +1666,23 @@ ${learned ? learned : ''}`;
       if (meta?.bsp) lines.push(`  * Verified BSP: ${meta.bsp}`);
       if (meta?.club) lines.push(`  * Project Details: ${meta.club}`);
       else if (p.description) lines.push(`  * Overview: ${p.description.slice(0, 140)}`);
+      if (p.reraNumber) lines.push(`  * RERA: ${p.reraNumber}`);
       return lines.join('\n');
     };
+
+    if (options.selectedProjectLock && options.selectedProjectId) {
+      const lockKey = options.selectedProjectId.toLowerCase();
+      const locked =
+        residentialList.find((p) => p.name.toLowerCase().includes(lockKey) || lockKey.includes(p.name.toLowerCase())) ||
+        commercialList.find((p) => p.name.toLowerCase().includes(lockKey) || lockKey.includes(p.name.toLowerCase()));
+      if (locked) {
+        return (
+          `[ACTIVE PROJECT CONTEXT LOCK: ${locked.name.toUpperCase()}]\n` +
+          `(STRICT INSTRUCTION: The customer has locked discussion onto this property. Discuss ONLY ${locked.name}. Do not introduce other projects unless the customer asks for alternatives!)\n` +
+          formatProjectEntry(locked, customerBudgetRupees)
+        );
+      }
+    }
 
     const sections: string[] = [];
 

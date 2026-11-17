@@ -40,6 +40,12 @@ export interface CustomerFacts {
     sizePreference?: string | null;
     lastDiscussedProject?: string | null;
     lastDiscussedBuilder?: string | null;
+    lastDiscussedProjectId?: string | null;
+    lastDiscussedLocation?: string | null;
+    lastDiscussedConfiguration?: string | null;
+    lastDiscussedPrice?: string | null;
+    selectedProjectId?: string | null;
+    selectedProjectLock?: boolean;
     nextRecommendedProjects?: string[];
     interestedProjects: string[];
     siteVisit?: {
@@ -68,6 +74,12 @@ export interface CustomerProfileCache {
     possessionPreference?: string | null;
     lastDiscussedProject?: string | null;
     lastDiscussedBuilder?: string | null;
+    lastDiscussedProjectId?: string | null;
+    lastDiscussedLocation?: string | null;
+    lastDiscussedConfiguration?: string | null;
+    lastDiscussedPrice?: string | null;
+    selectedProjectId?: string | null;
+    selectedProjectLock?: boolean;
     nextRecommendedProjects?: string[];
     interestedProjects: string[];
     leadStatus: string | null;
@@ -97,6 +109,18 @@ export interface ConversationState {
     askedQuestions: string[];
     pendingQuestion: string | null;
     lastIntent: string | null;
+    lastDiscussedProjectId?: string | null;
+    lastDiscussedProjectName?: string | null;
+    lastDiscussedBuilder?: string | null;
+    lastDiscussedLocation?: string | null;
+    lastDiscussedConfiguration?: string | null;
+    lastDiscussedPrice?: string | null;
+    currentConversationTopic?: string | null;
+    pendingCustomerQuestion?: string | null;
+    currentIntent?: string | null;
+    selectedProjectId?: string | null;
+    selectedProjectLock?: boolean;
+    lastCompletedConversationStep?: string | null;
     conversationStage: 'greeting' | 'discovery' | 'qualification' | 'project_pitch' | 'visit_booking' | 'closing';
     conversationSummary: string;
     lastAssistantResponse: string;

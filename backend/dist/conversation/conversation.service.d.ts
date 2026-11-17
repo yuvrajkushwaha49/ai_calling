@@ -176,6 +176,8 @@ export declare class ConversationService {
         preferredProjects?: string[];
         preferredLocations?: string[];
         propertyType?: 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null;
+        selectedProjectId?: string | null;
+        selectedProjectLock?: boolean;
     }): Promise<string>;
     matchProjectFromSpeech(text: string): Promise<{
         id: string;

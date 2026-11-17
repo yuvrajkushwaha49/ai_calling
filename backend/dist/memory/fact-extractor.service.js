@@ -118,6 +118,9 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.facts.interestedProjects = interested;
             result.facts.preferredProjects = interested;
             result.preferredProjects = interested;
+            result.facts.lastDiscussedProject = interested[0];
+            result.facts.selectedProjectId = interested[0];
+            result.facts.selectedProjectLock = true;
             result.confidenceMap.interestedProjects = 'confirmed';
             result.rawSnippets.interestedProjects = interested.join(', ');
         }
@@ -126,6 +129,19 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.rejectedProjects = rejected;
             result.confidenceMap.rejectedProjects = 'confirmed';
             result.rawSnippets.rejectedProjects = rejected.join(', ');
+        }
+        const askingAlternatives = /(?:uske|inke|iske)?\s*(?:alawa|chhod\s*kar|other\s*than|apart\s*from)\s*(?:aur\s*)?(?:kya|konsa|kaunse|other)?\s*(?:options?|projects?|flats?)/i.test(raw) ||
+            /(?:kisi\s*aur|dusra|doosra|dusre|doosre|koi\s*aur|aur\s*koi)\s*(?:ka\s*)?(?:chahiye|dikhao|batao|options?)/i.test(raw);
+        if (askingAlternatives) {
+            result.facts.selectedProjectLock = false;
+        }
+        const askingContinue = /(?:(?:nahi|ha+n|ji)?\s*(?:usi|wahi|vahi|same)\s*(?:ke\s*baare|project|ko)?\s*(?:mein\s*)?(?:continue|batao|charcha|rakho|karo|karte\s*hai[n]?))|(?:aage\s*batao)|(?:usi\s*ka\s*detail\s*do)|(?:usi\s*ke\s*baare\s*mein)|(?:pehle\s*to\??)|(?:wahi\s*project\s*continue)|(?:kisi\s*ek\s*project\s*ke\s*baare\s*mein\s*to\s*usi\s*ka\s*detail\s*do)/i.test(raw);
+        if (askingContinue) {
+            result.facts.selectedProjectLock = true;
+            if (context?.lastDiscussedProject) {
+                result.facts.lastDiscussedProject = context.lastDiscussedProject;
+                result.facts.selectedProjectId = context.lastDiscussedProject;
+            }
         }
         const { preferred: prefBuilders, rejected: rejBuilders } = this.extractBuilders(raw);
         if (prefBuilders.length > 0) {
@@ -141,6 +157,11 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.rawSnippets.rejectedBuilders = rejBuilders.join(', ');
             if (rejBuilders.includes('Saya Group') && !result.facts.rejectedProjects?.includes('Saya South X / Piazza')) {
                 result.facts.rejectedProjects = [...(result.facts.rejectedProjects || []), 'Saya South X / Piazza'];
+            }
+            if (rejBuilders.includes('Saya Group') && result.facts.lastDiscussedProject && /saya/i.test(result.facts.lastDiscussedProject)) {
+                result.facts.lastDiscussedProject = null;
+                result.facts.selectedProjectId = null;
+                result.facts.selectedProjectLock = false;
             }
         }
         const nameMatch = this.extractName(raw, context);

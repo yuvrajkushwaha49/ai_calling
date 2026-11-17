@@ -17,6 +17,7 @@ import { CallOutcome, CallStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { speakAgentName } from './opener-bank';
 import { buildFollowUpReply, isPlaceholderLeadName, FORBIDDEN_NAME_WORDS, getThinkingFiller, resolveSpeechGender } from './call-scripts';
+import { getVersionTelemetry } from '../version';
 import {
   asNodeBuffer,
   boostPcm16,
@@ -174,7 +175,11 @@ export class McubeStreamService {
       session.actualCancellationConfirmed = false;
 
       // 1. Barge-in detected
-      this.logger.log(`[MCube-BargeIn] [Step 1: DETECTED] Caller speech triggered barge-in on stream=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
+      this.logger.log(`[MCube-BargeIn] [State 1: BARGE_IN_DETECTED] streamId=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
+
+      // 2. MCube clear command sent
+      this.sendClearAudio(ws, session.streamId);
+      this.logger.log(`[MCube-BargeIn] [State 2: CLEAR_COMMAND_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`);
 
       // 3. Local queue cleared
       const droppedCount = session.pendingSegments.size;
@@ -182,26 +187,22 @@ export class McubeStreamService {
       session.agentPlaying = false;
       session.pendingSegments.clear();
       session.flushGen += 1;
-      this.logger.log(`[MCube-BargeIn] [Step 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
+      this.logger.log(`[MCube-BargeIn] [State 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
 
-      // 4. In-flight generation aborted
+      // 4. LLM generation aborted & 5. TTS generation aborted
+      const hasActiveAbort = Boolean(session.turnAbortController);
       if (session.turnAbortController) {
         session.turnAbortController.abort();
         session.turnAbortController = null;
-        this.logger.log(`[MCube-BargeIn] [Step 4: IN_FLIGHT_ABORTED] In-flight LLM/TTS generation aborted`);
-      } else {
-        this.logger.log(`[MCube-BargeIn] [Step 4: IN_FLIGHT_ABORTED] No active in-flight LLM/TTS generation`);
       }
+      this.logger.log(`[MCube-BargeIn] [State 4: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=${hasActiveAbort}`);
+      this.logger.log(`[MCube-BargeIn] [State 5: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=${hasActiveAbort}`);
 
-      // 5. Last audio chunk sent info
-      this.logger.log(`[MCube-BargeIn] [Step 5: LAST_AUDIO_CHUNK] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`);
+      // 6. Last audio chunk sent info
+      this.logger.log(`[MCube-BargeIn] [State 6: LAST_AUDIO_CHUNK_SENT] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`);
 
-      // 2. MCube clear command sent
-      this.sendClearAudio(ws, session.streamId);
-      this.logger.log(`[MCube-BargeIn] [Step 2: CLEAR_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`);
-
-      // 6. Cancellation confirmation status
-      this.logger.log(`[MCube-BargeIn] [Step 6: CONFIRMATION_STATUS] clearAudio dispatched. Carrier playback stop status: ${session.actualCancellationConfirmed ? 'CONFIRMED' : 'AWAITING_CARRIER_ACK_OR_DRAIN'}`);
+      // 8. Carrier drain status
+      this.logger.log(`[MCube-BargeIn] [State 8: CARRIER_DRAIN_STATUS] Status: ${session.actualCancellationConfirmed ? 'EXPLICIT_ACK_CONFIRMED' : 'INFERRED_CARRIER_DRAIN'}`);
     };
 
     ws.on('message', (raw) => {
@@ -237,6 +238,11 @@ export class McubeStreamService {
 
         this.logger.log(
           `[MCube] Inbound stream started streamId=${session.streamId} callId=${session.callId} format=${session.encoding}@${session.sampleRate}Hz`,
+        );
+
+        const versionTelemetry = getVersionTelemetry();
+        this.logger.log(
+          `[MCube-Version] Call Session Initialized: version=${versionTelemetry.version} commit=${versionTelemetry.commitSha} deployment=${versionTelemetry.deploymentId} pid=${versionTelemetry.processPid} callId=${session.callId} streamId=${session.streamId}`,
         );
 
         // Ensure Call and Lead exist in DB (handles Inbound calls automatically)
@@ -430,7 +436,10 @@ export class McubeStreamService {
       if (msg.event === 'cleared' || msg.event === 'clearAudioDone' || msg.event === 'stop') {
         session.actualCancellationConfirmed = true;
         this.logger.log(
-          `[MCube-BargeIn] [Step 6: CONFIRMED] Carrier explicit playback cancellation confirmed on stream=${session.streamId} event=${msg.event}`,
+          `[MCube-BargeIn] [State 7: MCUBE_ACK_RECEIVED] Carrier explicit playback cancellation confirmed on stream=${session.streamId} event=${msg.event}`,
+        );
+        this.logger.log(
+          `[MCube-BargeIn] [State 8: CARRIER_DRAIN_STATUS] EXPLICIT_ACK_CONFIRMED on stream=${session.streamId}`,
         );
         return;
       }
@@ -579,10 +588,17 @@ export class McubeStreamService {
   private async flushTurn(ws: WebSocket, session: McubeSession) {
     if (session.busy || session.closed) return;
     session.busy = true;
+    const wasInterrupted = session.cancelPlay;
     session.cancelPlay = false;
     const myGen = ++session.flushGen;
     const turnAbort = new AbortController();
     session.turnAbortController = turnAbort;
+
+    if (wasInterrupted) {
+      this.logger.log(
+        `[MCube-BargeIn] [State 9: NEXT_CUSTOMER_RESPONSE_STARTED] Customer utterance processing initiated following barge-in streamId=${session.streamId} gen=${myGen}`,
+      );
+    }
 
     if (session.silenceTimer) {
       clearTimeout(session.silenceTimer);

@@ -290,17 +290,25 @@ export function normalizeTextForSpeech(text: string, lang = 'hinglish'): string 
   });
 
   // 5. Area / sq.ft measurements:
-  // 1,250 sq.ft -> 1250 square feet
+  // 1,50,000 sq.ft -> 150000 square feet (Indian two-comma numbering: Lakhs)
+  s = s.replace(/\b([0-9]{1,2}),([0-9]{2}),([0-9]{3})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1$2$3 square feet ');
+  // 1,250 sq.ft -> 1250 square feet (Standard single-comma numbering: Thousands)
   s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1$2 square feet ');
   // 720 sq.ft -> 720 square feet
-  s = s.replace(/\b([0-9]{2,5})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1 square feet ');
+  s = s.replace(/\b([0-9]{2,6})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1 square feet ');
   // per sq.ft / /sq.ft -> per square foot
   s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot ');
   // remaining sq.ft / sqft / sq ft -> square feet
   s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, ' square feet ');
 
+  // 5b. Indian numbering comma removal for remaining numbers (e.g. 1,50,000 -> 150000)
+  s = s.replace(/\b([0-9]{1,2}),([0-9]{2}),([0-9]{3})\b/g, '$1$2$3');
+  s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\b/g, '$1$2');
+
   // 6. Generic ₹ / Rs. symbol removal if remaining
   s = s.replace(/[₹]/g, ' rupaye ');
 
-  return s.replace(/\s+/g, ' ').trim();
+  // 7. Cleanup extra spaces and punctuation attachment
+  s = s.replace(/\s+/g, ' ').replace(/\s+([.,!?:;।])/g, '$1').trim();
+  return s;
 }

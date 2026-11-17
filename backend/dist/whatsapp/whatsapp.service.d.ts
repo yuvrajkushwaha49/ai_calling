@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-export type WhatsAppDeliveryStatus = 'QUEUED' | 'SENT' | 'DELIVERED' | 'FAILED' | 'UNAVAILABLE';
+export type WhatsAppDeliveryStatus = 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'UNAVAILABLE';
 export interface WhatsAppSendResult {
     success: boolean;
     status: WhatsAppDeliveryStatus;

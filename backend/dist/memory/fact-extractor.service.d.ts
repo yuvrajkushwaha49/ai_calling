@@ -16,9 +16,11 @@ export declare class FactExtractorService {
     private readonly builderPatterns;
     extractFacts(text: string, context?: {
         priorAgentText?: string;
+        lastDiscussedProject?: string | null;
     }): ExtractedTurnFacts;
     extractFromUtterance(text: string, context?: {
         priorAgentText?: string;
+        lastDiscussedProject?: string | null;
     }): ExtractedTurnFacts;
     private normalizeNumerals;
     private extractBhk;

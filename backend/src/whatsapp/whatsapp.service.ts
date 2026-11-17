@@ -5,6 +5,7 @@ export type WhatsAppDeliveryStatus =
   | 'QUEUED'
   | 'SENT'
   | 'DELIVERED'
+  | 'READ'
   | 'FAILED'
   | 'UNAVAILABLE';
 
@@ -151,7 +152,7 @@ export class WhatsAppService {
     const deliveryStatusMap: Record<string, WhatsAppDeliveryStatus> = {
       sent: 'SENT',
       delivered: 'DELIVERED',
-      read: 'DELIVERED',
+      read: 'READ',
       failed: 'FAILED',
     };
     const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';

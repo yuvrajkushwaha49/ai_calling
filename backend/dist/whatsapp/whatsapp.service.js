@@ -109,7 +109,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         const deliveryStatusMap = {
             sent: 'SENT',
             delivered: 'DELIVERED',
-            read: 'DELIVERED',
+            read: 'READ',
             failed: 'FAILED',
         };
         const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';

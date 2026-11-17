@@ -923,6 +923,10 @@ function buildContextualLivenessAck(options) {
 }
 function detectIntent(text) {
     const t = text.toLowerCase();
+    const asksContinueCurrentProject = /(?:(?:nahi|ha+n|ji)?\s*(?:usi|wahi|vahi|same)\s*(?:ke\s*baare|project|ko)?\s*(?:mein\s*)?(?:continue|batao|charcha|rakho|karo|karte\s*hai[n]?))|(?:aage\s*batao)|(?:usi\s*ka\s*detail\s*do)|(?:usi\s*ke\s*baare\s*mein)|(?:pehle\s*to\??)|(?:pehle\s*wala\s*project)|(?:wahi\s*project\s*continue)|(?:kisi\s*ek\s*project\s*ke\s*baare\s*mein\s*to\s*usi\s*ka\s*detail\s*do)|(?:usi\s*ki\s*details\s*do)|(?:haan\s*,?\s*continue\s*karo)|(?:same\s*project\s*ke\s*baare)/i.test(t);
+    const asksPriceCurrent = /(?:kitne\s*ka\s*hai|kitne\s*ka\s*padega|price\s*kya\s*hai|kya\s*rate\s*hai|kya\s*cost\s*hai|kitna\s*daam\s*hai|kitne\s*mein\s*aayega)/i.test(t);
+    const asksSizeCurrent = /(?:kitna\s*bada\s*hai|size\s*kya\s*hai|area\s*kitna\s*hai|carpet\s*area|super\s*area|kitna\s*size\s*hai)/i.test(t);
+    const asksPriorConversation = /(?:jab\s*maine\s*pehle\s*hi|pehle\s*bhi\s*baat\s*hui\s*thi|pehle\s*hi\s*tumse\s*baat\s*kar\s*li|already\s*baat\s*ho\s*chuki\s*hai)/i.test(t);
     const asksPastProject = /(?:pichhli|pichle|last|pehle|previous)\s*(?:baar|call|time)?\s*(?:humne|maine|aapne)?\s*(?:kis|konsa|kaunse|kiske|what)\s*(?:project|property|flat|builder|details)/i.test(t) ||
         /(?:which|what)\s*project\s*(?:did\s*we|was\s*discussed|last\s*time|previously)/i.test(t);
     const asksAlternatives = /(?:uske|inke|iske)?\s*(?:alawa|chhod\s*kar|other\s*than|apart\s*from)\s*(?:aur\s*)?(?:kya|konsa|kaunse|other)?\s*(?:options?|projects?|flats?)/i.test(t) ||
@@ -971,6 +975,10 @@ function detectIntent(text) {
         incompleteOrAmbiguous: isIncompleteOrAmbiguous,
         askingPastProject: asksPastProject,
         askingAlternatives: asksAlternatives,
+        askingContinueCurrentProject: asksContinueCurrentProject,
+        askingPriceCurrent: asksPriceCurrent,
+        askingSizeCurrent: asksSizeCurrent,
+        askingPriorConversation: asksPriorConversation,
     };
 }
 function buildFollowUpReply(options) {
@@ -987,9 +995,13 @@ function buildFollowUpReply(options) {
     const priorLeadText = leadLinesFromTranscript(options.priorTranscript);
     const spokenFacts = mergeFacts(extractFactsFromText(priorLeadText), extractFactsFromText(current));
     const facts = mergeFacts({
+        bhk: options.knownFacts?.bhk,
         budgetLabel: options.knownFacts?.budgetLabel,
         location: options.knownFacts?.location,
         interested: options.knownFacts?.interested,
+        lastDiscussedProject: options.knownFacts?.lastDiscussedProject,
+        selectedProjectId: options.knownFacts?.selectedProjectId,
+        selectedProjectLock: options.knownFacts?.selectedProjectLock,
     }, spokenFacts);
     const intent = detectIntent(current);
     const already = priorAgentAsked(options.priorTranscript);
@@ -1017,13 +1029,35 @@ function buildFollowUpReply(options) {
         kind = contextual.kind;
         outcome = contextual.outcome;
     }
-    else if (intent.specificProjectInquiry) {
-        kind = 'confirm_future_estate';
-        outcome = client_1.CallOutcome.QUALIFIED;
-    }
     else if (intent.builderRejection) {
         kind = 'reject_builder_pivot';
         outcome = client_1.CallOutcome.CONNECTED;
+        facts.selectedProjectLock = false;
+    }
+    else if (intent.askingContinueCurrentProject) {
+        kind = 'continue_current_project';
+        outcome = client_1.CallOutcome.CONNECTED;
+        const resolvedProj = options.knownFacts?.selectedProjectId ||
+            options.knownFacts?.lastDiscussedProject ||
+            'Palace Heights by Rudra';
+        facts.selectedProjectId = resolvedProj;
+        facts.lastDiscussedProject = resolvedProj;
+        facts.selectedProjectLock = true;
+    }
+    else if (intent.askingPriceCurrent) {
+        kind = 'query_price_current';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.askingSizeCurrent) {
+        kind = 'query_size_current';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.specificProjectInquiry) {
+        kind = 'confirm_future_estate';
+        outcome = client_1.CallOutcome.QUALIFIED;
+        facts.selectedProjectId = 'Future Estate by Future World';
+        facts.lastDiscussedProject = 'Future Estate by Future World';
+        facts.selectedProjectLock = true;
     }
     else if (intent.askingPastProject) {
         kind = 'recall_past_project';
@@ -1032,6 +1066,7 @@ function buildFollowUpReply(options) {
     else if (intent.askingAlternatives) {
         kind = 'show_alternatives';
         outcome = client_1.CallOutcome.CONNECTED;
+        facts.selectedProjectLock = false;
     }
     else if (/^(?:क्या\s*(?:नहीं|नही)\s*है|kya\s*(?:nahi|nhi)\s*hai)[!?.\s]*$/i.test(current.trim())) {
         kind = 'clarify_missing_feature';
@@ -1308,6 +1343,40 @@ function buildFollowUpReply(options) {
                 : `Ji, pichhli baar humne aapke ${options.knownFacts?.bhk || 'property'} requirements note kiye the! Kya aap aaj ke fresh options check karna chahenge?`,
             'mr-IN': `मागील वेळी आम्ही प्रकल्पाबद्दल चर्चा केली होती. तुम्हाला त्याची माहिती हवी आहे का?`,
             'gu-IN': `ગઈ વખતે અમે પ્રોજેક્ટ વિશે વાત કરી હતી. શું તમે તેની વિગતો જાણવા માંગો છો?`,
+        },
+        continue_current_project: {
+            'en-IN': `Certainly! Let's continue with ${options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || 'Palace Heights by Rudra'}. Based on your ${facts.bhk || '2 BHK'} requirement, I'll share its available layout and pricing details.`,
+            'hi-IN': `जी बिल्कुल! चलिए ${options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || 'Palace Heights'} की डिटेल्स कंटिन्यू करते हैं। आपके ${facts.bhk || '2 BHK'} रिक्वायरमेंट के हिसाब से मैं इसका साइज़ और प्राइसिंग बताती हूँ।`,
+            hinglish: `Ji bilkul! Chaliye ${options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || 'Palace Heights'} ki details continue karte hain. Aapke ${facts.bhk || '2 BHK'} requirement ke hisaab se main iska available size aur pricing batati hoon.`,
+            'mr-IN': `नक्कीच! चला आपण प्रकल्पाची माहिती सुरू ठेवूया.`,
+            'gu-IN': `ચોક્કસ! ચાલો આપણે પ્રોજેક્ટની વિગતો આગળ વધારીએ.`,
+        },
+        query_price_current: {
+            'en-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `In NCR Monarch, 1 BHK starts at ₹64 Lakh, with a BSP of ₹8,888 per sq.ft. Would you like to check the 2 BHK pricing?`
+                : `In Palace Heights by Rudra, 1 BHK starts at ₹60.90 Lakh, and 2 BHK ranges between ₹80 to ₹88 Lakh with a 50:50 payment plan. Would you like more details?`,
+            'hi-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch में 1 BHK ₹64 Lakh से शुरू होता है और BSP ₹8,888 per sq.ft है। क्या आप 2 BHK की प्राइस डिटेल्स देखना चाहेंगे?`
+                : `Palace Heights में 1 BHK ₹60.90 Lakh से स्टार्ट होता है, और 2 BHK लगभग ₹80 से ₹88 Lakh की रेंज में आता है। क्या आप इसका पेमेंट प्लान देखना चाहेंगे?`,
+            hinglish: (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch mein 1 BHK ₹64 Lakh se start hota hai aur BSP ₹8,888 per sq.ft hai. Kya aap iska payment plan check karna chahenge?`
+                : `Palace Heights mein 1 BHK ₹60.90 Lakh se start hota hai, aur 2 BHK lagbhag ₹80 se ₹88 Lakh ke range mein aata hai. Kya aap iska 50:50 payment plan dekhna chahenge?`,
+            'mr-IN': `प्रकल्पाची किंमत उपलब्ध युनिटनुसार सुरू होते.`,
+            'gu-IN': `પ્રોજેક્ટની કિંમત ઉપલબ્ધ સાઇઝ મુજબ છે.`,
+        },
+        query_size_current: {
+            'en-IN': `In Palace Heights by Rudra, 2 BHK configurations are available in 1015 sq.ft and 1088 sq.ft sizes. Would you like to review the floor plan layout?`,
+            'hi-IN': `Palace Heights में 2 BHK के साइज़ 1015 sq.ft और 1088 sq.ft में आते हैं। क्या आप इसका फ्लोर प्लान लेआउट देखना चाहेंगे?`,
+            hinglish: `Palace Heights mein 2 BHK configurations 1015 sq.ft aur 1088 sq.ft sizes mein available hain. Kya aap iska floor plan layout dekhna chahenge?`,
+            'mr-IN': `२ BHK चे आकार १०१५ आणि १०८८ चौरस फूट उपलब्ध आहेत.`,
+            'gu-IN': `૨ BHK ના કદ ૧૦૧૫ અને ૧૦૮૮ ચોરસ ફૂટમાં ઉપલબ્ધ છે.`,
+        },
+        clarify_which_project: {
+            'en-IN': `Certainly! Which project would you like to explore — Palace Heights by Rudra or NCR Monarch?`,
+            'hi-IN': `जी बिल्कुल! आप किस प्रोजेक्ट के बारे में जानना चाहते हैं — Palace Heights या NCR Monarch?`,
+            hinglish: `Ji bilkul! Aap kis project ke baare mein jaanna chahte hain — Palace Heights ya NCR Monarch?`,
+            'mr-IN': `तुम्हाला कोणत्या प्रकल्पाबद्दल जाणून घ्यायचे आहे?`,
+            'gu-IN': `તમે કયા પ્રોજેક્ટ વિશે જાણવા માંગો છો?`,
         },
         show_alternatives: {
             'en-IN': `Certainly! Apart from that, we have top verified options like Palace Heights by Rudra and NCR Monarch in Sector 1 Greater Noida West. Would you like to know their unit sizes and pricing?`,
