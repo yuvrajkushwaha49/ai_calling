@@ -177,3 +177,4 @@ In `QuestionValidatorService.validateAndSanitize`:
 6. **`backend/src/calls/mcube-stream.service.ts`**:
    - Enhance queue cancellation and generation tracking on customer barge-in.
    - Structured turn logging (turn count, detected intent, facts extracted, latency).
+

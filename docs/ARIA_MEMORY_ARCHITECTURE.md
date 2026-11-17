@@ -140,3 +140,4 @@ flowchart LR
    - Calls continue uninterrupted with zero user-perceivable lag.
 2. **Abnormal Disconnect:**
    - When WebSocket `onClose` fires prematurely, `persistMemoryToDb(callId)` is invoked in the connection teardown handler, ensuring all facts collected up to the last second are committed to PostgreSQL.
+

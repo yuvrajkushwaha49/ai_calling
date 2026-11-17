@@ -105,3 +105,4 @@ flowchart LR
    - Execute all 8 existing test suites (`npm --prefix backend test`).
 3. **Build Verification:**
    - Verify zero TypeScript compiler errors (`npm --prefix backend run build`).
+

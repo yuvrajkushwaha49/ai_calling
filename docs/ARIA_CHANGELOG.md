@@ -43,3 +43,4 @@
 - ElevenLabs Flash v2.5 low-latency streaming TTS integration.
 - Existing Prisma schema models (`Lead`, `Call`, `ConversationMemory`).
 - Redis cache keys (`customer:{phone}`, `customer:{phone}:summary`, `call:{callId}:memory`, `call:{callId}:history`).
+
