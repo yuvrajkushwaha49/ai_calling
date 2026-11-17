@@ -84,5 +84,34 @@ describe('QuestionValidatorService', () => {
     expect(result.allowed).toBe(true);
     expect(result.sanitizedText).toBe(sentence);
   });
+
+  it('should preserve informative prefix and replace only the repeated question clause', () => {
+    const state = mockState({
+      answeredFields: ['bhk', 'budget', 'purpose'],
+      customer: {
+        name: 'Rahul',
+        bhk: '2 BHK',
+        budget: 8000000,
+        budgetLabel: '80 Lakh',
+        purpose: 'end_use',
+        location: null,
+        timeline: null,
+        possession: 'ready_to_move',
+        interestedProjects: [],
+        siteVisit: null,
+      },
+    });
+
+    const input = 'जी बिल्कुल, Ready-to-Move property ही देखते हैं। आप 2 BHK देख रहे हैं या 3 BHK?';
+    const result = service.validateAndSanitize(input, state);
+
+    expect(result.allowed).toBe(false);
+    expect(result.targetField).toBe('bhk');
+    // Informational prefix MUST be preserved!
+    expect(result.sanitizedText).toContain('जी बिल्कुल, Ready-to-Move property ही देखते हैं।');
+    // Repeated question clause must be replaced with next missing field (location)
+    expect(result.sanitizedText).not.toContain('2 BHK देख रहे हैं या 3 BHK');
+    expect(result.sanitizedText).toContain('लोकेशन');
+  });
 });
 

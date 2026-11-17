@@ -1,4 +1,4 @@
-export type FactSource = 'customer' | 'crm' | 'inference';
+export type FactSource = 'previous_call' | 'current_call' | 'customer' | 'crm' | 'inference';
 export type FactConfidence = 'confirmed' | 'approximate' | 'inferred';
 export interface FactEntry {
     value: any;
@@ -7,6 +7,19 @@ export interface FactEntry {
     updatedAt: number;
     rawSnippet?: string;
     previousValue?: any;
+}
+export type MissingFact = 'name' | 'bhk' | 'budget' | 'purpose' | 'location' | 'possession' | 'property_type' | 'site_visit';
+export type NextAction = 'answer_direct_question' | 'acknowledge_update' | 'ask_name' | 'ask_bhk' | 'ask_budget' | 'ask_purpose' | 'ask_location' | 'ask_possession' | 'recommend_property' | 'offer_site_visit' | 'confirm_site_visit' | 'soft_close';
+export interface ConversationFactContext {
+    knownFacts: string[];
+    missingFacts: MissingFact[];
+    nextAction: NextAction;
+    factDetails: Record<string, {
+        value: any;
+        source: string;
+        confirmed: boolean;
+        previousValue?: any;
+    }>;
 }
 export interface CustomerFacts {
     name?: string | null;
@@ -17,6 +30,7 @@ export interface CustomerFacts {
     location?: string | null;
     timeline?: string | null;
     possession?: 'ready_to_move' | 'under_construction' | string | null;
+    propertyType?: 'residential' | 'commercial' | string | null;
     interestedProjects: string[];
     siteVisit?: {
         interested: boolean;
@@ -65,5 +79,6 @@ export interface ConversationState {
     conversationStage: 'greeting' | 'discovery' | 'qualification' | 'project_pitch' | 'visit_booking' | 'closing';
     conversationSummary: string;
     lastAssistantResponse: string;
+    factContext?: ConversationFactContext;
     updatedAt: number;
 }

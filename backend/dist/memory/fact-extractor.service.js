@@ -112,6 +112,12 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.confidenceMap.name = nameMatch.confidence;
             result.rawSnippets.name = nameMatch.snippet;
         }
+        const propertyTypeMatch = this.extractPropertyType(raw);
+        if (propertyTypeMatch) {
+            result.facts.propertyType = propertyTypeMatch.propertyType;
+            result.confidenceMap.propertyType = propertyTypeMatch.confidence;
+            result.rawSnippets.propertyType = propertyTypeMatch.snippet;
+        }
         return result;
     }
     normalizeNumerals(text) {
@@ -269,6 +275,15 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
                 confidence: 'approximate',
                 snippet: '1-3 months',
             };
+        }
+        return null;
+    }
+    extractPropertyType(text) {
+        if (/(?:commercial|shop|dukaan|retail|office|mall|showroom|शोरूम|दुकान|कमर्शियल|ऑफिस)/i.test(text)) {
+            return { propertyType: 'commercial', confidence: 'confirmed', snippet: 'commercial' };
+        }
+        if (/(?:residential|flat|apartment|ghar|फ्लैट|अपार्टमेंट|रेजिडेंशियल)/i.test(text)) {
+            return { propertyType: 'residential', confidence: 'confirmed', snippet: 'residential' };
         }
         return null;
     }

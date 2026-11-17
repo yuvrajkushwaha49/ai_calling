@@ -113,13 +113,14 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             answeredFields.push('timeline');
         if (initialFacts.name && !(0, call_scripts_1.isPlaceholderLeadName)(initialFacts.name))
             answeredFields.push('name');
+        const historySource = isReturning ? 'previous_call' : 'crm';
         const confirmedFacts = {};
         for (const field of answeredFields) {
-            const val = initialFacts[field];
+            const val = field === 'budget' && initialFacts.budgetLabel ? initialFacts.budgetLabel : initialFacts[field];
             if (val !== undefined && val !== null) {
                 confirmedFacts[field] = {
                     value: val,
-                    source: 'crm',
+                    source: historySource,
                     confidence: 'confirmed',
                     updatedAt: Date.now(),
                 };
@@ -144,6 +145,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             lastAssistantResponse: '',
             updatedAt: Date.now(),
         };
+        state.factContext = this.deriveFactContext(state);
         await this.saveCallMemoryToRedis(callId, state);
         this.localMemoryFallback.set(callId, state);
         return state;
@@ -203,9 +205,124 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
         if (c.siteVisit?.interested)
             fields.add('siteVisit');
         state.answeredFields = Array.from(fields);
+        state.factContext = this.deriveFactContext(state);
         this.localMemoryFallback.set(callId, state);
         await this.saveCallMemoryToRedis(callId, state);
         return state;
+    }
+    deriveFactContext(state) {
+        const knownFacts = [];
+        const factDetails = {};
+        const c = state.customer || {};
+        if (c.name && !(0, call_scripts_1.isPlaceholderLeadName)(c.name)) {
+            knownFacts.push('name');
+            factDetails.name = {
+                value: c.name,
+                source: state.confirmedFacts.name?.source || (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.name?.previousValue,
+            };
+        }
+        if (c.bhk) {
+            knownFacts.push('bhk');
+            factDetails.bhk = {
+                value: c.bhk,
+                source: state.confirmedFacts.bhk?.source || (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.bhk?.previousValue,
+            };
+        }
+        if (c.budget || c.budgetLabel) {
+            knownFacts.push('budget');
+            factDetails.budget = {
+                value: c.budgetLabel || c.budget,
+                source: state.confirmedFacts.budget?.source || (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.budget?.previousValue,
+            };
+        }
+        if (c.location) {
+            knownFacts.push('location');
+            factDetails.location = {
+                value: c.location,
+                source: state.confirmedFacts.location?.source || (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.location?.previousValue,
+            };
+        }
+        if (c.possession || c.timeline) {
+            knownFacts.push('possession');
+            factDetails.possession = {
+                value: c.possession || c.timeline,
+                source: state.confirmedFacts.possession?.source ||
+                    state.confirmedFacts.timeline?.source ||
+                    (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.possession?.previousValue || state.confirmedFacts.timeline?.previousValue,
+            };
+        }
+        if (c.purpose) {
+            knownFacts.push('purpose');
+            factDetails.purpose = {
+                value: c.purpose,
+                source: state.confirmedFacts.purpose?.source || (state.isReturningCustomer ? 'previous_call' : 'current_call'),
+                confirmed: true,
+                previousValue: state.confirmedFacts.purpose?.previousValue,
+            };
+        }
+        if (c.propertyType) {
+            knownFacts.push('property_type');
+            factDetails.property_type = {
+                value: c.propertyType,
+                source: state.confirmedFacts.propertyType?.source || 'current_call',
+                confirmed: true,
+            };
+        }
+        if (c.siteVisit?.interested) {
+            knownFacts.push('site_visit');
+            factDetails.site_visit = {
+                value: c.siteVisit,
+                source: 'current_call',
+                confirmed: true,
+            };
+        }
+        const allPossibleFacts = [
+            'name',
+            'bhk',
+            'budget',
+            'location',
+            'possession',
+            'purpose',
+        ];
+        const missingFacts = allPossibleFacts.filter((f) => !knownFacts.includes(f));
+        let nextAction = 'recommend_property';
+        if (!knownFacts.includes('name') && !state.isReturningCustomer) {
+            nextAction = 'ask_name';
+        }
+        else if (!knownFacts.includes('bhk')) {
+            nextAction = 'ask_bhk';
+        }
+        else if (!knownFacts.includes('budget')) {
+            nextAction = 'ask_budget';
+        }
+        else if (!knownFacts.includes('location')) {
+            nextAction = 'ask_location';
+        }
+        else if (!knownFacts.includes('possession')) {
+            nextAction = 'ask_possession';
+        }
+        else if (!knownFacts.includes('purpose')) {
+            nextAction = 'ask_purpose';
+        }
+        else if (!knownFacts.includes('site_visit')) {
+            nextAction = 'offer_site_visit';
+        }
+        return {
+            knownFacts,
+            missingFacts,
+            nextAction,
+            factDetails,
+        };
     }
     async applyExtractedFacts(callId, extracted) {
         return this.updateCallMemory(callId, (state) => {
@@ -216,15 +333,16 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                 const confidence = extracted.confidenceMap[key] || 'confirmed';
                 const snippet = extracted.rawSnippets[key];
                 const existingConfirmed = state.confirmedFacts[key];
-                if (extracted.isCorrection && extracted.correctionField === key) {
+                if (extracted.isCorrection && (extracted.correctionField === key || (extracted.correctionField === 'budget' && key === 'budgetLabel'))) {
                     this.logger.log(`[Memory] Customer correction applied for ${key}: ${value}`);
+                    const prevVal = existingConfirmed?.value || (key === 'budget' || key === 'budgetLabel' ? (state.customer.budgetLabel || state.customer.budget) : state.customer[key]);
                     state.confirmedFacts[key] = {
                         value,
-                        source: 'customer',
+                        source: 'current_call',
                         confidence: 'confirmed',
                         updatedAt: now,
                         rawSnippet: snippet,
-                        previousValue: existingConfirmed?.value,
+                        previousValue: prevVal,
                     };
                     state.customer[key] = value;
                     continue;
@@ -232,7 +350,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                 if (existingConfirmed && confidence === 'approximate') {
                     state.approximateFacts[key] = {
                         value,
-                        source: 'customer',
+                        source: 'current_call',
                         confidence: 'approximate',
                         updatedAt: now,
                         rawSnippet: snippet,
@@ -240,19 +358,20 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                     continue;
                 }
                 if (confidence === 'confirmed') {
+                    const prevVal = existingConfirmed?.value || (key === 'budget' || key === 'budgetLabel' ? (state.customer.budgetLabel || state.customer.budget) : state.customer[key]);
                     state.confirmedFacts[key] = {
                         value,
-                        source: 'customer',
+                        source: 'current_call',
                         confidence: 'confirmed',
                         updatedAt: now,
                         rawSnippet: snippet,
-                        previousValue: existingConfirmed?.value,
+                        previousValue: prevVal !== value ? prevVal : undefined,
                     };
                 }
                 else {
                     state.approximateFacts[key] = {
                         value,
-                        source: 'customer',
+                        source: 'current_call',
                         confidence: 'approximate',
                         updatedAt: now,
                         rawSnippet: snippet,

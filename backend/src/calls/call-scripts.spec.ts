@@ -28,3 +28,4 @@ describe('detectIntent', () => {
     expect(intent3.askingIdentity).toBe(true);
   });
 });
+

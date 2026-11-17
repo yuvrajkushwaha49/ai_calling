@@ -12,6 +12,7 @@ export interface ValidationResult {
 export declare class QuestionValidatorService {
     private readonly logger;
     private readonly questionDetectors;
+    private splitInfoAndQuestion;
     validateAndSanitize(first: ConversationState | string, second: ConversationState | string): ValidationResult;
     private getNextUnaskedQuestion;
 }

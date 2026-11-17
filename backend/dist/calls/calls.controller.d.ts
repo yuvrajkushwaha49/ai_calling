@@ -306,9 +306,9 @@ export declare class CallsController {
             budget: number | null;
             preferredLocation: string | null;
             bhkPreference: string | null;
+            propertyType: import("@prisma/client").$Enums.PropertyType | null;
             phone: string;
             source: import("@prisma/client").$Enums.LeadSource;
-            propertyType: import("@prisma/client").$Enums.PropertyType | null;
             status: import("@prisma/client").$Enums.LeadStatus;
             notes: string | null;
             projectId: string | null;

@@ -9,6 +9,7 @@ var QuestionValidatorService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionValidatorService = void 0;
 const common_1 = require("@nestjs/common");
+const call_scripts_1 = require("../calls/call-scripts");
 let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValidatorService {
     logger = new common_1.Logger(QuestionValidatorService_1.name);
     questionDetectors = {
@@ -16,9 +17,21 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
         budget: /(?:budget|kitna\s*budget|approximate\s*budget|बजट|कितना\s*बजट)/i,
         purpose: /(?:rehne\s*ke\s*liye|investment\s*ke\s*liye|end\s*use|रहने\s*के\s*लिए|इन्वेस्टमेंट)/i,
         name: /(?:shubh\s*naam|aapka\s*naam|शुभ\s*नाम|आपका\s*नाम)/i,
-        timeline: /(?:kab\s*tak\s*shift|possession\s*kab|ready\s*to\s*move|under\s*construction|कब\s*तक|पजेशन|शिफ्ट)/i,
+        timeline: /(?:kab\s*tak\s*shift|possession\s*kab|कब\s*तक|पजेशन|शिफ्ट)/i,
+        location: /(?:kaunsi\s*location|kaha\s*pe|kahan\s*dekh|preferred\s*location|लोकेशन|कहाँ\s*पर)/i,
         siteVisit: /(?:site\s*visit|sample\s*flat|साइट\s*विजिट|सैंपल\s*फ्लैट)/i,
     };
+    splitInfoAndQuestion(sentence) {
+        const raw = sentence.trim();
+        const lastPunctuation = Math.max(raw.lastIndexOf('. '), raw.lastIndexOf('! '), raw.lastIndexOf('। '), raw.lastIndexOf('? '));
+        if (lastPunctuation > 8) {
+            return {
+                prefix: raw.slice(0, lastPunctuation + 1).trim(),
+                questionClause: raw.slice(lastPunctuation + 1).trim(),
+            };
+        }
+        return { prefix: '', questionClause: raw };
+    }
     validateAndSanitize(first, second) {
         let state;
         let sentence;
@@ -42,10 +55,19 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
         if (!isQuestion) {
             return { sanitized: raw, sanitizedText: raw, allowed: true, wasRepeated: false };
         }
+        const { prefix, questionClause } = this.splitInfoAndQuestion(raw);
+        const targetText = questionClause || raw;
         const answered = new Set((state.answeredFields || []).map((f) => f.toLowerCase()));
         const customer = state.customer || {};
         const isRoman = !/[\u0900-\u097F]/.test(raw);
-        if (this.questionDetectors.bhk.test(raw) &&
+        const buildSanitized = (blockedField, ackText) => {
+            const nextQ = this.getNextUnaskedQuestion(state, blockedField, isRoman);
+            if (prefix) {
+                return `${prefix} ${nextQ}`.trim();
+            }
+            return `${ackText}${nextQ}`.trim();
+        };
+        if (this.questionDetectors.bhk.test(targetText) &&
             (customer.bhk || answered.has('bhk'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated BHK question for callId=${state.callId}. Customer already provided: ${customer.bhk}`);
             const ack = customer.bhk
@@ -53,7 +75,7 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                     ? `Ji bilkul, aap ${customer.bhk} dekh rahe hain. `
                     : `जी बिल्कुल, आप ${customer.bhk} देख रहे हैं। `
                 : '';
-            const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'bhk', isRoman)}`;
+            const replacement = buildSanitized('bhk', ack);
             return {
                 sanitized: replacement,
                 sanitizedText: replacement,
@@ -64,7 +86,7 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 replacementApplied: Boolean(replacement),
             };
         }
-        if (this.questionDetectors.budget.test(raw) &&
+        if (this.questionDetectors.budget.test(targetText) &&
             (customer.budget || customer.budgetLabel || answered.has('budget'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated Budget question for callId=${state.callId}. Customer already provided: ${customer.budgetLabel || customer.budget}`);
             const ack = customer.budgetLabel
@@ -72,7 +94,7 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                     ? `Ji, aapka budget ${customer.budgetLabel} humne note kar liya hai. `
                     : `जी, आपका बजट ${customer.budgetLabel} हमने नोट कर लिया है। `
                 : '';
-            const replacement = `${ack}${this.getNextUnaskedQuestion(state, 'budget', isRoman)}`;
+            const replacement = buildSanitized('budget', ack);
             return {
                 sanitized: replacement,
                 sanitizedText: replacement,
@@ -83,10 +105,10 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 replacementApplied: Boolean(replacement),
             };
         }
-        if (this.questionDetectors.purpose.test(raw) &&
+        if (this.questionDetectors.purpose.test(targetText) &&
             (customer.purpose || answered.has('purpose'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated Purpose question for callId=${state.callId}. Customer purpose is: ${customer.purpose}`);
-            const replacement = this.getNextUnaskedQuestion(state, 'purpose', isRoman);
+            const replacement = buildSanitized('purpose', '');
             return {
                 sanitized: replacement,
                 sanitizedText: replacement,
@@ -97,10 +119,10 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 replacementApplied: Boolean(replacement),
             };
         }
-        if (this.questionDetectors.name.test(raw) &&
-            (customer.name && customer.name !== 'Inbound Caller' || answered.has('name'))) {
+        if (this.questionDetectors.name.test(targetText) &&
+            ((customer.name && customer.name !== 'Inbound Caller' && !(0, call_scripts_1.isPlaceholderLeadName)(customer.name)) || answered.has('name'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated Name question for callId=${state.callId}. Caller name is: ${customer.name}`);
-            const replacement = this.getNextUnaskedQuestion(state, 'name', isRoman);
+            const replacement = buildSanitized('name', '');
             return {
                 sanitized: replacement,
                 sanitizedText: replacement,
@@ -111,10 +133,10 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 replacementApplied: Boolean(replacement),
             };
         }
-        if (this.questionDetectors.timeline.test(raw) &&
-            (customer.timeline || customer.possession || answered.has('timeline'))) {
+        if (this.questionDetectors.timeline.test(targetText) &&
+            (customer.timeline || customer.possession || answered.has('timeline') || answered.has('possession'))) {
             this.logger.warn(`[Anti-Repetition] Blocked repeated Timeline question for callId=${state.callId}.`);
-            const replacement = this.getNextUnaskedQuestion(state, 'timeline', isRoman);
+            const replacement = buildSanitized('timeline', '');
             return {
                 sanitized: replacement,
                 sanitizedText: replacement,
@@ -134,6 +156,8 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
             detectedTargetField = 'purpose';
         else if (this.questionDetectors.bhk.test(raw))
             detectedTargetField = 'bhk';
+        else if (this.questionDetectors.location.test(raw))
+            detectedTargetField = 'location';
         return {
             sanitized: raw,
             sanitizedText: raw,
@@ -161,7 +185,12 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
                 ? 'Aapka lagbhag budget kitna hai?'
                 : 'आपका लगभग बजट कितना है?';
         }
-        if (skipField !== 'timeline' && !c.timeline && !answered.has('timeline') && !asked.has('ask_timeline')) {
+        if (skipField !== 'location' && !c.location && !answered.has('location') && !asked.has('ask_location')) {
+            return isRoman
+                ? 'Aap kis location mein property prefer karenge?'
+                : 'आप किस लोकेशन में प्रॉपर्टी प्रेफर करेंगे?';
+        }
+        if (skipField !== 'timeline' && !c.timeline && !c.possession && !answered.has('timeline') && !answered.has('possession') && !asked.has('ask_timeline')) {
             return isRoman
                 ? 'Aap kab tak shift karne ka plan kar rahe hain — ready to move ya under construction chalega?'
                 : 'आप कब तक शिफ्ट करने का प्लान कर रहे हैं — रेडी टू मूव या अंडर कंस्ट्रक्शन चलेगा?';

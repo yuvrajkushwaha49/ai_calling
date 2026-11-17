@@ -144,6 +144,14 @@ export class FactExtractorService {
       result.rawSnippets.name = nameMatch.snippet;
     }
 
+    // 8. Property Type Extraction (Residential vs Commercial)
+    const propertyTypeMatch = this.extractPropertyType(raw);
+    if (propertyTypeMatch) {
+      result.facts.propertyType = propertyTypeMatch.propertyType;
+      result.confidenceMap.propertyType = propertyTypeMatch.confidence;
+      result.rawSnippets.propertyType = propertyTypeMatch.snippet;
+    }
+
     return result;
   }
 
@@ -344,6 +352,16 @@ export class FactExtractorService {
       };
     }
 
+    return null;
+  }
+
+  private extractPropertyType(text: string): { propertyType: 'residential' | 'commercial'; confidence: FactConfidence; snippet: string } | null {
+    if (/(?:commercial|shop|dukaan|retail|office|mall|showroom|शोरूम|दुकान|कमर्शियल|ऑफिस)/i.test(text)) {
+      return { propertyType: 'commercial', confidence: 'confirmed', snippet: 'commercial' };
+    }
+    if (/(?:residential|flat|apartment|ghar|फ्लैट|अपार्टमेंट|रेजिडेंशियल)/i.test(text)) {
+      return { propertyType: 'residential', confidence: 'confirmed', snippet: 'residential' };
+    }
     return null;
   }
 

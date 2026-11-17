@@ -1,6 +1,6 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import { ConversationState, ConversationTurn, CustomerProfileCache } from './memory.types';
+import { ConversationState, ConversationTurn, CustomerProfileCache, ConversationFactContext } from './memory.types';
 import { ExtractedTurnFacts } from './fact-extractor.service';
 export declare class CustomerMemoryService {
     private readonly prisma;
@@ -21,6 +21,7 @@ export declare class CustomerMemoryService {
     initializeCallMemory(callId: string, rawPhone?: string | null, leadIdHint?: string | null): Promise<ConversationState>;
     getCallMemory(callId: string): Promise<ConversationState | null>;
     updateCallMemory(callId: string, updater: (state: ConversationState) => void): Promise<ConversationState>;
+    deriveFactContext(state: ConversationState): ConversationFactContext;
     applyExtractedFacts(callId: string, extracted: ExtractedTurnFacts): Promise<ConversationState>;
     recordTurn(callId: string, turn: ConversationTurn): Promise<void>;
     getRecentHistory(callId: string, limit?: number): Promise<ConversationTurn[]>;

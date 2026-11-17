@@ -21,6 +21,7 @@ export declare class FactExtractorService {
     private extractPurpose;
     private extractLocation;
     private extractTimeline;
+    private extractPropertyType;
     private extractProjects;
     private extractName;
 }

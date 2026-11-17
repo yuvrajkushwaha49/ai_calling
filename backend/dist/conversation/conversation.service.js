@@ -721,6 +721,9 @@ ${realCustomerName
    - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: ${isHinglish ? `"Ji namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Bataiye main aapki kya madad kar sakti hoon?"` : isEnglish ? `"Hello! I am ${options.agentName} calling from ${company} real estate helpline. How may I assist you?"` : `"जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या मदद कर सकती हूँ?"`}
    - If asked for project/property details: Give facts simply; if looking up: "Ji main dekh rahi hoon, ek second..."
 2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
+    - If customer asks "Tumko kaise pata chala mera budget / mera naam / pichhli baat?", explain warmly: "Ji pichhli call par humari baat hui thi, tabhi se system mein record hai." Then address what they want to do next.
+    - SEGREGATION: If customer wants residential (flats/apartments/BHK), NEVER pitch commercial projects (shops/retail/malls like Saya South X / Saya Piazza) and vice versa.
+    - ANTI-REPETITION: Never re-ask any fact present in "Known facts so far" below!
 3) If they refuse / "nahi chahiye" / "rakho phone" / don't want anything → polite thank-you and STOP. Do not restart discovery.
 4) Never ignore them and jump to possession/BHK/budget.
 5) Never repeat your previous line.
@@ -780,22 +783,31 @@ The caller dialed your helpline to ask questions about properties, projects, loc
 AVAILABLE PROJECTS & INVENTORY:
 ${projectsOverview}
 
-CRITICAL ANTI-REPETITION & NATURAL DIALOGUE RULES:
-- YOUR LAST SPOKEN STATEMENT WAS: "${(previousAgent || '').slice(0, 140)}"
-- NEVER repeat your last line! Never ask the same question twice!
-- If you already greeted the caller once in the conversation history below, DO NOT repeat opening greetings ("Namaste! helpline me swagat...")!
-- Move the conversation FORWARD naturally:
-  1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
-  2) If caller asks ANY question about project, flat, price, location, amenities, possession: ALWAYS answer their question first from Available Projects & Knowledge.
-  3) PROGRESSIVE DETAIL COLLECTION (Check what is already answered in the transcript):
-     * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'UNKNOWN (CRITICAL: Politely ask their name early in call: "Vaise main aapka shubh naam jaan sakti hoon?")'}
-     * Configuration: ${known.bhk ? `Known (${known.bhk}) - DO NOT ask BHK again!` : 'Ask: "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"'}
-     * Purpose: ${known.purpose ? `Known (${known.purpose}) - DO NOT ask purpose again!` : 'Ask: "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"'}
-     * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak lene ka plan hai?"'}
-     * Budget: ${known.budgetLabel ? `Known (${known.budgetLabel})` : 'Ask: "Aapka approximate budget kya hai?"'}
-     * Site Visit: If interested in a project, invite them: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
+CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
+- PRIORITY 1 (DIRECT ANSWER): Always answer the customer's direct question or statement first!
+  * If asked how you know their details/budget ("tumko kaise pata chala mera budget..."): Answer directly from history: "Ji, humari pichhli baat-cheet mein aapne bataya tha, usi aadhar par maine options suggest kiye hain. Agar isme koi badlav hai to aap bata sakte hain."
+  * If asked about project details, prices, possession, amenities: Answer from Available Projects & Knowledge first.
+  * If they switch topics or correct information (e.g. "Actually mera budget 90 lakh hai" or "Nahi mujhe ready-to-move chahiye"): Immediately accept and update to their latest preference!
+- PRIORITY 2 (RESIDENTIAL VS COMMERCIAL):
+  * For residential requirements (flats, apartments, living), NEVER recommend commercial projects (e.g. Saya Piazza, Saya South X shops) unless the customer explicitly requests commercial, shops, or office spaces.
+- PRIORITY 3 (ANTI-REPETITION & NATURAL DIALOGUE):
+  * YOUR LAST SPOKEN STATEMENT WAS: "${(previousAgent || '').slice(0, 140)}"
+  * NEVER repeat your last line! Never ask the same question twice!
+  * If you already greeted the caller once in the conversation history below, DO NOT repeat opening greetings ("Namaste! helpline me swagat...")!
+  * DO NOT repeat customer's name in every sentence! Use name at most once warmly, and only rarely thereafter.
+  * Move the conversation FORWARD naturally:
+    1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+    2) If caller asks ANY question about project, flat, price, location, amenities, possession: ALWAYS answer their question first from Available Projects & Knowledge.
+    3) PROGRESSIVE DETAIL COLLECTION (Check what is already answered in the transcript):
+       * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'UNKNOWN (CRITICAL: Politely ask their name early in call: "Vaise main aapka shubh naam jaan sakti hoon?")'}
+       * Configuration: ${known.bhk ? `Known (${known.bhk}) - DO NOT ask BHK again!` : 'Ask: "Aap 2 BHK flat dekh rahe hain ya 3 BHK?"'}
+       * Purpose: ${known.purpose ? `Known (${known.purpose}) - DO NOT ask purpose again!` : 'Ask: "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?"'}
+       * Location/Timeline: ${known.location ? `Known (${known.location})` : 'Ask: "Aap Sector 1 Noida Extension me dekh rahe hain? Aur kab tak lene ka plan hai?"'}
+       * Budget: ${known.budgetLabel ? `Known (${known.budgetLabel})` : 'Ask: "Aapka approximate budget kya hai?"'}
+       * Site Visit: If interested in a project, invite them: "Kya aap is weekend sample flat dekhne ke liye site visit plan karna chahenge?"
 - Rule: 1-2 short spoken sentences. Answer their query first + ask ONE next question. Never ask multiple questions. Never interrogate.
 Facts Known: ${JSON.stringify(known)}
+${options.memory?.factContext?.missingFacts ? `Missing Facts: ${options.memory.factContext.missingFacts.join(', ')}` : ''}
 ${resolvedProject ? `Project: ${resolvedProject.name}` : ''}
 ${ragBlock ? `KB:\n${ragBlock.slice(0, 300)}` : ''}`
                 : `You are ${options.agentName}, live RE phone agent for ${company}.
@@ -1016,26 +1028,44 @@ ${learned ? learned : ''}`;
             });
             let overview = '';
             if (projects.length) {
-                overview = projects
-                    .map((p) => {
+                const residential = projects.filter((p) => p.propertyType !== 'COMMERCIAL');
+                const commercial = projects.filter((p) => p.propertyType === 'COMMERCIAL');
+                const formatProj = (p) => {
                     const price = p.startingPrice != null
                         ? `Price: ₹${p.startingPrice >= 10000000 ? (p.startingPrice / 10000000).toFixed(2) + ' Cr' : (p.startingPrice / 100000).toFixed(0) + ' L'} onwards`
                         : '';
                     const desc = p.description ? ` (${p.description.slice(0, 80)})` : '';
                     return `- ${p.name} [${p.location}]: ${p.propertyType} ${price}${desc}`.trim();
-                })
-                    .join('\n');
+                };
+                const sections = [];
+                if (residential.length) {
+                    sections.push(`[RESIDENTIAL PROJECTS (Flats/Apartments/Villas)]:\n${residential.map(formatProj).join('\n')}`);
+                }
+                if (commercial.length) {
+                    sections.push(`[COMMERCIAL PROJECTS (Shops/Offices/Retail)]:\n${commercial.map(formatProj).join('\n')}`);
+                }
+                overview = sections.join('\n\n');
             }
             else {
-                overview = `- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3, 4 BHK Luxury Apartments, ₹8,700/sq.ft (from ₹60.9 L onwards, 1 BHK fully furnished). 30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months.
-- NCR Monarch (GH-02C, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3 BHK Luxury Apartments & Society Shops, ₹8,888/sq.ft (from ₹64 L onwards). 30,000 sq.ft clubhouse, 70% green area, 4 towers.`;
+                overview = `[RESIDENTIAL PROJECTS]:
+- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3, 4 BHK Luxury Apartments, ₹8,700/sq.ft (from ₹60.9 L onwards, 1 BHK fully furnished). 30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months.
+- NCR Monarch (GH-02C, Sector 1, Noida Extension / Greater Noida West): 1, 2, 3 BHK Luxury Apartments, ₹8,888/sq.ft (from ₹64 L onwards).
+
+[COMMERCIAL PROJECTS]:
+- Saya Piazza (Noida Expressway): Commercial High-Street Retail & Shops, from ₹49 L onwards.
+- Saya South X (Greater Noida West): Commercial Retail Shops, Dining & Entertainment, from ₹55 L onwards.`;
             }
             this.cachedProjectsOverview = { text: overview, expiresAt: now + 60_000 };
             return overview;
         }
         catch {
-            return `- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension): 1, 2, 3, 4 BHK Flats, ₹8,700/sq.ft, 50:50 payment plan
-- NCR Monarch (GH-02C, Sector 1, Noida Extension): 1, 2, 3 BHK Flats & Society Shops, ₹8,888/sq.ft`;
+            return `[RESIDENTIAL PROJECTS]:
+- Palace Heights by Rudra (GH-02B, Sector 1, Noida Extension): 1, 2, 3, 4 BHK Flats, ₹8,700/sq.ft, 50:50 payment plan
+- NCR Monarch (GH-02C, Sector 1, Noida Extension): 1, 2, 3 BHK Flats, ₹8,888/sq.ft
+
+[COMMERCIAL PROJECTS]:
+- Saya Piazza (Noida Expressway): Commercial retail shops from ₹49 Lakhs
+- Saya South X (Greater Noida West): Commercial retail & entertainment from ₹55 Lakhs`;
         }
     }
     async matchProjectFromSpeech(text) {
