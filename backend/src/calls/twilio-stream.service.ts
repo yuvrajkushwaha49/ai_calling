@@ -323,14 +323,21 @@ export class TwilioStreamService {
         return;
       }
 
-      const userMessage = (stt.transcript || '').trim();
+      const rawUserMessage = (stt.transcript || '').trim();
+      const cleanUserMessage = rawUserMessage
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
       this.logger.log(
-        `Twilio STT (${Date.now() - t0}ms): ${userMessage.slice(0, 160)}`,
+        `Twilio STT (${Date.now() - t0}ms): ${rawUserMessage.slice(0, 160)}`,
       );
-      if (!userMessage || userMessage.length < 2) {
+      if (!cleanUserMessage || cleanUserMessage.length < 2) {
         session.busy = false;
         return;
       }
+      const userMessage = cleanUserMessage;
 
       const call = context?.[0];
       const settings = context?.[1];

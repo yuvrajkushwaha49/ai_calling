@@ -912,7 +912,10 @@ function detectIntent(text) {
         /(?:aawaz|awaaz|awaz|voice|sound)\s*(?:aa\s*rahi|nhi|nahi|aarhi|cut|aarahi|gayab)/i.test(t) ||
         /(?:sun\s*(?:rahe|rahi|pa\s*rahe|sakte)|hear\s*me|koi\s*hai|bolte\s*kyu\s*nahi|kuch\s*bolo)/i.test(t) ||
         /^(?:hello\s*)+[!?.]*$/i.test(t.trim());
-    const askingIdentityOnly = /kaun|कौन|kon|aap kaun|kaha se|kahan se|kisne kiya|kiski company|kis company|kisko lagaya|kahan lag gaya/i.test(t);
+    const isWhichOptionQuestion = /(?:kaun|कौन|kon)\s*(?:[- ]?(?:kaun|कौन)|se|sa|si|wale|wala|wali)\b/i.test(t) ||
+        /project|flats?|property|floor|location|list\b/i.test(t);
+    const askingIdentityOnly = !isWhichOptionQuestion &&
+        /(?:\b(?:aap|tum)\s+(?:kaun|kon)\b|\b(?:kaun|kon)\s+(?:ho|hai|bol\s*rahe?|baat\s*kar)\b|कौन\s*(?:हो|हैं?|बोल\s*रहे|बात\s*कर)|\b(?:aap|tum)\s+kaha(?:n)?\s*se\b|आप\s*कहाँ\s*से|\bkiski\s*company\b|किसकी\s*कंपनी|\bkis\s*company\s*(?:se)?\b|\bkisko\s*(?:call|phone|lagaya)\b|किसको\s*(?:कॉल|फोन|लगाया)|\bkaha(?:n)?\s*lag\s*gaya|कहाँ\s*लग\s*गया|\bkisne\s*(?:kiya|lagaya)\b|किसने\s*(?:किया|लगाया))/i.test(t);
     return {
         notInterested: !wantsCallback &&
             /not interested|no thanks|don't call|do not call|wrong number|nahi chahiye|nahi chaiye|nhi chahiye|nhi chaiye|नहीं चाहिए|नाही पाहिजे|નથી જોઈએ|not looking|not searching|kuch nahi|kuch bhi nahi|khuch bhi|कुछ नहीं|कुछ भी नहीं|नहीं\s*देख|search नहीं|कोई property search नहीं|अभी नहीं देख|mere liye nahi|अपने लिए नहीं|rakho phone|rakh do phone|cut (?:the )?call|mat call|band karo|hang up|phone rakh|nhi chahiye khuch|nahi chahiye kuch/i.test(t),

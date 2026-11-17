@@ -550,13 +550,26 @@ export class McubeStreamService {
         return;
       }
 
-      const userMessage = (stt.transcript || '').trim();
-      this.logger.log(`[MCube] 👤 Caller: "${userMessage}"`);
+      const rawUserMessage = (stt.transcript || '').trim();
+      // Strip acoustic tags and bracketed non-speech events from STT (e.g. "[background noise]", "[laughter]", "[हँसने की आवाज़]", "(applause)")
+      const cleanUserMessage = rawUserMessage
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-      if (!userMessage || userMessage.length < 2) {
+      this.logger.log(`[MCube] 👤 Caller: "${rawUserMessage}"`);
+
+      // If audio is purely non-speech tags, ambient noise, or empty, safely ignore turn
+      if (!cleanUserMessage || cleanUserMessage.length < 2) {
+        if (rawUserMessage) {
+          this.logger.debug(`[MCube] 🔇 Ignored non-speech audio event: "${rawUserMessage}"`);
+        }
         session.busy = false;
         return;
       }
+
+      const userMessage = cleanUserMessage;
 
       // Record caller speech in Redis history & extract customer facts (name, bhk, budget, etc.)
       if (session.callId) {

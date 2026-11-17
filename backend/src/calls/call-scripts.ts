@@ -1194,8 +1194,15 @@ export function detectIntent(text: string): {
     /(?:sun\s*(?:rahe|rahi|pa\s*rahe|sakte)|hear\s*me|koi\s*hai|bolte\s*kyu\s*nahi|kuch\s*bolo)/i.test(t) ||
     /^(?:hello\s*)+[!?.]*$/i.test(t.trim());
 
+  // Must be asking who the agent/company is ("aap kaun", "kaun ho", "kaun bol rahe ho")
+  // Must NOT match project queries like "kaun se project", "kaun-kaun se option", "kaun sa floor"
+  const isWhichOptionQuestion =
+    /(?:kaun|कौन|kon)\s*(?:[- ]?(?:kaun|कौन)|se|sa|si|wale|wala|wali)\b/i.test(t) ||
+    /project|flats?|property|floor|location|list\b/i.test(t);
+
   const askingIdentityOnly =
-    /kaun|कौन|kon|aap kaun|kaha se|kahan se|kisne kiya|kiski company|kis company|kisko lagaya|kahan lag gaya/i.test(
+    !isWhichOptionQuestion &&
+    /(?:\b(?:aap|tum)\s+(?:kaun|kon)\b|\b(?:kaun|kon)\s+(?:ho|hai|bol\s*rahe?|baat\s*kar)\b|कौन\s*(?:हो|हैं?|बोल\s*रहे|बात\s*कर)|\b(?:aap|tum)\s+kaha(?:n)?\s*se\b|आप\s*कहाँ\s*से|\bkiski\s*company\b|किसकी\s*कंपनी|\bkis\s*company\s*(?:se)?\b|\bkisko\s*(?:call|phone|lagaya)\b|किसको\s*(?:कॉल|फोन|लगाया)|\bkaha(?:n)?\s*lag\s*gaya|कहाँ\s*लग\s*गया|\bkisne\s*(?:kiya|lagaya)\b|किसने\s*(?:किया|लगाया))/i.test(
       t,
     );
 

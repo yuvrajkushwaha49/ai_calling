@@ -127,15 +127,18 @@ export class AppointmentsService {
   }): Promise<BookFromCallResult> {
     const msg = options.userMessage || '';
     const qual = options.qualification || {};
-    const interested =
-      Boolean(qual.siteVisitInterest) ||
-      /SITE_VISIT|CALLBACK|meeting|visit|appointment|book|fix|meeting|मिल|विजिट|visit|callback/i.test(
-        String(qual.outcome || ''),
-      ) ||
-      looksLikeMeetingRequest(msg);
+    const prior = options.priorTranscript || '';
 
-    if (!interested && !looksLikeMeetingRequest(msg)) {
-      return { booked: false, reason: 'no_meeting_intent' };
+    // Only attempt booking if the CURRENT turn actually has meeting/date intent
+    // or confirms an immediate site-visit offer from the agent
+    const msgLooksLikeMeeting = looksLikeMeetingRequest(msg);
+    const agentJustOfferedVisit =
+      /(?:visit|site\s*visit|appointment|dekhne|samay|time|milna|mil\s*sakte|kal|parso)\b/i.test(
+        prior.split('\n').slice(-2).join(' '),
+      ) && /^(?:haan|ha|yes|sure|chalega|theek\s*hai|done|bilkul|ok|okay)/i.test(msg.trim());
+
+    if (!msgLooksLikeMeeting && !agentJustOfferedVisit && !qual.meetingAt) {
+      return { booked: false, reason: 'no_meeting_intent_in_turn' };
     }
 
     const slot =
@@ -161,7 +164,7 @@ export class AppointmentsService {
     });
     if (existing) {
       return {
-        booked: true,
+        booked: false,
         appointmentId: existing.id,
         date: slot.date,
         time: slot.time,

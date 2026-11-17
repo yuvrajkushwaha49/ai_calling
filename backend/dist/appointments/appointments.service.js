@@ -103,11 +103,11 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
     async maybeBookFromCall(options) {
         const msg = options.userMessage || '';
         const qual = options.qualification || {};
-        const interested = Boolean(qual.siteVisitInterest) ||
-            /SITE_VISIT|CALLBACK|meeting|visit|appointment|book|fix|meeting|मिल|विजिट|visit|callback/i.test(String(qual.outcome || '')) ||
-            (0, meeting_time_1.looksLikeMeetingRequest)(msg);
-        if (!interested && !(0, meeting_time_1.looksLikeMeetingRequest)(msg)) {
-            return { booked: false, reason: 'no_meeting_intent' };
+        const prior = options.priorTranscript || '';
+        const msgLooksLikeMeeting = (0, meeting_time_1.looksLikeMeetingRequest)(msg);
+        const agentJustOfferedVisit = /(?:visit|site\s*visit|appointment|dekhne|samay|time|milna|mil\s*sakte|kal|parso)\b/i.test(prior.split('\n').slice(-2).join(' ')) && /^(?:haan|ha|yes|sure|chalega|theek\s*hai|done|bilkul|ok|okay)/i.test(msg.trim());
+        if (!msgLooksLikeMeeting && !agentJustOfferedVisit && !qual.meetingAt) {
+            return { booked: false, reason: 'no_meeting_intent_in_turn' };
         }
         const slot = (0, meeting_time_1.parseMeetingSlot)(msg, options.priorTranscript) ||
             (typeof qual.meetingAt === 'string'
@@ -128,7 +128,7 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
         });
         if (existing) {
             return {
-                booked: true,
+                booked: false,
                 appointmentId: existing.id,
                 date: slot.date,
                 time: slot.time,

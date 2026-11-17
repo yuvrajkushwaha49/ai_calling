@@ -438,12 +438,21 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 session.busy = false;
                 return;
             }
-            const userMessage = (stt.transcript || '').trim();
-            this.logger.log(`[MCube] 👤 Caller: "${userMessage}"`);
-            if (!userMessage || userMessage.length < 2) {
+            const rawUserMessage = (stt.transcript || '').trim();
+            const cleanUserMessage = rawUserMessage
+                .replace(/\[[^\]]*\]/g, '')
+                .replace(/\([^)]*\)/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            this.logger.log(`[MCube] 👤 Caller: "${rawUserMessage}"`);
+            if (!cleanUserMessage || cleanUserMessage.length < 2) {
+                if (rawUserMessage) {
+                    this.logger.debug(`[MCube] 🔇 Ignored non-speech audio event: "${rawUserMessage}"`);
+                }
                 session.busy = false;
                 return;
             }
+            const userMessage = cleanUserMessage;
             if (session.callId) {
                 void this.customerMemory.recordTurn(session.callId, {
                     role: 'user',

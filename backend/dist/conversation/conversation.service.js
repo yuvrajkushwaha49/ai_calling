@@ -753,7 +753,7 @@ Reply now in 1–2 short spoken sentences. Answer them first; one question max o
         const llmOpts = {
             temperature: 0.45,
             model: voiceModel,
-            maxOutputTokens: options.phoneLatency || options.stream ? 70 : 120,
+            maxOutputTokens: options.phoneLatency || options.stream ? 150 : 200,
             timeoutMs: options.phoneLatency || options.stream ? 12000 : 15000,
             lowLatency: true,
         };
