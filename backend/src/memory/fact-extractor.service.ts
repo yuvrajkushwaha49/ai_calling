@@ -21,7 +21,7 @@ const HINDI_LAKH_WORDS: Record<string, number> = {
 
 import { Injectable, Logger } from '@nestjs/common';
 import { CustomerFacts, FactConfidence } from './memory.types';
-import { isPlaceholderLeadName } from '../calls/call-scripts';
+import { isPlaceholderLeadName, FORBIDDEN_NAME_WORDS } from '../calls/call-scripts';
 
 export interface ExtractedTurnFacts {
   facts: Partial<CustomerFacts>;
@@ -53,14 +53,14 @@ export class FactExtractorService {
   /**
    * Alias for extractFromUtterance
    */
-  extractFacts(text: string): ExtractedTurnFacts {
-    return this.extractFromUtterance(text);
+  extractFacts(text: string, context?: { priorAgentText?: string }): ExtractedTurnFacts {
+    return this.extractFromUtterance(text, context);
   }
 
   /**
    * Extract customer facts from the caller's latest utterance.
    */
-  extractFromUtterance(text: string): ExtractedTurnFacts {
+  extractFromUtterance(text: string, context?: { priorAgentText?: string }): ExtractedTurnFacts {
     const raw = (text || '').trim();
     const result: ExtractedTurnFacts = {
       facts: {},
@@ -137,7 +137,7 @@ export class FactExtractorService {
     }
 
     // 7. Customer Name Extraction
-    const nameMatch = this.extractName(raw);
+    const nameMatch = this.extractName(raw, context);
     if (nameMatch) {
       result.facts.name = nameMatch.name;
       result.confidenceMap.name = nameMatch.confidence;
@@ -357,23 +357,43 @@ export class FactExtractorService {
     return matched;
   }
 
-  private extractName(text: string): { name: string; confidence: FactConfidence; snippet: string } | null {
+  private extractName(
+    text: string,
+    context?: { priorAgentText?: string },
+  ): { name: string; confidence: FactConfidence; snippet: string } | null {
     const clean = (text || '').trim();
     if (clean.length < 2) return null;
 
-    let match = clean.match(/(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)/i);
+    let match: RegExpMatchArray | null = null;
+
+    // Pattern 1: Explicit introduction ("mera naam rahul sharma hai", "मेरा नाम राहुल है", "my name is rahul", "this is rahul")
+    match = clean.match(
+      /(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)/i,
+    );
+
+    // Pattern 2: "Rahul bol raha hoon" / "Rahul baat kar raha hoon" / "बोल रहा हूँ"
     if (!match) {
-      match = clean.match(/([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ)/i);
+      match = clean.match(
+        /(?:(?:main|mai|hum|ham|मैं)\s+)?([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ|बात\s*कर\s*रहा\s*हूँ|बात\s*कर\s*रही\s*हूँ)/i,
+      );
     }
-    if (!match) {
-      match = clean.match(/(?:main|mai|मैं)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)|baat\s*kar\s*(?:raha|rahi)|hoon|हु|हूँ)/i);
-    }
+
+    // Pattern 3: "naam rahul hai" / "name is rahul"
     if (!match) {
       match = clean.match(/(?:naam|name)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:hai|h)/i);
     }
-    // Direct short answer (e.g. "Rahul", "Rahul Sharma", "Haan Rahul", "Ji Rahul Sharma", "Rahul ji")
-    if (!match) {
-      const direct = clean.match(/^(?:haan|ji|haanji|yes)?\s*(?:mera\s*naam\s*)?([A-Za-z\u0900-\u097F]{2,20}(?:\s+[A-Za-z\u0900-\u097F]{2,20})?)\s*(?:hai|ji|sir)?$/i);
+
+    // Pattern 4: ONLY if previous agent utterance explicitly asked for the name!
+    const priorAgentText = (context?.priorAgentText || '').toLowerCase();
+    const agentAskedName =
+      /shubh\s*naam|aapka\s*naam|your\s*name|may\s*i\s*know\s*your\s*name|naam\s*jaan\s*sakti|शुभ\s*नाम|आपका\s*नाम|नाम\s*जान\s*सकती/i.test(
+        priorAgentText,
+      );
+
+    if (!match && agentAskedName) {
+      const direct = clean.match(
+        /^(?:haan|ji|haanji|yes|हाँ|जी)?\s*(?:mera\s*naam\s*)?([A-Za-z\u0900-\u097F]{2,20}(?:\s+[A-Za-z\u0900-\u097F]{2,20})?)\s*(?:hai|ji|sir|है)?$/i,
+      );
       if (direct) {
         match = direct;
       }
@@ -381,21 +401,27 @@ export class FactExtractorService {
 
     if (match && match[1]) {
       const candidate = match[1].trim();
-      const forbidden = /^(?:nahi|haan|nhi|ha|yes|no|ok|okay|theek|bhk|flat|budget|cr|crore|lakh|sir|madam|ji|bhai|apne|apna|apni|अपने|अपना|अपनी|ek|do|teen|chaar|two|three|four|main|mai|hum|ham|property|plot|ghar|house|saaya|saya|group|noida|delhi|extension|greater|gurgaon|ghaziabad|price|rate|villa|calling|inbound|customer|agent|hello|namaste|details|whatsapp|kya|kaun|kaha|kab|bol|baat|raha|rahi|hoon|shubh|naam|name)$/i;
-
       let words = candidate.split(/\s+/).filter(Boolean);
-      while (words.length > 0 && forbidden.test(words[0])) {
+
+      // Strip leading/trailing conversational filler words
+      while (words.length > 0 && FORBIDDEN_NAME_WORDS.has(words[0].toLowerCase())) {
         words.shift();
       }
-      while (words.length > 0 && forbidden.test(words[words.length - 1])) {
+      while (words.length > 0 && FORBIDDEN_NAME_WORDS.has(words[words.length - 1].toLowerCase())) {
         words.pop();
       }
 
-      if (words.length > 0 && words.length <= 3) {
-        const allValid = words.every((w) => w.length >= 2 && !forbidden.test(w));
+      if (words.length >= 1 && words.length <= 3) {
+        // Every remaining word must be at least 2 chars and NOT in the forbidden list
+        const allValid = words.every((w) => w.length >= 2 && !FORBIDDEN_NAME_WORDS.has(w.toLowerCase()));
         const joined = words.join(' ');
         if (allValid && !isPlaceholderLeadName(joined)) {
-          const formatted = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          const formatted = words
+            .map((w) => {
+              if (/^[\u0900-\u097F]+$/.test(w)) return w;
+              return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+            })
+            .join(' ');
           return {
             name: formatted,
             confidence: 'confirmed',

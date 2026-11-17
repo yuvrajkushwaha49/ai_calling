@@ -103,9 +103,27 @@ describe('FactExtractorService', () => {
       expect(res.facts.name).toBe('Vikram');
     });
 
-    it('should extract direct short answer "Rahul Sharma"', () => {
-      const res = service.extractFacts('Rahul Sharma');
+    it('should extract direct short answer "Rahul Sharma" when agent asked for name', () => {
+      const res = service.extractFacts('Rahul Sharma', {
+        priorAgentText: 'Vaise main aapka shubh naam jaan sakti hoon?',
+      });
       expect(res.facts.name).toBe('Rahul Sharma');
+    });
+
+    it('should NEVER extract greetings like हैलो, हेलो, Hello, नमस्ते as name', () => {
+      expect(service.extractFacts('हैलो').facts.name).toBeUndefined();
+      expect(service.extractFacts('हेलो').facts.name).toBeUndefined();
+      expect(service.extractFacts('Hello').facts.name).toBeUndefined();
+      expect(service.extractFacts('नमस्ते').facts.name).toBeUndefined();
+      expect(
+        service.extractFacts('हैलो', { priorAgentText: 'Vaise main aapka shubh naam jaan sakti hoon?' }).facts.name,
+      ).toBeUndefined();
+      expect(
+        service.extractFacts('हेलो', { priorAgentText: 'Vaise main aapka shubh naam jaan sakti hoon?' }).facts.name,
+      ).toBeUndefined();
+      expect(
+        service.extractFacts('Hello', { priorAgentText: 'Vaise main aapka shubh naam jaan sakti hoon?' }).facts.name,
+      ).toBeUndefined();
     });
 
     it('should not extract generic words or placeholder names', () => {

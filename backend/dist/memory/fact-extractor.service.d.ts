@@ -9,8 +9,12 @@ export interface ExtractedTurnFacts {
 export declare class FactExtractorService {
     private readonly logger;
     private readonly projectPatterns;
-    extractFacts(text: string): ExtractedTurnFacts;
-    extractFromUtterance(text: string): ExtractedTurnFacts;
+    extractFacts(text: string, context?: {
+        priorAgentText?: string;
+    }): ExtractedTurnFacts;
+    extractFromUtterance(text: string, context?: {
+        priorAgentText?: string;
+    }): ExtractedTurnFacts;
     private normalizeNumerals;
     private extractBhk;
     private extractBudget;

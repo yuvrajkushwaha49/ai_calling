@@ -12,10 +12,10 @@ export declare class AuditService {
     }): Promise<{
         id: string;
         createdAt: Date;
+        details: Prisma.JsonValue | null;
         action: string;
         entityType: string;
         entityId: string | null;
-        details: Prisma.JsonValue | null;
         actorId: string | null;
     }>;
     findRecent(limit?: number): Prisma.PrismaPromise<({
@@ -27,10 +27,10 @@ export declare class AuditService {
     } & {
         id: string;
         createdAt: Date;
+        details: Prisma.JsonValue | null;
         action: string;
         entityType: string;
         entityId: string | null;
-        details: Prisma.JsonValue | null;
         actorId: string | null;
     })[]>;
 }

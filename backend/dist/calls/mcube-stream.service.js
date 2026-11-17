@@ -416,7 +416,9 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     content: userMessage,
                     timestamp: Date.now(),
                 });
-                const extracted = this.factExtractor.extractFromUtterance(userMessage);
+                const extracted = this.factExtractor.extractFromUtterance(userMessage, {
+                    priorAgentText: session.lastAgentText,
+                });
                 if (extracted && Object.keys(extracted.facts).length > 0) {
                     session.memory = await this.customerMemory.applyExtractedFacts(session.callId, extracted);
                     this.logger.log(`[MCube] 🧠 Extracted customer facts: ${JSON.stringify(extracted.facts)}`);
@@ -437,14 +439,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             };
             if (session.memory?.customer?.name && lead?.id && lead.id !== 'guest-lead') {
                 const rawLeadName = (lead.name || '').trim();
-                if ((0, call_scripts_1.isPlaceholderLeadName)(rawLeadName)) {
-                    const freshName = session.memory.customer.name;
-                    lead.name = freshName;
+                const candidateName = (session.memory.customer.name || '').trim();
+                if (candidateName &&
+                    (0, call_scripts_1.isPlaceholderLeadName)(rawLeadName) &&
+                    !(0, call_scripts_1.isPlaceholderLeadName)(candidateName) &&
+                    !call_scripts_1.FORBIDDEN_NAME_WORDS.has(candidateName.toLowerCase())) {
+                    lead.name = candidateName;
                     void this.prisma.lead.update({
                         where: { id: lead.id },
-                        data: { name: freshName },
+                        data: { name: candidateName },
                     }).then(() => {
-                        this.logger.log(`[MCube] 👤 Updated lead name in DB from placeholder to: ${freshName}`);
+                        this.logger.log(`[MCube] 👤 Updated lead name in DB from placeholder to: ${candidateName}`);
                     }).catch((e) => this.logger.warn(`[MCube] Failed to update lead name: ${e}`));
                 }
             }
@@ -555,7 +560,9 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     languageDetected = result.languageDetected || languageDetected;
                 }
                 if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
-                    if (result.qualification.callerName && !(0, call_scripts_1.isPlaceholderLeadName)(result.qualification.callerName)) {
+                    if (result.qualification.callerName &&
+                        !(0, call_scripts_1.isPlaceholderLeadName)(result.qualification.callerName) &&
+                        !call_scripts_1.FORBIDDEN_NAME_WORDS.has(String(result.qualification.callerName).trim().toLowerCase())) {
                         lead.name = result.qualification.callerName;
                     }
                     void this.conversation

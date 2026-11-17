@@ -11,7 +11,7 @@ import {
 import { maskPhoneNumber, normalizePhoneNumber } from './phone-utils';
 import { ExtractedTurnFacts } from './fact-extractor.service';
 import { Prisma } from '@prisma/client';
-import { isPlaceholderLeadName } from '../calls/call-scripts';
+import { isPlaceholderLeadName, FORBIDDEN_NAME_WORDS } from '../calls/call-scripts';
 
 @Injectable()
 export class CustomerMemoryService {
@@ -407,7 +407,7 @@ export class CustomerMemoryService {
         const leadUpdate: Prisma.LeadUpdateInput = {};
         const c = state.customer;
 
-        if (c.name && !isPlaceholderLeadName(c.name)) leadUpdate.name = c.name;
+        if (c.name && !isPlaceholderLeadName(c.name) && !FORBIDDEN_NAME_WORDS.has(c.name.trim().toLowerCase())) leadUpdate.name = c.name;
         if (c.bhk) leadUpdate.bhkPreference = c.bhk;
         if (c.budget) leadUpdate.budget = c.budget;
         if (c.location) leadUpdate.preferredLocation = c.location;

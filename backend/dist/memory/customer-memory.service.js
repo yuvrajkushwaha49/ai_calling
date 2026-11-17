@@ -325,7 +325,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             if (state.leadId) {
                 const leadUpdate = {};
                 const c = state.customer;
-                if (c.name && !(0, call_scripts_1.isPlaceholderLeadName)(c.name))
+                if (c.name && !(0, call_scripts_1.isPlaceholderLeadName)(c.name) && !call_scripts_1.FORBIDDEN_NAME_WORDS.has(c.name.trim().toLowerCase()))
                     leadUpdate.name = c.name;
                 if (c.bhk)
                     leadUpdate.bhkPreference = c.bhk;

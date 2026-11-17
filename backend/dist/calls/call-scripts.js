@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.FORBIDDEN_NAME_WORDS = void 0;
 exports.inferGenderFromName = inferGenderFromName;
 exports.agentGenderFromVoice = agentGenderFromVoice;
 exports.resolveSpeechGender = resolveSpeechGender;
@@ -243,15 +244,46 @@ function resolveSpeechGender(options) {
 function ag(gender, male, female) {
     return gender === 'female' ? female : male;
 }
+exports.FORBIDDEN_NAME_WORDS = new Set([
+    'hello', 'hi', 'hey', 'namaste', 'namaskar', 'yes', 'no', 'yeah', 'yep', 'nope',
+    'haan', 'ha', 'nahi', 'nhi', 'na', 'ok', 'okay', 'theek', 'thik', 'sure',
+    'sir', 'madam', 'maam', 'mam', 'ji', 'bhai', 'bhaiya', 'bro', 'friend', 'dost',
+    'हैलो', 'हेलो', 'हॅलो', 'हालो', 'नमस्ते', 'नमस्कार', 'प्रणाम', 'हाय',
+    'हाँ', 'हां', 'नहीं', 'नही', 'ना', 'ओके', 'ठीक', 'सही', 'बिल्कुल',
+    'सर', 'मैडम', 'जी', 'भाई', 'भैया',
+    'kya', 'kaun', 'kaha', 'kidhar', 'kab', 'kyun', 'kaise', 'kitna', 'kitne',
+    'main', 'mai', 'hum', 'ham', 'aap', 'apne', 'apna', 'apni', 'tum', 'mera', 'meri', 'mere',
+    'क्या', 'कौन', 'कहाँ', 'कहा', 'किधर', 'कब', 'क्यों', 'क्यूं', 'कैसे', 'कितना', 'कितने',
+    'मैं', 'हम', 'आप', 'अपने', 'अपना', 'अपनी', 'तुम', 'मेरा', 'मेरी', 'मेरे',
+    'call', 'calling', 'caller', 'inbound', 'customer', 'agent', 'lead', 'guest', 'unknown',
+    'bol', 'boliye', 'bolo', 'baat', 'batao', 'bataiye', 'suno', 'suniye', 'sun', 'aawaz', 'awaz',
+    'कॉल', 'कॉलर', 'कस्टमर', 'एजेंट', 'लीड', 'गेस्ट', 'बोल', 'बोलिए', 'बोलो', 'बात', 'बताओ', 'बताइए', 'सुनो', 'सुनिए', 'आवाज़', 'आवाज',
+    'raha', 'rahi', 'hoon', 'hu', 'hai', 'h', 'tha', 'thi', 'the',
+    'रहा', 'रही', 'हूँ', 'हु', 'है', 'था', 'थी', 'थे',
+    'bhk', 'flat', 'apartment', 'property', 'plot', 'house', 'ghar', 'villa', 'floor',
+    'budget', 'price', 'rate', 'cr', 'crore', 'lakh', 'cost', 'payment', 'plan',
+    'बीएचके', 'फ्लैट', 'प्रॉपर्टी', 'प्लॉट', 'घर', 'विला', 'फ्लोर', 'बजट', 'प्राइस', 'रेट', 'लाख', 'करोड़',
+    'saya', 'rudra', 'ncr', 'monarch', 'palace', 'heights', 'group', 'noida', 'delhi', 'extension',
+    'साया', 'रुद्रा', 'मोनार्क', 'पैलेस', 'हाइट्स', 'ग्रुप', 'नोएडा', 'एक्सटेंशन', 'ग्रेटर',
+    'ready', 'possession', 'under', 'construction', 'visit', 'site', 'details', 'whatsapp', 'location',
+    'रेडी', 'पजेशन', 'विजिट', 'डिटेल्स', 'व्हाट्सएप', 'लोकेशन',
+    'one', 'two', 'three', 'four', 'five', 'ek', 'do', 'teen', 'chaar', 'paanch',
+    'एक', 'दो', 'तीन', 'चार', 'पांच'
+]);
 function isPlaceholderLeadName(name) {
     if (!name || typeof name !== 'string')
         return true;
     const n = name.trim();
     if (n.length < 2)
         return true;
+    const lower = n.toLowerCase();
     if (/^lead(\b|\s|\d|_|-|$)/i.test(n) || /^lead/i.test(n))
         return true;
     if (/^(?:inbound|guest|unknown|caller|customer|user|कस्टमर|कॉलर)/i.test(n))
+        return true;
+    if (/^(?:hello|namaste|namaskar|hi|hey|pranam|हैलो|हेलो|हॅलो|हालो|नमस्ते|नमस्कार|प्रणाम|हाय)/i.test(n))
+        return true;
+    if (exports.FORBIDDEN_NAME_WORDS.has(lower))
         return true;
     return false;
 }
@@ -474,9 +506,10 @@ function extractFactsFromText(raw) {
         text.match(/(?:naam|name)\s+([a-zA-Z\u0900-\u097F]{2,25})\s+(?:hai|h)/i);
     if (nameMatch?.[1]) {
         const rawName = nameMatch[1].trim();
-        const banned = /^(?:hai|bol|raha|rahi|calling|sir|ji|madam|haan|nahi|kya|kaun|customer|agent|inbound|saya|hello|namaste|bhk|flat|budget|property|house|plot)$/i;
-        if (!banned.test(rawName) && !isPlaceholderLeadName(rawName)) {
-            facts.callerName = rawName.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        const words = rawName.split(/\s+/).filter(Boolean);
+        const hasForbidden = words.some((w) => exports.FORBIDDEN_NAME_WORDS.has(w.toLowerCase()));
+        if (!hasForbidden && !isPlaceholderLeadName(rawName)) {
+            facts.callerName = words.map((w) => /^[\u0900-\u097F]+$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
     }
     if (/rehne\s+ke\s+liye|end\s*use|self\s*use|family\s+ke\s+liye|khud\s+ke\s+liye/i.test(text)) {

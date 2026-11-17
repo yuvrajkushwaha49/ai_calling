@@ -44,10 +44,10 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         { name: 'Sobha Rivana', pattern: /(?:sobha|rivana|शोभा)/i },
         { name: 'Hummingbird by Gulshan', pattern: /(?:hummingbird|gulshan|गुलशन)/i },
     ];
-    extractFacts(text) {
-        return this.extractFromUtterance(text);
+    extractFacts(text, context) {
+        return this.extractFromUtterance(text, context);
     }
-    extractFromUtterance(text) {
+    extractFromUtterance(text, context) {
         const raw = (text || '').trim();
         const result = {
             facts: {},
@@ -106,7 +106,7 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.confidenceMap.interestedProjects = 'confirmed';
             result.rawSnippets.interestedProjects = matchedProjects.join(', ');
         }
-        const nameMatch = this.extractName(raw);
+        const nameMatch = this.extractName(raw, context);
         if (nameMatch) {
             result.facts.name = nameMatch.name;
             result.confidenceMap.name = nameMatch.confidence;
@@ -281,41 +281,46 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         }
         return matched;
     }
-    extractName(text) {
+    extractName(text, context) {
         const clean = (text || '').trim();
         if (clean.length < 2)
             return null;
-        let match = clean.match(/(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)/i);
+        let match = null;
+        match = clean.match(/(?:mera\s*(?:shubh\s*)?naam|मेरा\s*(?:शुभ\s*)?नाम|my\s*name\s*is|this\s*is|myself)\s*(?:hai|h|:)?\s*([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)/i);
         if (!match) {
-            match = clean.match(/([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ)/i);
-        }
-        if (!match) {
-            match = clean.match(/(?:main|mai|मैं)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)|baat\s*kar\s*(?:raha|rahi)|hoon|हु|हूँ)/i);
+            match = clean.match(/(?:(?:main|mai|hum|ham|मैं)\s+)?([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:bol\s*(?:raha|rahi)\s*hoon|bol\s*(?:raha|rahi)\s*hu|baat\s*kar\s*(?:raha|rahi)\s*hoon|speaking|here|बोल\s*रहा\s*हूँ|बोल\s*रही\s*हूँ|बात\s*कर\s*रहा\s*हूँ|बात\s*कर\s*रही\s*हूँ)/i);
         }
         if (!match) {
             match = clean.match(/(?:naam|name)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)\s+(?:hai|h)/i);
         }
-        if (!match) {
-            const direct = clean.match(/^(?:haan|ji|haanji|yes)?\s*(?:mera\s*naam\s*)?([A-Za-z\u0900-\u097F]{2,20}(?:\s+[A-Za-z\u0900-\u097F]{2,20})?)\s*(?:hai|ji|sir)?$/i);
+        const priorAgentText = (context?.priorAgentText || '').toLowerCase();
+        const agentAskedName = /shubh\s*naam|aapka\s*naam|your\s*name|may\s*i\s*know\s*your\s*name|naam\s*jaan\s*sakti|शुभ\s*नाम|आपका\s*नाम|नाम\s*जान\s*सकती/i.test(priorAgentText);
+        if (!match && agentAskedName) {
+            const direct = clean.match(/^(?:haan|ji|haanji|yes|हाँ|जी)?\s*(?:mera\s*naam\s*)?([A-Za-z\u0900-\u097F]{2,20}(?:\s+[A-Za-z\u0900-\u097F]{2,20})?)\s*(?:hai|ji|sir|है)?$/i);
             if (direct) {
                 match = direct;
             }
         }
         if (match && match[1]) {
             const candidate = match[1].trim();
-            const forbidden = /^(?:nahi|haan|nhi|ha|yes|no|ok|okay|theek|bhk|flat|budget|cr|crore|lakh|sir|madam|ji|bhai|apne|apna|apni|अपने|अपना|अपनी|ek|do|teen|chaar|two|three|four|main|mai|hum|ham|property|plot|ghar|house|saaya|saya|group|noida|delhi|extension|greater|gurgaon|ghaziabad|price|rate|villa|calling|inbound|customer|agent|hello|namaste|details|whatsapp|kya|kaun|kaha|kab|bol|baat|raha|rahi|hoon|shubh|naam|name)$/i;
             let words = candidate.split(/\s+/).filter(Boolean);
-            while (words.length > 0 && forbidden.test(words[0])) {
+            while (words.length > 0 && call_scripts_1.FORBIDDEN_NAME_WORDS.has(words[0].toLowerCase())) {
                 words.shift();
             }
-            while (words.length > 0 && forbidden.test(words[words.length - 1])) {
+            while (words.length > 0 && call_scripts_1.FORBIDDEN_NAME_WORDS.has(words[words.length - 1].toLowerCase())) {
                 words.pop();
             }
-            if (words.length > 0 && words.length <= 3) {
-                const allValid = words.every((w) => w.length >= 2 && !forbidden.test(w));
+            if (words.length >= 1 && words.length <= 3) {
+                const allValid = words.every((w) => w.length >= 2 && !call_scripts_1.FORBIDDEN_NAME_WORDS.has(w.toLowerCase()));
                 const joined = words.join(' ');
                 if (allValid && !(0, call_scripts_1.isPlaceholderLeadName)(joined)) {
-                    const formatted = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    const formatted = words
+                        .map((w) => {
+                        if (/^[\u0900-\u097F]+$/.test(w))
+                            return w;
+                        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+                    })
+                        .join(' ');
                     return {
                         name: formatted,
                         confidence: 'confirmed',

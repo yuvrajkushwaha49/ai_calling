@@ -1354,7 +1354,7 @@ ${learned ? learned : ''}`;
                 : {}),
             ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
         };
-        if (callerName && callerName.length >= 2 && !(0, call_scripts_1.isPlaceholderLeadName)(callerName)) {
+        if (callerName && callerName.length >= 2 && !(0, call_scripts_1.isPlaceholderLeadName)(callerName) && !call_scripts_1.FORBIDDEN_NAME_WORDS.has(callerName.trim().toLowerCase())) {
             data.name = callerName;
         }
         if (projectId) {

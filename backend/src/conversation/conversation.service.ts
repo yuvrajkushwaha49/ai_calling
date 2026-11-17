@@ -15,6 +15,7 @@ import {
   isSameTalk,
   isShortAffirmation,
   isPlaceholderLeadName,
+  FORBIDDEN_NAME_WORDS,
   isShortDecline,
   lastAgentLine,
   lastAgentAskedTalkPermission,
@@ -1690,7 +1691,7 @@ ${learned ? learned : ''}`;
       ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
     };
 
-    if (callerName && callerName.length >= 2 && !isPlaceholderLeadName(callerName)) {
+    if (callerName && callerName.length >= 2 && !isPlaceholderLeadName(callerName) && !FORBIDDEN_NAME_WORDS.has(callerName.trim().toLowerCase())) {
       data.name = callerName;
     }
     if (projectId) {

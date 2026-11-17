@@ -66,6 +66,10 @@ describe('PhoneUtils', () => {
       expect(isPlaceholderLeadName('Caller')).toBe(true);
       expect(isPlaceholderLeadName('Customer')).toBe(true);
       expect(isPlaceholderLeadName('कस्टमर')).toBe(true);
+      expect(isPlaceholderLeadName('हैलो')).toBe(true);
+      expect(isPlaceholderLeadName('हेलो')).toBe(true);
+      expect(isPlaceholderLeadName('Hello')).toBe(true);
+      expect(isPlaceholderLeadName('Namaste')).toBe(true);
       expect(isPlaceholderLeadName('')).toBe(true);
       expect(isPlaceholderLeadName(null)).toBe(true);
     });
