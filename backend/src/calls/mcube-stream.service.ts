@@ -442,9 +442,15 @@ export class McubeStreamService {
 
     ws.on('close', () => {
       session.closed = true;
+      session.cancelPlay = true;
+      session.agentPlaying = false;
+      session.flushGen += 1;
+      session.rawChunks = [];
+      session.pendingSegments.clear();
       clearSilence();
       this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
       if (session.callId) {
+        void this.customerMemory.persistMemoryToDb(session.callId).catch(() => undefined);
         void this.prisma.call
           .updateMany({
             where: { id: session.callId, status: CallStatus.IN_PROGRESS },
@@ -528,6 +534,8 @@ export class McubeStreamService {
       const pcm16 = filterDcBlockPcm16(boostedPcm);
       const wavBuffer = pcm16ToWav(pcm16, session.sampleRate);
 
+      const turnStartTime = Date.now();
+      const sttStart = Date.now();
       const [stt, context] = await Promise.all([
         this.voice.speechToText({
           buffer: wavBuffer,
@@ -544,6 +552,7 @@ export class McubeStreamService {
             ])
           : Promise.resolve([null, null] as const),
       ]);
+      const sttDurationMs = Date.now() - sttStart;
 
       if (aborted()) {
         session.busy = false;
@@ -660,6 +669,10 @@ export class McubeStreamService {
 
       let ttsChain = Promise.resolve();
       let streamedAnyAudio = false;
+      const spokenValidatedSentences: string[] = [];
+      const llmStartTime = Date.now();
+      let llmFirstTokenMs = 0;
+      let ttsFirstAudioMs = 0;
 
       let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
         if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
@@ -710,7 +723,15 @@ export class McubeStreamService {
           phoneLatency: true,
           stream: true,
           isInbound: true,
+          onTextDelta: () => {
+            if (!llmFirstTokenMs) {
+              llmFirstTokenMs = Date.now() - llmStartTime;
+            }
+          },
           onSentence: (sentence) => {
+            if (!llmFirstTokenMs) {
+              llmFirstTokenMs = Date.now() - llmStartTime;
+            }
             if (fillerTimeout) {
               clearTimeout(fillerTimeout);
               fillerTimeout = null;
@@ -729,6 +750,7 @@ export class McubeStreamService {
             }
             if (!validatedSentence) return;
 
+            spokenValidatedSentences.push(validatedSentence);
             this.logger.log(`[MCube] 🤖 AI Speaking: "${validatedSentence}"`);
             ttsChain = ttsChain
               .then(async () => {
@@ -738,6 +760,9 @@ export class McubeStreamService {
                   session,
                   settings,
                 );
+                if (!ttsFirstAudioMs && audioBuffer) {
+                  ttsFirstAudioMs = Date.now() - llmStartTime;
+                }
                 if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
                   streamedAnyAudio = true;
                   await this.sendPlayAudio(ws, session, audioBuffer);
@@ -760,9 +785,26 @@ export class McubeStreamService {
           return;
         }
 
-        if (result?.replyText?.trim()) {
-          replyText = result.replyText.trim();
-          languageDetected = result.languageDetected || languageDetected;
+        const llmTotalMs = Date.now() - llmStartTime;
+        const turnTotalMs = Date.now() - turnStartTime;
+        this.logger.log(
+          `[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first=${llmFirstTokenMs}ms, TTS_first_audio=${ttsFirstAudioMs}ms, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`,
+        );
+
+        // Canonical reply: exactly what was validated and spoken
+        if (spokenValidatedSentences.length > 0) {
+          replyText = spokenValidatedSentences.join(' ');
+        } else if (result?.replyText?.trim()) {
+          const raw = result.replyText.trim();
+          if (session.memory) {
+            const check = this.questionValidator.validateAndSanitize(session.memory, raw);
+            replyText = check.sanitized || raw;
+          } else {
+            replyText = raw;
+          }
+        }
+        if (result?.languageDetected) {
+          languageDetected = result.languageDetected;
         }
 
         // Real-time CRM lead update with customer details (name, BHK, budget, project, site visit)
@@ -931,7 +973,7 @@ export class McubeStreamService {
    * Send playAudio event followed by checkpoint event per MCube specification.
    */
   async sendPlayAudio(ws: WebSocket, session: McubeSession, audioBuffer: Buffer) {
-    if (ws.readyState !== ws.OPEN || !session.streamId) return;
+    if (ws.readyState !== ws.OPEN || !session.streamId || session.closed || session.cancelPlay) return;
 
     const segmentName = `seg_${randomUUID().slice(0, 8)}`;
     session.pendingSegments.add(segmentName);

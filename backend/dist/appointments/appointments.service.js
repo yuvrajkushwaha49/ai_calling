@@ -104,9 +104,11 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
         const msg = options.userMessage || '';
         const qual = options.qualification || {};
         const prior = options.priorTranscript || '';
+        if ((0, meeting_time_1.isGenericAcknowledgement)(msg)) {
+            return { booked: false, reason: 'generic_acknowledgement' };
+        }
         const msgLooksLikeMeeting = (0, meeting_time_1.looksLikeMeetingRequest)(msg);
-        const agentJustOfferedVisit = /(?:visit|site\s*visit|appointment|dekhne|samay|time|milna|mil\s*sakte|kal|parso)\b/i.test(prior.split('\n').slice(-2).join(' ')) && /^(?:haan|ha|yes|sure|chalega|theek\s*hai|done|bilkul|ok|okay)/i.test(msg.trim());
-        if (!msgLooksLikeMeeting && !agentJustOfferedVisit && !qual.meetingAt) {
+        if (!msgLooksLikeMeeting && !qual.meetingAt) {
             return { booked: false, reason: 'no_meeting_intent_in_turn' };
         }
         const slot = (0, meeting_time_1.parseMeetingSlot)(msg, options.priorTranscript) ||
@@ -116,27 +118,11 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
         if (!slot) {
             return { booked: false, reason: 'no_datetime' };
         }
-        const dayStart = new Date(`${slot.date}T00:00:00+05:30`);
-        const dayEnd = new Date(`${slot.date}T23:59:59+05:30`);
-        const existing = await this.prisma.appointment.findFirst({
-            where: {
-                leadId: options.leadId,
-                status: client_1.AppointmentStatus.SCHEDULED,
-                date: { gte: dayStart, lte: dayEnd },
-                time: slot.time,
-            },
-        });
-        if (existing) {
-            return {
-                booked: false,
-                appointmentId: existing.id,
-                date: slot.date,
-                time: slot.time,
-                googleLink: existing.googleLink,
-                calendarSynced: Boolean(existing.googleEventId),
-                label: slot.label,
-                reason: 'already_exists',
-            };
+        if (slot.isTimeExplicit === false) {
+            return { booked: false, reason: 'missing_time', date: slot.date };
+        }
+        if (slot.isDateExplicit === false) {
+            return { booked: false, reason: 'missing_date', time: slot.time };
         }
         const lead = await this.prisma.lead.findUnique({
             where: { id: options.leadId },
@@ -151,6 +137,57 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
         });
         if (!lead)
             return { booked: false, reason: 'lead_missing' };
+        const existingActive = await this.prisma.appointment.findFirst({
+            where: {
+                leadId: options.leadId,
+                status: client_1.AppointmentStatus.SCHEDULED,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (existingActive) {
+            const activeDateStr = existingActive.date.toISOString().slice(0, 10);
+            if (activeDateStr === slot.date && existingActive.time === slot.time) {
+                return {
+                    booked: false,
+                    appointmentId: existingActive.id,
+                    date: slot.date,
+                    time: slot.time,
+                    googleLink: existingActive.googleLink,
+                    calendarSynced: Boolean(existingActive.googleEventId),
+                    label: slot.label,
+                    reason: 'already_exists',
+                };
+            }
+            const updated = await this.prisma.appointment.update({
+                where: { id: existingActive.id },
+                data: {
+                    date: new Date(`${slot.date}T12:00:00+05:30`),
+                    time: slot.time,
+                    notes: `Updated from AI call. Customer rescheduled to ${slot.label}. Prior: "${msg.slice(0, 120)}"`,
+                },
+            });
+            const cal = await this.syncToGoogleCalendar({
+                appointmentId: updated.id,
+                leadName: lead.name || 'Customer',
+                leadEmail: lead.email,
+                projectName: lead.project?.name,
+                projectLocation: lead.project?.location,
+                date: slot.date,
+                time: slot.time,
+                notes: updated.notes || undefined,
+                startIso: slot.startIso,
+                endIso: slot.endIso,
+            });
+            return {
+                booked: true,
+                appointmentId: updated.id,
+                date: slot.date,
+                time: slot.time,
+                googleLink: updated.googleLink || cal?.htmlLink || null,
+                calendarSynced: Boolean(cal?.success && cal?.eventId),
+                label: slot.label,
+            };
+        }
         const projectId = options.projectId || lead.projectId || undefined;
         const appointment = await this.prisma.appointment.create({
             data: {
@@ -260,6 +297,16 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
                 data: {
                     googleEventId: cal.eventId,
                     googleLink: cal.htmlLink || cal.hangoutLink || null,
+                },
+            });
+        }
+        else if (cal && !cal.success) {
+            const errNote = `[Calendar Sync Status: FAILED - ${cal.errorCode || 'unknown'}${cal.errorMessage ? `: ${cal.errorMessage}` : ''}]`;
+            this.logger.warn(`Appointment ${input.appointmentId} Google Calendar sync failed: ${errNote}`);
+            await this.prisma.appointment.update({
+                where: { id: input.appointmentId },
+                data: {
+                    notes: input.notes ? `${input.notes}\n${errNote}` : errNote,
                 },
             });
         }

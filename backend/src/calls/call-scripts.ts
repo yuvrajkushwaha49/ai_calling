@@ -1,4 +1,5 @@
 import { CallOutcome } from '@prisma/client';
+import { isGenericAcknowledgement } from '../appointments/meeting-time';
 import {
   mentionsSayaRajNagarExtension,
   normalizeKnownLocation,
@@ -453,6 +454,8 @@ type ReplyKind =
   | 'offer_visit'
   | 'confirm_followup'
   | 'confirm_details'
+  | 'clarify_ambiguous'
+  | 'generic_ack'
   | 'price_soft'
   | 'default';
 
@@ -967,6 +970,23 @@ export function lastAgentOfferedCallback(agentLine: string): boolean {
 }
 
 /**
+ * Detect incomplete, trailing or ambiguous queries such as "क्या अभी", "अभी?", "kya abhi", fragments.
+ */
+export function isIncompleteOrAmbiguousQuery(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  // Specific patterns like "क्या अभी", "क्या अभी?", "kya abhi", "abhi kya", "abhi?", "अभी?"
+  if (/^(?:क्या\s*अभी|kya\s*abhi|abhi\s*kya|अभी\s*क्या|abhi|अभी)[!?.\s]*$/i.test(t)) {
+    return true;
+  }
+  // Short fragment ending in question mark with no full verb or subject
+  if (/^(?:मतलब|matlab|means|kyun|kyu|क्यो|क्यों|kaise|कैसे|kab|कब|aur|और|par|पर|lekin|लेकिन)[!?.\s]*$/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Resolve short yes/no using the previous agent line.
  * Returns null when context is not enough — caller continues normal flow.
  */
@@ -975,6 +995,9 @@ export function resolveContextualShortReply(options: {
   priorTranscript?: string | null;
 }): { kind: ReplyKind; outcome: CallOutcome } | null {
   const msg = options.userMessage || '';
+  if (isIncompleteOrAmbiguousQuery(msg)) {
+    return { kind: 'clarify_ambiguous', outcome: CallOutcome.CONNECTED };
+  }
   const last = lastAgentLine(options.priorTranscript);
   if (!last) {
     if (isShortDecline(msg)) {
@@ -1178,6 +1201,7 @@ export function detectIntent(text: string): {
   statingPossession: boolean;
   statingVisitDay: boolean;
   positive: boolean;
+  incompleteOrAmbiguous: boolean;
 } {
   const t = text.toLowerCase();
   const wantsCallback =
@@ -1193,6 +1217,9 @@ export function detectIntent(text: string): {
     /(?:aawaz|awaaz|awaz|voice|sound)\s*(?:aa\s*rahi|nhi|nahi|aarhi|cut|aarahi|gayab)/i.test(t) ||
     /(?:sun\s*(?:rahe|rahi|pa\s*rahe|sakte)|hear\s*me|koi\s*hai|bolte\s*kyu\s*nahi|kuch\s*bolo)/i.test(t) ||
     /^(?:hello\s*)+[!?.]*$/i.test(t.trim());
+
+  const isIncompleteOrAmbiguous = isIncompleteOrAmbiguousQuery(text);
+  const isGenericAck = isGenericAcknowledgement(text);
 
   // Must be asking who the agent/company is ("aap kaun", "kaun ho", "kaun bol rahe ho")
   // Must NOT match project queries like "kaun se project", "kaun-kaun se option", "kaun sa floor"
@@ -1237,10 +1264,13 @@ export function detectIntent(text: string): {
       ),
     positive:
       !isGreetingOnly &&
-      /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|theek|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(
+      !isIncompleteOrAmbiguous &&
+      !isGenericAck &&
+      /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(
         t,
       ) &&
       !/nahi|nhi|नहीं|rakho phone|kis liye|kyu|kyun/i.test(t),
+    incompleteOrAmbiguous: isIncompleteOrAmbiguous,
   };
 }
 
@@ -1306,6 +1336,13 @@ export function buildFollowUpReply(options: {
   if (contextual) {
     kind = contextual.kind;
     outcome = contextual.outcome;
+  } else if (isIncompleteOrAmbiguousQuery(current)) {
+    kind = 'clarify_ambiguous';
+    outcome = CallOutcome.CONNECTED;
+  } else if (isGenericAcknowledgement(current)) {
+    // Generic acknowledgement ("theek hai", "haan", "accha") alone does NOT confirm site visit
+    kind = facts.bhk ? (facts.possession ? 'offer_visit' : 'ask_possession') : 'generic_ack';
+    outcome = CallOutcome.CONNECTED;
   } else if (intent.callback && !intent.statingVisitDay) {
     kind = 'callback';
     outcome = CallOutcome.CALLBACK_REQUESTED;
@@ -1482,6 +1519,20 @@ export function buildFollowUpReply(options: {
       hinglish: `Rate unit पर depend करता है — पहले configuration clear कर लें, दो या तीन bedroom?`,
       'mr-IN': `दर युनिटवर — आधी 2 की 3 bedroom?`,
       'gu-IN': `રેટ યુનિટ પર — પહેલાં 2 કે 3 bedroom?`,
+    },
+    clarify_ambiguous: {
+      'en-IN': `Are you asking about visiting the site right now, or discussing details over the call right now?`,
+      'hi-IN': `जी, क्या आप अभी साईट विज़िट के लिए पूछ रहे हैं, या अभी कॉल पर बात करने के लिए?`,
+      hinglish: `Ji, kya aap abhi site visit ke baare mein pooch rahe hain, ya abhi call par details discuss karna chahte hain?`,
+      'mr-IN': `तुम्ही आत्ता साईट व्हिजिटबद्दल विचारत आहात की फोनवर माहिती हवी आहे?`,
+      'gu-IN': `તમે અત્યારે સાઇટ મુલાકાત વિશે પૂછી રહ્યા છો કે ફોન પર વાત કરવા માંગો છો?`,
+    },
+    generic_ack: {
+      'en-IN': `Sure! Would you be looking for a 2 BHK or a 3 BHK flat?`,
+      'hi-IN': `जी बिल्कुल! आप 2 BHK फ़्लैट देख रहे हैं या 3 BHK?`,
+      hinglish: `Ji bilkul! Aap 2 BHK flat dekh rahe hain ya 3 BHK?`,
+      'mr-IN': `होय, तुम्हाला २ BHK की ३ BHK फ्लॅट हवा आहे?`,
+      'gu-IN': `હા, તમે ૨ BHK કે ૩ BHK ફ્લેટ શોધી રહ્યા છો?`,
     },
     default: {
       'en-IN': `बताइए, अभी property देखना आपके mind में है?`,

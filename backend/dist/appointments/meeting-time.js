@@ -1,7 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isGenericAcknowledgement = isGenericAcknowledgement;
+exports.isExplicitMeetingConfirmation = isExplicitMeetingConfirmation;
 exports.looksLikeMeetingRequest = looksLikeMeetingRequest;
 exports.parseMeetingSlot = parseMeetingSlot;
+function isGenericAcknowledgement(text) {
+    const t = (text || '').trim();
+    return /^(?:theek\s*hai|theek\s*h|theek|thik|thik\s*hai|haan|ha|haanji|hanji|achha|accha|acha|sahi\s*hai|sahi\s*h|sahi|ok|okay|sure|chalega|chlega|done|bilkul|hmmm|hmm|yep|yeah|yes|ठीक\s*है|ठीक|हाँ|हां|अच्छा|सही\s*है|सही|बिल्कुल)[!.,\s]*$/i.test(t);
+}
+function isExplicitMeetingConfirmation(text) {
+    const t = (text || '').toLowerCase().trim();
+    return (/(?:confirm|final|kar do|kar dijiye|book kar|book kar do|book kar dijiye|fix kar|fix kar do|rakh do|rakh dijiye|कंफर्म|फाइनल|बुक कर|फिक्स कर)/i.test(t) ||
+        (/(?:haan|ha|yes|sure|done|theek|bilkul)\b/i.test(t) && /(?:confirm|book|visit|slot|meeting|time|chalega|आऊंगा|आएंगे)/i.test(t)));
+}
 const DAY_MAP = {
     sunday: 0,
     sun: 0,
@@ -119,7 +130,7 @@ function nowIst() {
     };
     return { ...p, dow: map[weekday] ?? 0 };
 }
-function buildSlot(y, monthIndex, day, hour24, minute) {
+function buildSlot(y, monthIndex, day, hour24, minute, options) {
     const date = `${y}-${pad(monthIndex + 1)}-${pad(day)}`;
     const time = formatDisplayTime(hour24, minute);
     const startIso = `${date}T${pad(hour24)}:${pad(minute)}:00+05:30`;
@@ -142,6 +153,8 @@ function buildSlot(y, monthIndex, day, hour24, minute) {
         startIso,
         endIso,
         label: `${date} ${time}`,
+        isTimeExplicit: options?.isTimeExplicit ?? false,
+        isDateExplicit: options?.isDateExplicit ?? false,
     };
 }
 function nextWeekday(fromDow, targetDow, base) {
@@ -227,38 +240,38 @@ function isSlotStillAhead(slot, cushionMs = 5 * 60_000) {
     const ms = Date.parse(slot.startIso);
     return Number.isFinite(ms) && ms > Date.now() + cushionMs;
 }
-function getWeekendSlot(base, hm) {
+function getWeekendSlot(base, hm, options) {
     if (base.dow === 6) {
-        const today = addIstDays(base, 0, hm.hour24, hm.minute);
+        const today = addIstDays(base, 0, hm.hour24, hm.minute, options);
         if (isSlotStillAhead(today))
             return today;
-        return addIstDays(base, 1, hm.hour24, hm.minute);
+        return addIstDays(base, 1, hm.hour24, hm.minute, options);
     }
     if (base.dow === 0) {
-        const today = addIstDays(base, 0, hm.hour24, hm.minute);
+        const today = addIstDays(base, 0, hm.hour24, hm.minute, options);
         if (isSlotStillAhead(today))
             return today;
         const nextSat = nextWeekday(0, 6, base);
-        return buildSlot(nextSat.y, nextSat.monthIndex, nextSat.d, hm.hour24, hm.minute);
+        return buildSlot(nextSat.y, nextSat.monthIndex, nextSat.d, hm.hour24, hm.minute, options);
     }
     const sat = nextWeekday(base.dow, 6, base);
-    return buildSlot(sat.y, sat.monthIndex, sat.d, hm.hour24, hm.minute);
+    return buildSlot(sat.y, sat.monthIndex, sat.d, hm.hour24, hm.minute, options);
 }
-function defaultDayForTimeOnly(base, hour24, minute) {
-    const today = addIstDays(base, 0, hour24, minute);
+function defaultDayForTimeOnly(base, hour24, minute, options) {
+    const today = addIstDays(base, 0, hour24, minute, options);
     if (isSlotStillAhead(today))
         return today;
-    return addIstDays(base, 1, hour24, minute);
+    return addIstDays(base, 1, hour24, minute, options);
 }
-function addIstDays(base, days, hour24, minute) {
+function addIstDays(base, days, hour24, minute, options) {
     const dt = new Date(Date.UTC(base.y, base.m - 1, base.d + days));
-    return buildSlot(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), hour24, minute);
+    return buildSlot(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), hour24, minute, options);
 }
 function looksLikeMeetingRequest(text) {
     const t = normalizeRelativeDayText(text || '');
     return /meeting|meet|appointment|visit|site\s*visit|callback|call back|slot|book|fix|weekend|weekends|वीकेंड|हफ्ते\s*के\s*अंत|सैंपल|sample|विजिट|साइट|कल|tomorrow|parso|परसों|day after tomorrow|aaj|today|saturday|sunday|monday|tuesday|wednesday|thursday|friday|शनिवार|रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|baje|bajey|bje|बजे|\d{1,2}\s*(am|pm|:)|morning|evening|subah|shaam|सुबह|शाम|dekhne|aaunga|aate hain/i.test(t);
 }
-function parseMeetingSlot(userMessage, priorTranscript) {
+function parseMeetingSlot(userMessage, priorTranscript, options) {
     const text = normalizeRelativeDayText(`${priorTranscript || ''}\n${userMessage || ''}`.trim());
     if (!text)
         return null;
@@ -268,14 +281,30 @@ function parseMeetingSlot(userMessage, priorTranscript) {
         !/(?:kyun|kyu)\s+nahi/i.test(focus)) {
         return null;
     }
+    if (isGenericAcknowledgement(focus)) {
+        return null;
+    }
     const base = nowIst();
-    const hm = parseHourMinute(focus) ||
-        parseHourMinute(text.slice(-120)) ||
-        (looksLikeMeetingRequest(focus) || looksLikeMeetingRequest(priorTail)
-            ? { hour24: 11, minute: 0 }
-            : null);
+    const explicitHm = parseHourMinute(focus) || parseHourMinute(text.slice(-120));
+    const isTimeExplicit = Boolean(explicitHm);
+    if (options?.requireExplicitTime && !explicitHm) {
+        return null;
+    }
+    const hm = explicitHm ||
+        (looksLikeMeetingRequest(focus) ? { hour24: 11, minute: 0 } : null);
     if (!hm)
         return null;
+    const hasExplicitDateInFocus = DAY_AFTER_RE.test(focus) ||
+        TODAY_RE.test(focus) ||
+        TOMORROW_RE.test(focus) ||
+        WEEKEND_RE.test(focus) ||
+        Object.keys(DAY_MAP).some((name) => /[\u0900-\u097F]/.test(name)
+            ? new RegExp(name, 'i').test(focus)
+            : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i').test(focus));
+    const slotOptions = {
+        isTimeExplicit,
+        isDateExplicit: hasExplicitDateInFocus,
+    };
     let m = focus.match(/(\d{1,2})(?:st|nd|rd|th)?[\s\/\-]+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितं?बर|अक्टूबर|नव(?:ं|म्)बर|दिसं?बर)(?:[\s\/\-]+(\d{2,4}))?/i);
     if (m) {
         const day = Number(m[1]);
@@ -288,10 +317,10 @@ function parseMeetingSlot(userMessage, priorTranscript) {
             year += 2000;
         if (monthIndex == null || Number.isNaN(monthIndex))
             return null;
-        const candidate = buildSlot(year, monthIndex, day, hm.hour24, hm.minute);
+        const candidate = buildSlot(year, monthIndex, day, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
         const candMs = Date.parse(candidate.startIso);
         if (candMs < Date.now() - 60_000 && !m[3]) {
-            return buildSlot(year + 1, monthIndex, day, hm.hour24, hm.minute);
+            return buildSlot(year + 1, monthIndex, day, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
         }
         return candidate;
     }
@@ -303,7 +332,7 @@ function parseMeetingSlot(userMessage, priorTranscript) {
         if (year < 100)
             year += 2000;
         if (monthIndex >= 0 && monthIndex <= 11) {
-            return buildSlot(year, monthIndex, day, hm.hour24, hm.minute);
+            return buildSlot(year, monthIndex, day, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
         }
     }
     const priorIsChoiceOffer = /(?:shaam|शाम|evening|aaj|आज).{0,40}(?:ya|या|or|phir|फिर).{0,20}(?:kal|कल|tomorrow)/i.test(priorTail) ||
@@ -314,16 +343,16 @@ function parseMeetingSlot(userMessage, priorTranscript) {
         !DAY_AFTER_RE.test(focus);
     const focusPicksToday = TODAY_RE.test(focus) || focusPicksTodayEvening;
     if (DAY_AFTER_RE.test(focus)) {
-        return addIstDays(base, 2, hm.hour24, hm.minute);
+        return addIstDays(base, 2, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
     }
     if (focusPicksToday) {
-        const today = addIstDays(base, 0, hm.hour24, hm.minute);
+        const today = addIstDays(base, 0, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
         if (isSlotStillAhead(today))
             return today;
-        return addIstDays(base, 1, hm.hour24, hm.minute);
+        return addIstDays(base, 1, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
     }
     if (focusPicksTomorrow) {
-        return addIstDays(base, 1, hm.hour24, hm.minute);
+        return addIstDays(base, 1, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
     }
     for (const [name, dow] of Object.entries(DAY_MAP)) {
         const re = /[\u0900-\u097F]/.test(name)
@@ -331,33 +360,33 @@ function parseMeetingSlot(userMessage, priorTranscript) {
             : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
         if (re.test(focus)) {
             if (base.dow === dow) {
-                const todaySlot = addIstDays(base, 0, hm.hour24, hm.minute);
+                const todaySlot = addIstDays(base, 0, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
                 if (isSlotStillAhead(todaySlot))
                     return todaySlot;
             }
             const next = nextWeekday(base.dow, dow, base);
-            return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+            return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
         }
     }
     if (WEEKEND_RE.test(focus)) {
-        return getWeekendSlot(base, hm);
+        return getWeekendSlot(base, hm, { ...slotOptions, isDateExplicit: true });
     }
     if (!priorIsChoiceOffer) {
         if (DAY_AFTER_RE.test(priorTail)) {
-            return addIstDays(base, 2, hm.hour24, hm.minute);
+            return addIstDays(base, 2, hm.hour24, hm.minute, slotOptions);
         }
         if (TODAY_RE.test(priorTail)) {
-            const today = addIstDays(base, 0, hm.hour24, hm.minute);
+            const today = addIstDays(base, 0, hm.hour24, hm.minute, slotOptions);
             if (isSlotStillAhead(today))
                 return today;
-            return addIstDays(base, 1, hm.hour24, hm.minute);
+            return addIstDays(base, 1, hm.hour24, hm.minute, slotOptions);
         }
         if (TOMORROW_RE.test(priorTail)) {
-            return addIstDays(base, 1, hm.hour24, hm.minute);
+            return addIstDays(base, 1, hm.hour24, hm.minute, slotOptions);
         }
         if (WEEKEND_RE.test(priorTail) &&
-            /haan|हां|हाँ|yes|yep|sure|ok|okay|theek|ठीक|bilkul|बिल्कुल|chalega|chlega|kar do|kar dijiye|book|visit|aaunga|aate|aayenge/i.test(focus)) {
-            return getWeekendSlot(base, hm);
+            (looksLikeMeetingRequest(focus) || isExplicitMeetingConfirmation(focus) || /visit|aaunga|aate|aayenge|book|chalega/i.test(focus))) {
+            return getWeekendSlot(base, hm, slotOptions);
         }
         for (const [name, dow] of Object.entries(DAY_MAP)) {
             const re = /[\u0900-\u097F]/.test(name)
@@ -365,38 +394,38 @@ function parseMeetingSlot(userMessage, priorTranscript) {
                 : new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, 'i');
             if (re.test(priorTail.slice(-400))) {
                 const next = nextWeekday(base.dow, dow, base);
-                return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+                return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute, slotOptions);
             }
         }
     }
     if (hm &&
-        /haan|हां|हाँ|ok|okay|yes|theek|ठीक|book|confirm|fix|rakh|रखा|बजे|baje|bje|morning|evening|subah|shaam|सुबह|शाम|am|pm|\d|meeting|meet/i.test(focus)) {
+        /baje|bje|morning|evening|subah|shaam|सुबह|शाम|am|pm|\d/i.test(focus)) {
         const prior = priorTail;
         if (!priorIsChoiceOffer) {
             if (DAY_AFTER_RE.test(prior)) {
-                return addIstDays(base, 2, hm.hour24, hm.minute);
+                return addIstDays(base, 2, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
             }
             if (TODAY_RE.test(prior)) {
-                const today = addIstDays(base, 0, hm.hour24, hm.minute);
+                const today = addIstDays(base, 0, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
                 return isSlotStillAhead(today)
                     ? today
-                    : addIstDays(base, 1, hm.hour24, hm.minute);
+                    : addIstDays(base, 1, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
             }
             if (TOMORROW_RE.test(prior)) {
-                return addIstDays(base, 1, hm.hour24, hm.minute);
+                return addIstDays(base, 1, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
             }
             if (WEEKEND_RE.test(prior)) {
-                return getWeekendSlot(base, hm);
+                return getWeekendSlot(base, hm, { ...slotOptions, isDateExplicit: true });
             }
             for (const [name, dow] of Object.entries(DAY_MAP)) {
                 if (new RegExp(name, 'i').test(prior.slice(-400))) {
                     const next = nextWeekday(base.dow, dow, base);
-                    return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute);
+                    return buildSlot(next.y, next.monthIndex, next.d, hm.hour24, hm.minute, { ...slotOptions, isDateExplicit: true });
                 }
             }
         }
         if (/\d/.test(focus) || /baje|bje|shaam|subah|am|pm/i.test(focus)) {
-            return defaultDayForTimeOnly(base, hm.hour24, hm.minute);
+            return defaultDayForTimeOnly(base, hm.hour24, hm.minute, slotOptions);
         }
     }
     return null;

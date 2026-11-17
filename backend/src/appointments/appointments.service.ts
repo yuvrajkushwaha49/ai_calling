@@ -6,6 +6,8 @@ import { CreateAppointmentDto, UpdateAppointmentDto } from './dto/appointment.dt
 import {
   looksLikeMeetingRequest,
   parseMeetingSlot,
+  isGenericAcknowledgement,
+  isExplicitMeetingConfirmation,
   type ParsedMeetingSlot,
 } from './meeting-time';
 
@@ -129,15 +131,14 @@ export class AppointmentsService {
     const qual = options.qualification || {};
     const prior = options.priorTranscript || '';
 
-    // Only attempt booking if the CURRENT turn actually has meeting/date intent
-    // or confirms an immediate site-visit offer from the agent
-    const msgLooksLikeMeeting = looksLikeMeetingRequest(msg);
-    const agentJustOfferedVisit =
-      /(?:visit|site\s*visit|appointment|dekhne|samay|time|milna|mil\s*sakte|kal|parso)\b/i.test(
-        prior.split('\n').slice(-2).join(' '),
-      ) && /^(?:haan|ha|yes|sure|chalega|theek\s*hai|done|bilkul|ok|okay)/i.test(msg.trim());
+    // 1. Never book an appointment from generic acknowledgements like "theek hai", "haan", "accha", "sahi hai"
+    if (isGenericAcknowledgement(msg)) {
+      return { booked: false, reason: 'generic_acknowledgement' };
+    }
 
-    if (!msgLooksLikeMeeting && !agentJustOfferedVisit && !qual.meetingAt) {
+    // Only attempt booking if the CURRENT turn actually has meeting/date intent
+    const msgLooksLikeMeeting = looksLikeMeetingRequest(msg);
+    if (!msgLooksLikeMeeting && !qual.meetingAt) {
       return { booked: false, reason: 'no_meeting_intent_in_turn' };
     }
 
@@ -151,28 +152,12 @@ export class AppointmentsService {
       return { booked: false, reason: 'no_datetime' };
     }
 
-    // Avoid duplicate same-day booking for this lead
-    const dayStart = new Date(`${slot.date}T00:00:00+05:30`);
-    const dayEnd = new Date(`${slot.date}T23:59:59+05:30`);
-    const existing = await this.prisma.appointment.findFirst({
-      where: {
-        leadId: options.leadId,
-        status: AppointmentStatus.SCHEDULED,
-        date: { gte: dayStart, lte: dayEnd },
-        time: slot.time,
-      },
-    });
-    if (existing) {
-      return {
-        booked: false,
-        appointmentId: existing.id,
-        date: slot.date,
-        time: slot.time,
-        googleLink: existing.googleLink,
-        calendarSynced: Boolean(existing.googleEventId),
-        label: slot.label,
-        reason: 'already_exists',
-      };
+    // 2. Explicitly capture customer-confirmed date and time (NEVER invent default time)
+    if (slot.isTimeExplicit === false) {
+      return { booked: false, reason: 'missing_time', date: slot.date };
+    }
+    if (slot.isDateExplicit === false) {
+      return { booked: false, reason: 'missing_date', time: slot.time };
     }
 
     const lead = await this.prisma.lead.findUnique({
@@ -187,6 +172,64 @@ export class AppointmentsService {
       },
     });
     if (!lead) return { booked: false, reason: 'lead_missing' };
+
+    // Avoid duplicate or update existing active appointment if customer changed date/time
+    const existingActive = await this.prisma.appointment.findFirst({
+      where: {
+        leadId: options.leadId,
+        status: AppointmentStatus.SCHEDULED,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existingActive) {
+      const activeDateStr = existingActive.date.toISOString().slice(0, 10);
+      if (activeDateStr === slot.date && existingActive.time === slot.time) {
+        return {
+          booked: false,
+          appointmentId: existingActive.id,
+          date: slot.date,
+          time: slot.time,
+          googleLink: existingActive.googleLink,
+          calendarSynced: Boolean(existingActive.googleEventId),
+          label: slot.label,
+          reason: 'already_exists',
+        };
+      }
+
+      // Customer changed date/time -> update existing appointment instead of duplicating
+      const updated = await this.prisma.appointment.update({
+        where: { id: existingActive.id },
+        data: {
+          date: new Date(`${slot.date}T12:00:00+05:30`),
+          time: slot.time,
+          notes: `Updated from AI call. Customer rescheduled to ${slot.label}. Prior: "${msg.slice(0, 120)}"`,
+        },
+      });
+
+      const cal = await this.syncToGoogleCalendar({
+        appointmentId: updated.id,
+        leadName: lead.name || 'Customer',
+        leadEmail: lead.email,
+        projectName: lead.project?.name,
+        projectLocation: lead.project?.location,
+        date: slot.date,
+        time: slot.time,
+        notes: updated.notes || undefined,
+        startIso: slot.startIso,
+        endIso: slot.endIso,
+      });
+
+      return {
+        booked: true,
+        appointmentId: updated.id,
+        date: slot.date,
+        time: slot.time,
+        googleLink: updated.googleLink || cal?.htmlLink || null,
+        calendarSynced: Boolean(cal?.success && cal?.eventId),
+        label: slot.label,
+      };
+    }
 
     const projectId = options.projectId || lead.projectId || undefined;
     const appointment = await this.prisma.appointment.create({
@@ -322,6 +365,15 @@ export class AppointmentsService {
         data: {
           googleEventId: cal.eventId,
           googleLink: cal.htmlLink || cal.hangoutLink || null,
+        },
+      });
+    } else if (cal && !cal.success) {
+      const errNote = `[Calendar Sync Status: FAILED - ${cal.errorCode || 'unknown'}${cal.errorMessage ? `: ${cal.errorMessage}` : ''}]`;
+      this.logger.warn(`Appointment ${input.appointmentId} Google Calendar sync failed: ${errNote}`);
+      await this.prisma.appointment.update({
+        where: { id: input.appointmentId },
+        data: {
+          notes: input.notes ? `${input.notes}\n${errNote}` : errNote,
         },
       });
     }

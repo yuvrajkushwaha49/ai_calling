@@ -8,9 +8,12 @@ export type CalendarEventInput = {
     location?: string | null;
 };
 export type CalendarEventResult = {
-    eventId: string;
+    eventId?: string | null;
     htmlLink?: string | null;
     hangoutLink?: string | null;
+    success: boolean;
+    errorCode?: 'invalid_grant' | 'auth_error' | 'transient_error' | 'config_missing' | string;
+    errorMessage?: string;
 };
 export declare class GoogleCalendarService {
     private config;
@@ -20,5 +23,5 @@ export declare class GoogleCalendarService {
     private getCalendarId;
     private getAuthClient;
     private getCalendar;
-    createEvent(input: CalendarEventInput): Promise<CalendarEventResult | null>;
+    createEvent(input: CalendarEventInput): Promise<CalendarEventResult>;
 }

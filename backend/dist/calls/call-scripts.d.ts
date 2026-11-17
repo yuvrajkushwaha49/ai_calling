@@ -18,7 +18,7 @@ export declare function getThinkingFiller(options: {
     userMessage?: string;
     usedFillers?: string[];
 }): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'price_soft' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'generic_ack' | 'price_soft' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;
@@ -61,6 +61,7 @@ export declare function lastAgentWasSoftClose(agentLine: string): boolean;
 export declare function lastAgentAskedTalkPermission(agentLine: string): boolean;
 export declare function lastAgentOfferedDetails(agentLine: string): boolean;
 export declare function lastAgentOfferedCallback(agentLine: string): boolean;
+export declare function isIncompleteOrAmbiguousQuery(text: string): boolean;
 export declare function resolveContextualShortReply(options: {
     userMessage: string;
     priorTranscript?: string | null;
@@ -106,6 +107,7 @@ export declare function detectIntent(text: string): {
     statingPossession: boolean;
     statingVisitDay: boolean;
     positive: boolean;
+    incompleteOrAmbiguous: boolean;
 };
 export declare function buildFollowUpReply(options: {
     transcript: string;

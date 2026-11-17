@@ -25,6 +25,7 @@ exports.lastAgentWasSoftClose = lastAgentWasSoftClose;
 exports.lastAgentAskedTalkPermission = lastAgentAskedTalkPermission;
 exports.lastAgentOfferedDetails = lastAgentOfferedDetails;
 exports.lastAgentOfferedCallback = lastAgentOfferedCallback;
+exports.isIncompleteOrAmbiguousQuery = isIncompleteOrAmbiguousQuery;
 exports.resolveContextualShortReply = resolveContextualShortReply;
 exports.isSameTalk = isSameTalk;
 exports.priorAgentAsked = priorAgentAsked;
@@ -34,6 +35,7 @@ exports.detectIntent = detectIntent;
 exports.buildFollowUpReply = buildFollowUpReply;
 exports.previewSampleText = previewSampleText;
 const client_1 = require("@prisma/client");
+const meeting_time_1 = require("../appointments/meeting-time");
 const place_names_1 = require("../elevenlabs/place-names");
 const FEMALE_VOICES = new Set([
     'ritu',
@@ -770,8 +772,23 @@ function lastAgentOfferedDetails(agentLine) {
 function lastAgentOfferedCallback(agentLine) {
     return /baad\s*me(?:in)?\s*call|call\s*kar\s*(?:leti|leta)|callback|phir\s*call|later\s*call/i.test(agentLine || '');
 }
+function isIncompleteOrAmbiguousQuery(text) {
+    const t = text.trim().toLowerCase();
+    if (!t)
+        return false;
+    if (/^(?:क्या\s*अभी|kya\s*abhi|abhi\s*kya|अभी\s*क्या|abhi|अभी)[!?.\s]*$/i.test(t)) {
+        return true;
+    }
+    if (/^(?:मतलब|matlab|means|kyun|kyu|क्यो|क्यों|kaise|कैसे|kab|कब|aur|और|par|पर|lekin|लेकिन)[!?.\s]*$/i.test(t)) {
+        return true;
+    }
+    return false;
+}
 function resolveContextualShortReply(options) {
     const msg = options.userMessage || '';
+    if (isIncompleteOrAmbiguousQuery(msg)) {
+        return { kind: 'clarify_ambiguous', outcome: client_1.CallOutcome.CONNECTED };
+    }
     const last = lastAgentLine(options.priorTranscript);
     if (!last) {
         if (isShortDecline(msg)) {
@@ -912,6 +929,8 @@ function detectIntent(text) {
         /(?:aawaz|awaaz|awaz|voice|sound)\s*(?:aa\s*rahi|nhi|nahi|aarhi|cut|aarahi|gayab)/i.test(t) ||
         /(?:sun\s*(?:rahe|rahi|pa\s*rahe|sakte)|hear\s*me|koi\s*hai|bolte\s*kyu\s*nahi|kuch\s*bolo)/i.test(t) ||
         /^(?:hello\s*)+[!?.]*$/i.test(t.trim());
+    const isIncompleteOrAmbiguous = isIncompleteOrAmbiguousQuery(text);
+    const isGenericAck = (0, meeting_time_1.isGenericAcknowledgement)(text);
     const isWhichOptionQuestion = /(?:kaun|कौन|kon)\s*(?:[- ]?(?:kaun|कौन)|se|sa|si|wale|wala|wali)\b/i.test(t) ||
         /project|flats?|property|floor|location|list\b/i.test(t);
     const askingIdentityOnly = !isWhichOptionQuestion &&
@@ -930,8 +949,11 @@ function detectIntent(text) {
         statingPossession: /ready\s*to\s*move|under\s*construction|uc\b|रेडी|अंडर\s*कंस्ट्रक्शन|निर्माणाधीन/i.test(t),
         statingVisitDay: /(?:next\s*)?(?:weekend|saturday|sunday|friday|monday|tomorrow|kal|कल|शनिवार|रविवार|शुक्रवार)/i.test(t),
         positive: !isGreetingOnly &&
-            /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|theek|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(t) &&
+            !isIncompleteOrAmbiguous &&
+            !isGenericAck &&
+            /interested|yes|sure|ok|okay|haan|हां|हाँ|होय|હા|bilkul|बिल्कुल|tell me|go ahead|site visit|visit|arrange|book|plan kar|planning|dekh rah|search kar|looking|खोज रहा|देख रहा|प्लान कर/i.test(t) &&
             !/nahi|nhi|नहीं|rakho phone|kis liye|kyu|kyun/i.test(t),
+        incompleteOrAmbiguous: isIncompleteOrAmbiguous,
     };
 }
 function buildFollowUpReply(options) {
@@ -977,6 +999,14 @@ function buildFollowUpReply(options) {
     if (contextual) {
         kind = contextual.kind;
         outcome = contextual.outcome;
+    }
+    else if (isIncompleteOrAmbiguousQuery(current)) {
+        kind = 'clarify_ambiguous';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if ((0, meeting_time_1.isGenericAcknowledgement)(current)) {
+        kind = facts.bhk ? (facts.possession ? 'offer_visit' : 'ask_possession') : 'generic_ack';
+        outcome = client_1.CallOutcome.CONNECTED;
     }
     else if (intent.callback && !intent.statingVisitDay) {
         kind = 'callback';
@@ -1161,6 +1191,20 @@ function buildFollowUpReply(options) {
             hinglish: `Rate unit पर depend करता है — पहले configuration clear कर लें, दो या तीन bedroom?`,
             'mr-IN': `दर युनिटवर — आधी 2 की 3 bedroom?`,
             'gu-IN': `રેટ યુનિટ પર — પહેલાં 2 કે 3 bedroom?`,
+        },
+        clarify_ambiguous: {
+            'en-IN': `Are you asking about visiting the site right now, or discussing details over the call right now?`,
+            'hi-IN': `जी, क्या आप अभी साईट विज़िट के लिए पूछ रहे हैं, या अभी कॉल पर बात करने के लिए?`,
+            hinglish: `Ji, kya aap abhi site visit ke baare mein pooch rahe hain, ya abhi call par details discuss karna chahte hain?`,
+            'mr-IN': `तुम्ही आत्ता साईट व्हिजिटबद्दल विचारत आहात की फोनवर माहिती हवी आहे?`,
+            'gu-IN': `તમે અત્યારે સાઇટ મુલાકાત વિશે પૂછી રહ્યા છો કે ફોન પર વાત કરવા માંગો છો?`,
+        },
+        generic_ack: {
+            'en-IN': `Sure! Would you be looking for a 2 BHK or a 3 BHK flat?`,
+            'hi-IN': `जी बिल्कुल! आप 2 BHK फ़्लैट देख रहे हैं या 3 BHK?`,
+            hinglish: `Ji bilkul! Aap 2 BHK flat dekh rahe hain ya 3 BHK?`,
+            'mr-IN': `होय, तुम्हाला २ BHK की ३ BHK फ्लॅट हवा आहे?`,
+            'gu-IN': `હા, તમે ૨ BHK કે ૩ BHK ફ્લેટ શોધી રહ્યા છો?`,
         },
         default: {
             'en-IN': `बताइए, अभी property देखना आपके mind में है?`,

@@ -351,9 +351,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         });
         ws.on('close', () => {
             session.closed = true;
+            session.cancelPlay = true;
+            session.agentPlaying = false;
+            session.flushGen += 1;
+            session.rawChunks = [];
+            session.pendingSegments.clear();
             clearSilence();
             this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
             if (session.callId) {
+                void this.customerMemory.persistMemoryToDb(session.callId).catch(() => undefined);
                 void this.prisma.call
                     .updateMany({
                     where: { id: session.callId, status: client_1.CallStatus.IN_PROGRESS },
@@ -418,6 +424,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 : (0, phone_audio_1.boostPcm16)((0, phone_audio_1.mulawToPcm16)(rawIn), 2.2);
             const pcm16 = (0, phone_audio_1.filterDcBlockPcm16)(boostedPcm);
             const wavBuffer = (0, phone_audio_1.pcm16ToWav)(pcm16, session.sampleRate);
+            const turnStartTime = Date.now();
+            const sttStart = Date.now();
             const [stt, context] = await Promise.all([
                 this.voice.speechToText({
                     buffer: wavBuffer,
@@ -434,6 +442,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     ])
                     : Promise.resolve([null, null]),
             ]);
+            const sttDurationMs = Date.now() - sttStart;
             if (aborted()) {
                 session.busy = false;
                 return;
@@ -524,6 +533,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             let languageDetected = activeLang;
             let ttsChain = Promise.resolve();
             let streamedAnyAudio = false;
+            const spokenValidatedSentences = [];
+            const llmStartTime = Date.now();
+            let llmFirstTokenMs = 0;
+            let ttsFirstAudioMs = 0;
             let fillerTimeout = setTimeout(async () => {
                 if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN)
                     return;
@@ -567,7 +580,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     phoneLatency: true,
                     stream: true,
                     isInbound: true,
+                    onTextDelta: () => {
+                        if (!llmFirstTokenMs) {
+                            llmFirstTokenMs = Date.now() - llmStartTime;
+                        }
+                    },
                     onSentence: (sentence) => {
+                        if (!llmFirstTokenMs) {
+                            llmFirstTokenMs = Date.now() - llmStartTime;
+                        }
                         if (fillerTimeout) {
                             clearTimeout(fillerTimeout);
                             fillerTimeout = null;
@@ -585,12 +606,16 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         }
                         if (!validatedSentence)
                             return;
+                        spokenValidatedSentences.push(validatedSentence);
                         this.logger.log(`[MCube] 🤖 AI Speaking: "${validatedSentence}"`);
                         ttsChain = ttsChain
                             .then(async () => {
                             if (aborted() || ws.readyState !== ws.OPEN)
                                 return;
                             const audioBuffer = await this.synthesizeForSession(validatedSentence, session, settings);
+                            if (!ttsFirstAudioMs && audioBuffer) {
+                                ttsFirstAudioMs = Date.now() - llmStartTime;
+                            }
                             if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
                                 streamedAnyAudio = true;
                                 await this.sendPlayAudio(ws, session, audioBuffer);
@@ -610,9 +635,24 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     session.busy = false;
                     return;
                 }
-                if (result?.replyText?.trim()) {
-                    replyText = result.replyText.trim();
-                    languageDetected = result.languageDetected || languageDetected;
+                const llmTotalMs = Date.now() - llmStartTime;
+                const turnTotalMs = Date.now() - turnStartTime;
+                this.logger.log(`[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first=${llmFirstTokenMs}ms, TTS_first_audio=${ttsFirstAudioMs}ms, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`);
+                if (spokenValidatedSentences.length > 0) {
+                    replyText = spokenValidatedSentences.join(' ');
+                }
+                else if (result?.replyText?.trim()) {
+                    const raw = result.replyText.trim();
+                    if (session.memory) {
+                        const check = this.questionValidator.validateAndSanitize(session.memory, raw);
+                        replyText = check.sanitized || raw;
+                    }
+                    else {
+                        replyText = raw;
+                    }
+                }
+                if (result?.languageDetected) {
+                    languageDetected = result.languageDetected;
                 }
                 if (result?.qualification && lead?.id && lead.id !== 'guest-lead') {
                     if (result.qualification.callerName &&
@@ -753,7 +793,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         }
     }
     async sendPlayAudio(ws, session, audioBuffer) {
-        if (ws.readyState !== ws.OPEN || !session.streamId)
+        if (ws.readyState !== ws.OPEN || !session.streamId || session.closed || session.cancelPlay)
             return;
         const segmentName = `seg_${(0, crypto_1.randomUUID)().slice(0, 8)}`;
         session.pendingSegments.add(segmentName);
