@@ -1019,12 +1019,26 @@ function buildFollowUpReply(options) {
         kind = 'reject_builder_pivot';
         outcome = client_1.CallOutcome.CONNECTED;
     }
+    else if (/^(?:क्या\s*(?:नहीं|नही)\s*है|kya\s*(?:nahi|nhi)\s*hai)[!?.\s]*$/i.test(current.trim())) {
+        kind = 'clarify_missing_feature';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (/(?:^|\b)(?:ncr\s*(?:ke\s*baare|batao|kya\s*hai|project)|एनसीआर\s*(?:के\s*बारे|बताओ|प्रोजेक्ट)|about\s*ncr)(?:\b|$)/i.test(current) &&
+        !/(?:monarch|मोनार्क)/i.test(current)) {
+        if (/(?:monarch|मोनार्क)/i.test(priorLeadText || '') || /(?:monarch|मोनार्क)/i.test(lastReply || '')) {
+            kind = 'confirm_details';
+        }
+        else {
+            kind = 'clarify_ncr';
+            outcome = client_1.CallOutcome.CONNECTED;
+        }
+    }
     else if (isIncompleteOrAmbiguousQuery(current)) {
         kind = 'clarify_ambiguous';
         outcome = client_1.CallOutcome.CONNECTED;
     }
     else if ((0, meeting_time_1.isGenericAcknowledgement)(current)) {
-        kind = facts.bhk ? (facts.possession ? 'offer_visit' : 'ask_possession') : 'generic_ack';
+        kind = 'generic_ack';
         outcome = client_1.CallOutcome.CONNECTED;
     }
     else if (intent.callback && !intent.statingVisitDay) {
@@ -1232,12 +1246,36 @@ function buildFollowUpReply(options) {
             'mr-IN': `तुम्ही आत्ता साईट व्हिजिटबद्दल विचारत आहात की फोनवर माहिती हवी आहे?`,
             'gu-IN': `તમે અત્યારે સાઇટ મુલાકાત વિશે પૂછી રહ્યા છો કે ફોન પર વાત કરવા માંગો છો?`,
         },
+        clarify_missing_feature: {
+            'en-IN': `Are you asking about any specific amenity, feature, or facility that might not be available?`,
+            'hi-IN': `जी, क्या आप किसी specific amenity, feature या facility के बारे में पूछ रहे हैं कि क्या उपलब्ध नहीं है?`,
+            hinglish: `Ji, kya aap kisi specific amenity, feature ya facility ke baare mein pooch rahe hain ki kya available nahi hai?`,
+            'mr-IN': `तुम्ही कोणत्याही विशिष्ट सुविधेबद्दल विचारत आहात का की काय उपलब्ध नाही?`,
+            'gu-IN': `શું તમે કોઈ ચોક્કસ સુવિધા વિશે પૂછી રહ્યા છો જે ઉપલબ્ધ નથી?`,
+        },
+        clarify_ncr: {
+            'en-IN': `Are you asking about the NCR Monarch project in Greater Noida West, or the overall Delhi NCR region?`,
+            'hi-IN': `जी, आप सेक्टर 1 ग्रेटर नोएडा वेस्ट वाले प्रोजेक्ट NCR Monarch के बारे में पूछ रहे हैं, या पूरे दिल्ली NCR रीजन के बारे में?`,
+            hinglish: `Ji, aap Sector 1 Greater Noida West wale project NCR Monarch ke baare mein pooch rahe hain, ya overall Delhi NCR region ke baare mein?`,
+            'mr-IN': `तुम्ही ग्रेटर नोएडा वेस्ट मधील NCR Monarch प्रकल्पाबद्दल विचारत आहात की दिल्ली NCR बद्दल?`,
+            'gu-IN': `તમે ગ્રેટર નોઈડા વેસ્ટના NCR Monarch પ્રોજેક્ટ વિશે પૂછી રહ્યા છો કે દિલ્હી NCR વિશે?`,
+        },
         generic_ack: {
-            'en-IN': `Sure! Would you be looking for a 2 BHK or a 3 BHK flat?`,
-            'hi-IN': `जी बिल्कुल! आप 2 BHK फ़्लैट देख रहे हैं या 3 BHK?`,
-            hinglish: `Ji bilkul! Aap 2 BHK flat dekh rahe hain ya 3 BHK?`,
-            'mr-IN': `होय, तुम्हाला २ BHK की ३ BHK फ्लॅट हवा आहे?`,
-            'gu-IN': `હા, તમે ૨ BHK કે ૩ BHK ફ્લેટ શોધી રહ્યા છો?`,
+            'en-IN': facts.bhk
+                ? `Sure! Would you like to see the floor plan layout map, or discuss pricing details?`
+                : `Sure! Would you be looking for a 2 BHK or a 3 BHK flat?`,
+            'hi-IN': facts.bhk
+                ? `जी बिल्कुल! क्या आप इसका floor plan layout map देखना चाहेंगे, या price details discuss करें?`
+                : `जी बिल्कुल! आप 2 BHK फ़्लैट देख रहे हैं या 3 BHK?`,
+            hinglish: facts.bhk
+                ? `Ji bilkul! Iske alawa kya aap iska floor plan layout map dekhna chahenge ya price details discuss karein?`
+                : `Ji bilkul! Aap 2 BHK flat dekh rahe hain ya 3 BHK?`,
+            'mr-IN': facts.bhk
+                ? `नक्कीच! तुम्हाला फ्लोअर प्लॅन पाहायचा आहे की किमतीबद्दल चर्चा करायची आहे?`
+                : `होय, तुम्हाला २ BHK की ३ BHK फ्लॅट हवा आहे?`,
+            'gu-IN': facts.bhk
+                ? `ચોક્કસ! શું તમે ફ્લોર પ્લાન જોવા માંગો છો કે કિંમતની વિગતો જાણવા માંગો છો?`
+                : `હા, તમે ૨ BHK કે ૩ BHK ફ્લેટ શોધી રહ્યા છો?`,
         },
         default: {
             'en-IN': `बताइए, अभी property देखना आपके mind में है?`,

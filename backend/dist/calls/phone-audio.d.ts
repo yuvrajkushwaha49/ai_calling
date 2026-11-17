@@ -18,3 +18,5 @@ export declare function pcm16ToMulaw(pcm: Buffer): Buffer;
 export declare function mulawToLinear(mulawByte: number): number;
 export declare function mulawToPcm16(mulaw: Buffer): Buffer;
 export declare function downsamplePcm16(pcm: Buffer, fromRate: number, toRate: number): Buffer;
+export declare function numberToHindiWords(num: number): string;
+export declare function normalizeTextForSpeech(text: string, lang?: string): string;

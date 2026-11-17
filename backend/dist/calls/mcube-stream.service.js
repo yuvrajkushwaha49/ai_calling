@@ -61,6 +61,7 @@ const appointments_service_1 = require("../appointments/appointments.service");
 const opener_bank_1 = require("./opener-bank");
 const call_scripts_1 = require("./call-scripts");
 const phone_audio_1 = require("./phone-audio");
+const latency_tracker_1 = require("./latency-tracker");
 let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     config;
     prisma;
@@ -133,11 +134,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             session.bargeHits += 1;
             if (session.bargeHits < 2)
                 return;
-            this.logger.log(`[MCube] Caller barge-in on stream=${session.streamId}`);
+            this.logger.log(`[MCube] Caller barge-in on stream=${session.streamId} gen=${session.flushGen}`);
             session.cancelPlay = true;
             session.agentPlaying = false;
             session.pendingSegments.clear();
             session.flushGen += 1;
+            if (session.turnAbortController) {
+                session.turnAbortController.abort();
+                session.turnAbortController = null;
+            }
             this.sendClearAudio(ws, session.streamId);
         };
         ws.on('message', (raw) => {
@@ -302,11 +307,16 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 }
                 if (msg.event === 'playedStream') {
                     const segName = msg.name || '';
-                    session.pendingSegments.delete(segName);
-                    if (session.pendingSegments.size === 0) {
-                        session.agentPlaying = false;
+                    if (session.pendingSegments.has(segName)) {
+                        session.pendingSegments.delete(segName);
+                        if (session.pendingSegments.size === 0) {
+                            session.agentPlaying = false;
+                        }
+                        this.logger.debug(`[MCube] playedStream finished name=${segName} streamId=${msg.streamId}`);
                     }
-                    this.logger.debug(`[MCube] playedStream finished name=${segName} streamId=${msg.streamId}`);
+                    else {
+                        this.logger.debug(`[MCube] Ignored playedStream for old/cancelled segment name=${segName} streamId=${msg.streamId}`);
+                    }
                     return;
                 }
                 if (msg.event === 'media' && msg.media?.payload) {
@@ -358,7 +368,6 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         if (!session.speaking) {
                             session.speaking = true;
                             session.speechStartedAt = now;
-                            session.cancelPlay = false;
                         }
                         session.lastVoiceAt = now;
                         session.rawChunks.push(chunk);
@@ -431,6 +440,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         session.busy = true;
         session.cancelPlay = false;
         const myGen = ++session.flushGen;
+        const turnAbort = new AbortController();
+        session.turnAbortController = turnAbort;
         if (session.silenceTimer) {
             clearTimeout(session.silenceTimer);
             session.silenceTimer = null;
@@ -440,7 +451,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         session.bargeHits = 0;
         const rawIn = (0, phone_audio_1.asNodeBuffer)(Buffer.concat(session.rawChunks));
         session.rawChunks = [];
-        const aborted = () => session.closed || session.flushGen !== myGen || session.cancelPlay;
+        const aborted = () => session.closed ||
+            session.flushGen !== myGen ||
+            session.cancelPlay ||
+            turnAbort.signal.aborted;
         try {
             const minLength = session.encoding === 'audio/x-l16'
                 ? session.sampleRate * 2 * 0.45
@@ -668,7 +682,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                                 streamedAnyAudio = true;
                                 if (!ttsFirstPlayAudioSentMs)
                                     ttsFirstPlayAudioSentMs = Date.now() - llmStartTime;
-                                await this.sendPlayAudio(ws, session, audioBuffer);
+                                await this.sendPlayAudio(ws, session, audioBuffer, myGen);
                                 if (!aborted()) {
                                     actuallySentSentences.push(validatedSentence);
                                     this.logger.log(`[MCube] 🔊 Actually Spoken: "${validatedSentence}"`);
@@ -707,7 +721,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 this.logger.log(`[MCube] 📝 Transcript Parity: rawLlm="${rawLlmText}" | validated="${validatedText}" | queued="${actuallyQueuedText}" | sent="${actuallySentText}" | final="${finalTranscriptText}"`);
                 const llmTotalMs = Date.now() - llmStartTime;
                 const turnTotalMs = Date.now() - turnStartTime;
-                this.logger.log(`[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first_token=${llmFirstTokenMs ? `${llmFirstTokenMs}ms` : 'NOT_MEASURED'}, LLM_first_sentence=${llmFirstSentenceMs ? `${llmFirstSentenceMs}ms` : 'NOT_MEASURED'}, TTS_req_start=${ttsRequestStartMs != null ? `${ttsRequestStartMs}ms` : 'NOT_MEASURED'}, TTS_first_byte=${ttsFirstByteMs != null ? `${ttsFirstByteMs}ms` : 'NOT_MEASURED'}, TTS_first_audio=${ttsFirstAudioMs != null ? `${ttsFirstAudioMs}ms` : 'NOT_MEASURED'}, TTS_first_playAudio=${ttsFirstPlayAudioSentMs != null ? `${ttsFirstPlayAudioSentMs}ms` : 'NOT_MEASURED'}, LLM_total=${llmTotalMs}ms, Turn_total=${turnTotalMs}ms`);
+                latency_tracker_1.globalLatencyTracker.recordTurn({
+                    sttMs: sttDurationMs,
+                    llmFirstTokenMs,
+                    llmFirstSentenceMs,
+                    ttsFirstByteMs,
+                    turnTotalMs,
+                });
+                const pStats = latency_tracker_1.globalLatencyTracker.getPercentiles();
+                this.logger.log(`[MCube] ⚡ Latency Metrics: STT=${sttDurationMs}ms, LLM_first_sentence=${llmFirstSentenceMs ? `${llmFirstSentenceMs}ms` : 'NOT_MEASURED'}, TTS_first_byte=${ttsFirstByteMs != null ? `${ttsFirstByteMs}ms` : 'NOT_MEASURED'}, Turn_total=${turnTotalMs}ms | Rolling (N=${pStats.count}): p50=${pStats.turnTotal.p50}ms, p95=${pStats.turnTotal.p95}ms, p99=${pStats.turnTotal.p99}ms`);
                 if (result?.languageDetected) {
                     languageDetected = result.languageDetected;
                 }
@@ -787,7 +809,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 const cleanReply = (0, phone_audio_1.truncateForPhone)(replyText, 300);
                 const audioBuffer = await this.synthesizeForSession(cleanReply, session, settings);
                 if (audioBuffer && !aborted() && ws.readyState === ws.OPEN) {
-                    await this.sendPlayAudio(ws, session, audioBuffer);
+                    await this.sendPlayAudio(ws, session, audioBuffer, myGen);
                 }
             }
         }
@@ -795,15 +817,19 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             this.logger.error(`[MCube] Turn failed: ${err instanceof Error ? err.message : err}`);
         }
         finally {
+            if (session.turnAbortController === turnAbort) {
+                session.turnAbortController = null;
+            }
             session.busy = false;
         }
     }
     async synthesizeForSession(text, session, settings) {
         const lang = settings?.language || session.settings?.language || 'en-IN';
+        const spokenText = (0, phone_audio_1.normalizeTextForSpeech)(text, lang);
         try {
             if (session.encoding === 'audio/x-l16') {
                 const tts = await this.voice.textToSpeech({
-                    text,
+                    text: spokenText,
                     speaker: settings?.agentVoice || 'rachel',
                     language: lang,
                     outputFormat: 'pcm_16000',
@@ -817,7 +843,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             else {
                 try {
                     const tts = await this.voice.textToSpeech({
-                        text,
+                        text: spokenText,
                         speaker: settings?.agentVoice || 'rachel',
                         language: lang,
                         outputFormat: 'ulaw_8000',
@@ -830,7 +856,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 }
                 catch {
                     const tts = await this.voice.textToSpeech({
-                        text,
+                        text: spokenText,
                         speaker: settings?.agentVoice || 'rachel',
                         language: lang,
                         outputFormat: 'pcm_16000',
@@ -849,13 +875,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             return null;
         }
     }
-    async sendPlayAudio(ws, session, audioBuffer) {
-        if (ws.readyState !== ws.OPEN || !session.streamId || session.closed || session.cancelPlay)
+    async sendPlayAudio(ws, session, audioBuffer, expectedGen) {
+        if (ws.readyState !== ws.OPEN ||
+            !session.streamId ||
+            session.closed ||
+            session.cancelPlay ||
+            (expectedGen !== undefined && expectedGen !== session.flushGen)) {
             return;
+        }
         const segmentName = `seg_${(0, crypto_1.randomUUID)().slice(0, 8)}`;
         session.pendingSegments.add(segmentName);
         session.agentPlaying = true;
-        session.cancelPlay = false;
         const playMsg = {
             event: 'playAudio',
             media: {
@@ -877,11 +907,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     sendClearAudio(ws, streamId) {
         if (ws.readyState !== ws.OPEN || !streamId)
             return;
-        const msg = {
-            event: 'clearAudio',
-            streamId,
-        };
-        ws.send(JSON.stringify(msg));
+        try {
+            ws.send(JSON.stringify({ event: 'clearAudio', streamId }));
+            ws.send(JSON.stringify({ event: 'clear', streamId }));
+        }
+        catch (err) {
+            this.logger.warn(`[MCube] sendClearAudio error: ${err}`);
+        }
     }
     sendTransfer(ws, streamId, transferTo, showOriginalCallerId = true) {
         if (ws.readyState !== ws.OPEN || !streamId)

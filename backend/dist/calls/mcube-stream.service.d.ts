@@ -61,6 +61,7 @@ type McubeSession = {
     voiceThreshold: number;
     bargeThreshold: number;
     filterState: AudioFilterState;
+    turnAbortController?: AbortController | null;
 };
 export declare class McubeStreamService {
     private config;
@@ -78,7 +79,7 @@ export declare class McubeStreamService {
     attachClient(ws: WebSocket, callIdHint?: string, queryParams?: Record<string, string>): void;
     private flushTurn;
     private synthesizeForSession;
-    sendPlayAudio(ws: WebSocket, session: McubeSession, audioBuffer: Buffer): Promise<void>;
+    sendPlayAudio(ws: WebSocket, session: McubeSession, audioBuffer: Buffer, expectedGen?: number): Promise<void>;
     sendClearAudio(ws: WebSocket, streamId: string): void;
     sendTransfer(ws: WebSocket, streamId: string, transferTo: string, showOriginalCallerId?: boolean): void;
     sendTerminate(ws: WebSocket, streamId: string): void;

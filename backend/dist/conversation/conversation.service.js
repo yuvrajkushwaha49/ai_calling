@@ -38,7 +38,25 @@ function pullSpokenSentences(buffer, options) {
     let match;
     let lastCut = 0;
     while ((match = endRe.exec(text)) != null) {
-        const end = match.index + match[0].length;
+        const punct = match[0];
+        const idx = match.index;
+        if (punct.includes('.')) {
+            const prevChar = idx > 0 ? text[idx - 1] : '';
+            const nextChar = idx + punct.length < text.length ? text[idx + punct.length] : '';
+            if (/\d/.test(prevChar) && /\d/.test(nextChar)) {
+                continue;
+            }
+            const beforeText = text.slice(Math.max(0, idx - 10), idx);
+            if (/\b(?:sq|ft|no|dr|mr|mrs|prof|approx|bsp|vs|etc)$/i.test(beforeText)) {
+                if (/sq$/i.test(beforeText) || !/[\s\n]/.test(nextChar)) {
+                    continue;
+                }
+            }
+            if (!options?.force && nextChar && !/[\s\n]/.test(nextChar)) {
+                continue;
+            }
+        }
+        const end = idx + match[0].length;
         const chunk = text.slice(lastCut, end).trim();
         if (chunk.length >= Math.min(6, minChars)) {
             sentences.push(chunk);
@@ -47,12 +65,12 @@ function pullSpokenSentences(buffer, options) {
     }
     rest = text.slice(lastCut);
     if (!sentences.length && rest.length >= 24) {
-        const soft = rest.search(/[,，;:][\s]+/);
-        if (soft >= 12) {
-            const chunk = rest.slice(0, soft + 1).trim();
+        const commaMatch = /(?<!\d)[,，;:](?!\d)[\s]+/.exec(rest);
+        if (commaMatch && commaMatch.index >= 12) {
+            const chunk = rest.slice(0, commaMatch.index + 1).trim();
             if (chunk) {
                 sentences.push(chunk);
-                rest = rest.slice(soft + 1);
+                rest = rest.slice(commaMatch.index + commaMatch[0].length);
             }
         }
     }
@@ -597,8 +615,20 @@ If they have not named a project yet, ask ONE short question: which project / pr
             (options.lead.budget != null && Number(options.lead.budget) > 0 ? Number(options.lead.budget) : 0) ||
             (0, call_scripts_1.parseBudgetToNumber)(known.budgetLabel || '') ||
             undefined;
+        const rejectedBuilders = options.memory?.customer?.rejectedBuilders || [];
+        const rejectedProjects = options.memory?.customer?.rejectedProjects || [];
+        const preferredBuilders = options.memory?.customer?.preferredBuilders || [];
+        const preferredProjects = options.memory?.customer?.preferredProjects || [];
+        const propertyTypePref = options.memory?.customer?.propertyType || null;
         const projectsOverview = options.isInbound
-            ? await this.getProjectsOverview(customerBudgetRupees)
+            ? await this.getProjectsOverview({
+                customerBudgetRupees,
+                rejectedBuilders,
+                rejectedProjects,
+                preferredBuilders,
+                preferredProjects,
+                propertyType: propertyTypePref || null,
+            })
             : '';
         const isHinglish = String(replyLang) === 'hinglish' ||
             (!replyLang.startsWith('hi') &&
@@ -648,15 +678,13 @@ RULES (HUMAN HELPLINE ADVISOR):
    - NEVER convert an information request into an unsolicited site-visit pitch!
    - Answer directly, mention missing details honestly, and only ask ONE relevant follow-up question if needed.
 3) EXPLAIN PROJECTS & PRODUCT LIST WHEN ASKED:
-   - If caller asks "kitne products hain, list batao" or asks what projects are available:
-     * List verified residential projects with name and location:
-       1. Saya Pre-Launch (Raj Nagar Extension) from ₹69 Lakh
-       2. Palace Heights (Sector 1, Greater Noida West) from ₹60.9 Lakh
-       3. NCR Monarch (Sector 1, Greater Noida West) from ₹64 Lakh
-       4. Stretch options: Future Estate (₹86.32 Lakh) & VVIP Pre-Launch (₹90.625 Lakh)
-     * NEVER mix commercial projects (Saya Piazza / South X) into residential recommendations.
-     * Do NOT repeat any project the customer has already rejected.
-     * Ask which location (Noida Extension ya Raj Nagar Extension) they want to explore.
+   - If caller asks "kitne products hain, list batao", "sab projects batao", or "jo bhi projects hain, sabki details batao":
+     * Present all eligible projects dynamically from AVAILABLE PROJECTS & INVENTORY below (matching in-budget first, stretch-budget with disclosure).
+     * DO NOT arbitrarily limit recommendations to three projects. Include Future Estate, VVIP projects, Palace Heights, NCR Monarch, and all eligible inventory.
+     * NEVER recommend any project from REJECTED BUILDERS or REJECTED PROJECTS!
+     * Clearly state the actual developer alongside each project name (e.g. "Future Estate by Future World", "Palace Heights by Rudra Buildwell").
+     * NEVER mix commercial projects into residential recommendations unless customer explicitly asks for commercial.
+     * Ask which project or location they want to explore.
 4) PROGRESSIVELY COLLECT DETAILS (HUMAN CONVERSATION - 1 DETAIL PER TURN):
    - A real property advisor answers with warmth, then politely asks ONE missing detail to guide them:
      * If caller's name is unknown (${!realCustomerName ? 'Name not known yet' : 'Name is ALREADY KNOWN (' + realCustomerName + ') - NEVER ASK NAME'}): ${isHinglish ? '"Vaise main aapka shubh naam jaan sakti hoon?"' : isEnglish ? '"May I know your name, please?"' : '"वैसे मैं आपका शुभ नाम जान सकती हूँ?"'}
@@ -842,12 +870,11 @@ ${projectsOverview}
 
 CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
 - PRIORITY 1 (DIRECT ANSWER MUST TAKE PRIORITY OVER SALES CONVERSION): Always answer the customer's direct question first!
-  * PRODUCT & PROJECT LIST: If caller asks for product list or projects ("kitne products hain", "list batao", "options batao"):
-    - Clearly list the verified residential options with locations:
-      1) Saya Pre-Launch (Raj Nagar Extension) from ₹69 Lakh
-      2) Palace Heights (Sector 1, Greater Noida West) from ₹60.9 Lakh
-      3) NCR Monarch (Sector 1, Greater Noida West) from ₹64 Lakh
-      4) Stretch options: Future Estate (₹86.32 Lakh) & VVIP Pre-Launch (₹90.625 Lakh)
+  * PRODUCT & PROJECT LIST: If caller asks for product list or projects ("kitne products hain", "list batao", "options batao", "sab projects batao", "jo bhi projects hain"):
+    - Present all eligible projects dynamically from AVAILABLE PROJECTS & INVENTORY below (categorized by in-budget first, stretch-budget with disclosure).
+    - DO NOT arbitrarily limit recommendations to three projects. Include Future Estate, VVIP projects, Palace Heights, NCR Monarch, and all eligible inventory.
+    - NEVER recommend any project from REJECTED BUILDERS or REJECTED PROJECTS!
+    - Mention the developer alongside each project (e.g. "Palace Heights by Rudra", "Future Estate by Future World").
     - NEVER mix commercial properties (Saya Piazza / South X) into residential listings!
     - Do NOT claim every project suits their budget. Do NOT re-pitch an explicitly rejected project.
     - Ask which project or location they want to explore.
@@ -1123,7 +1150,46 @@ ${learned ? learned : ''}`;
             return [];
         }
     }
-    async getProjectsOverview(customerBudgetRupees) {
+    async getProjectsOverview(budgetOrOptions) {
+        const options = typeof budgetOrOptions === 'number'
+            ? { customerBudgetRupees: budgetOrOptions }
+            : budgetOrOptions || {};
+        const customerBudgetRupees = options.customerBudgetRupees;
+        const rejectedBuildersNorm = (options.rejectedBuilders || []).map((b) => b.trim().toLowerCase());
+        const rejectedProjectsNorm = (options.rejectedProjects || []).map((p) => p.trim().toLowerCase());
+        const isRejected = (p) => {
+            const bNorm = (p.builder || '').toLowerCase();
+            const pNorm = (p.name || '').toLowerCase();
+            for (const rejB of rejectedBuildersNorm) {
+                if (!rejB)
+                    continue;
+                if (bNorm.includes(rejB) || rejB.includes(bNorm))
+                    return true;
+                if (/saya/i.test(rejB) && /saya/i.test(bNorm))
+                    return true;
+                if (/vvip/i.test(rejB) && /vvip/i.test(bNorm))
+                    return true;
+                if (/rudra/i.test(rejB) && /rudra/i.test(bNorm))
+                    return true;
+                if (/future/i.test(rejB) && /future/i.test(bNorm))
+                    return true;
+                if (/godrej/i.test(rejB) && /godrej/i.test(bNorm))
+                    return true;
+            }
+            for (const rejP of rejectedProjectsNorm) {
+                if (!rejP)
+                    continue;
+                if (pNorm.includes(rejP) || rejP.includes(pNorm))
+                    return true;
+                if (/saya\s*pre/i.test(rejP) && /saya\s*pre/i.test(pNorm))
+                    return true;
+                if (/future\s*estate/i.test(rejP) && /future\s*estate/i.test(pNorm))
+                    return true;
+                if (/vvip/i.test(rejP) && /vvip/i.test(pNorm))
+                    return true;
+            }
+            return false;
+        };
         const projects = await this.getCachedProjects();
         const verifiedDetails = {
             'palace heights': {
@@ -1237,6 +1303,14 @@ ${learned ? learned : ''}`;
                     description: 'Commercial Retail Shops, Dining & Entertainment',
                 },
             ];
+        }
+        residentialList = residentialList.filter((p) => !isRejected(p));
+        commercialList = commercialList.filter((p) => !isRejected(p));
+        if (options.propertyType === 'RESIDENTIAL') {
+            commercialList = [];
+        }
+        else if (options.propertyType === 'COMMERCIAL') {
+            residentialList = [];
         }
         const formatProjectEntry = (p, budget) => {
             const meta = getVerifiedMeta(p.name);

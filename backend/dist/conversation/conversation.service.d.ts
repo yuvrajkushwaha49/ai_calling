@@ -168,7 +168,15 @@ export declare class ConversationService {
     private consumeLlmStream;
     private cachedProjects;
     getCachedProjects(): Promise<any[]>;
-    getProjectsOverview(customerBudgetRupees?: number): Promise<string>;
+    getProjectsOverview(budgetOrOptions?: number | {
+        customerBudgetRupees?: number;
+        rejectedBuilders?: string[];
+        rejectedProjects?: string[];
+        preferredBuilders?: string[];
+        preferredProjects?: string[];
+        preferredLocations?: string[];
+        propertyType?: 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null;
+    }): Promise<string>;
     matchProjectFromSpeech(text: string): Promise<{
         id: string;
         name: string;

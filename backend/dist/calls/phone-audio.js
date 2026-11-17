@@ -12,6 +12,8 @@ exports.pcm16ToMulaw = pcm16ToMulaw;
 exports.mulawToLinear = mulawToLinear;
 exports.mulawToPcm16 = mulawToPcm16;
 exports.downsamplePcm16 = downsamplePcm16;
+exports.numberToHindiWords = numberToHindiWords;
+exports.normalizeTextForSpeech = normalizeTextForSpeech;
 function asNodeBuffer(data) {
     if (Buffer.isBuffer(data))
         return data;
@@ -150,5 +152,91 @@ function linearToMulaw(sample) {
     }
     const mantissa = (sample >> (exponent + 3)) & 0x0f;
     return ~(sign | (exponent << 4) | mantissa) & 0xff;
+}
+const HINDI_ONES = {
+    1: 'ek', 2: 'do', 3: 'teen', 4: 'chaar', 5: 'paanch', 6: 'chhah', 7: 'saat', 8: 'aath', 9: 'nau', 10: 'das',
+    11: 'gyaarah', 12: 'baarah', 13: 'terah', 14: 'chaudah', 15: 'pandrah', 16: 'solah', 17: 'satrah', 18: 'athaarah', 19: 'unnis', 20: 'bees',
+    21: 'ikkis', 22: 'baais', 23: 'teis', 24: 'chaubis', 25: 'pachchis', 26: 'chabbis', 27: 'sattais', 28: 'atthaais', 29: 'unattis', 30: 'tees',
+    31: 'ikattis', 32: 'battis', 33: 'tentis', 34: 'chauntis', 35: 'paintis', 36: 'chhattis', 37: 'saintis', 38: 'adhtis', 39: 'untaalis', 40: 'chaalis',
+    41: 'iktaalis', 42: 'bayaalis', 43: 'tentaalis', 44: 'chauvaalis', 45: 'paintalis', 46: 'chhiyaalis', 47: 'saintaalis', 48: 'adhtaalis', 49: 'unachaas', 50: 'pachaas',
+    51: 'ikyaavan', 52: 'baavan', 53: 'tirpan', 54: 'chauvan', 55: 'pachpan', 56: 'chhappan', 57: 'sattaavan', 58: 'atthaavan', 59: 'unsath', 60: 'saath',
+    61: 'iksath', 62: 'baasath', 63: 'tirasath', 64: 'chaunsath', 65: 'painsath', 66: 'chhiyaasath', 67: 'sadsath', 68: 'adhsath', 69: 'unhattar', 70: 'sattar',
+    71: 'ikhattar', 72: 'bahattar', 73: 'tihattar', 74: 'chauhattar', 75: 'pachhattar', 76: 'chhihattar', 77: 'satattar', 78: 'athahattar', 79: 'uniyasi', 80: 'assi',
+    81: 'ikyaasi', 82: 'bayaasi', 83: 'tiraasi', 84: 'chauraasi', 85: 'pachaasi', 86: 'chhiyaasi', 87: 'sattaasi', 88: 'athasi', 89: 'navaasi', 90: 'nabbe',
+    91: 'ikyaanve', 92: 'baanve', 93: 'tiraanve', 94: 'chauraanve', 95: 'pachaanve', 96: 'chhiyaanve', 97: 'sattaanve', 98: 'athaanve', 99: 'ninyanve',
+};
+function numberToHindiWords(num) {
+    if (num <= 0)
+        return 'shunya';
+    if (num < 100)
+        return HINDI_ONES[num] || String(num);
+    const parts = [];
+    if (num >= 10000000) {
+        const cr = Math.floor(num / 10000000);
+        parts.push(`${numberToHindiWords(cr)} crore`);
+        num %= 10000000;
+    }
+    if (num >= 100000) {
+        const lk = Math.floor(num / 100000);
+        parts.push(`${numberToHindiWords(lk)} lakh`);
+        num %= 100000;
+    }
+    if (num >= 1000) {
+        const th = Math.floor(num / 1000);
+        parts.push(`${numberToHindiWords(th)} hazaar`);
+        num %= 1000;
+    }
+    if (num >= 100) {
+        const hu = Math.floor(num / 100);
+        parts.push(`${numberToHindiWords(hu)} sau`);
+        num %= 100;
+    }
+    if (num > 0) {
+        parts.push(HINDI_ONES[num] || String(num));
+    }
+    return parts.join(' ');
+}
+function normalizeTextForSpeech(text, lang = 'hinglish') {
+    if (!text)
+        return '';
+    let s = text;
+    s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2}),([0-9]{3})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, th, rest) => {
+        const val = parseInt(th, 10) * 1000 + parseInt(rest, 10);
+        return `${numberToHindiWords(val)} rupaye per square foot`;
+    });
+    s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{4,5})\s*(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/gi, (_, raw) => {
+        const val = parseInt(raw, 10);
+        return `${numberToHindiWords(val)} rupaye per square foot`;
+    });
+    s = s.replace(/(?:₹|rs\.?|inr)?\s*([0-9]{1,3})\.([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr, decStr) => {
+        const lk = parseInt(lkStr, 10);
+        const decNorm = decStr.length === 1 ? `${decStr}0` : decStr.slice(0, 2);
+        const th = parseInt(decNorm, 10);
+        const lkWords = HINDI_ONES[lk] || String(lk);
+        const thWords = HINDI_ONES[th] || String(th);
+        return th > 0
+            ? `${lkWords} lakh ${thWords} hazaar rupaye`
+            : `${lkWords} lakh rupaye`;
+    });
+    s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,3})\s*(?:lakhs?|lakh|लाख|l)\b/gi, (_, lkStr) => {
+        const lk = parseInt(lkStr, 10);
+        const lkWords = HINDI_ONES[lk] || String(lk);
+        return `${lkWords} lakh rupaye`;
+    });
+    s = s.replace(/(?:₹|rs\.?|inr)?\s*([0-9]{1,2})\.([0-9]{1,2})\s*(?:cr|crore|करोड़)\b/gi, (_, crStr, decStr) => {
+        const cr = parseInt(crStr, 10);
+        const crWords = HINDI_ONES[cr] || String(cr);
+        const decVal = parseInt(decStr.length === 1 ? `${decStr}0` : decStr, 10);
+        const lkWords = HINDI_ONES[decVal] || String(decVal);
+        return `${crWords} crore ${lkWords} lakh rupaye`;
+    });
+    s = s.replace(/(?:₹|rs\.?|inr)\s*([0-9]{1,2})\s*(?:cr|crore|करोड़)\b/gi, (_, crStr) => {
+        const cr = parseInt(crStr, 10);
+        return `${HINDI_ONES[cr] || String(cr)} crore rupaye`;
+    });
+    s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot');
+    s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, 'square feet');
+    s = s.replace(/[₹]/g, 'rupaye ');
+    return s.replace(/\s+/g, ' ').trim();
 }
 //# sourceMappingURL=phone-audio.js.map

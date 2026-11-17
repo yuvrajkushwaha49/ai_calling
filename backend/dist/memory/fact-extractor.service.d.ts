@@ -5,6 +5,10 @@ export interface ExtractedTurnFacts {
     isCorrection: boolean;
     correctionField?: string;
     rawSnippets: Record<string, string>;
+    preferredProjects?: string[];
+    rejectedProjects?: string[];
+    preferredBuilders?: string[];
+    rejectedBuilders?: string[];
 }
 export declare class FactExtractorService {
     private readonly logger;

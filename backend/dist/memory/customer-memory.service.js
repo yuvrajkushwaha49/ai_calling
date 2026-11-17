@@ -73,6 +73,28 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             if (customerProfile) {
                 this.logger.log(`[Memory] Cache HIT for customer ${maskedPhone}. Previous calls: ${customerProfile.previousCallCount}`);
                 previousSummary = await this.getCustomerSummaryFromRedis(normalizedPhone);
+                const dbProfile = await this.fetchCustomerProfileFromDb(normalizedPhone, leadIdHint);
+                if (dbProfile) {
+                    const mergedRej = new Set([...(customerProfile.rejectedBuilders || []), ...(dbProfile.rejectedBuilders || [])]);
+                    customerProfile.rejectedBuilders = Array.from(mergedRej);
+                    const mergedRejP = new Set([...(customerProfile.rejectedProjects || []), ...(dbProfile.rejectedProjects || [])]);
+                    customerProfile.rejectedProjects = Array.from(mergedRejP);
+                    if (dbProfile.preferredBuilders?.length) {
+                        const mergedPref = new Set([...(customerProfile.preferredBuilders || []), ...dbProfile.preferredBuilders]);
+                        customerProfile.preferredBuilders = Array.from(mergedPref);
+                    }
+                    if (dbProfile.preferredProjects?.length) {
+                        const mergedPrefP = new Set([...(customerProfile.preferredProjects || []), ...dbProfile.preferredProjects]);
+                        customerProfile.preferredProjects = Array.from(mergedPrefP);
+                    }
+                    if (!customerProfile.bhk && dbProfile.bhk)
+                        customerProfile.bhk = dbProfile.bhk;
+                    if (!customerProfile.budget && dbProfile.budget) {
+                        customerProfile.budget = dbProfile.budget;
+                        customerProfile.budgetLabel = dbProfile.budgetLabel;
+                    }
+                    void this.saveCustomerProfileToRedis(customerProfile);
+                }
             }
         }
         if (!customerProfile) {
@@ -338,7 +360,7 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
     async applyExtractedFacts(callId, extracted) {
         return this.updateCallMemory(callId, (state) => {
             const now = Date.now();
-            for (const [key, value] of Object.entries(extracted.facts)) {
+            for (const [key, value] of Object.entries(extracted.facts || {})) {
                 if (value === undefined || value === null)
                     continue;
                 const confidence = extracted.confidenceMap[key] || 'confirmed';
@@ -404,6 +426,12 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                 else if (key === 'preferredBuilders' && Array.isArray(value)) {
                     const merged = new Set([...(state.customer.preferredBuilders || []), ...value]);
                     state.customer.preferredBuilders = Array.from(merged);
+                    state.customer.rejectedBuilders = (state.customer.rejectedBuilders || []).filter((b) => !value.includes(b));
+                }
+                else if (key === 'preferredProjects' && Array.isArray(value)) {
+                    const merged = new Set([...(state.customer.preferredProjects || []), ...value]);
+                    state.customer.preferredProjects = Array.from(merged);
+                    state.customer.rejectedProjects = (state.customer.rejectedProjects || []).filter((p) => !value.includes(p));
                 }
                 else if (key === 'rejectedBuilders' && Array.isArray(value)) {
                     const rejected = new Set([...(state.customer.rejectedBuilders || []), ...value]);
@@ -608,19 +636,90 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
             const calls = lead.calls || [];
             const lastCall = calls[0];
             const previousSummary = lead.aiSummary || lastCall?.summary || null;
+            const callIds = calls.map((c) => c.id).filter(Boolean);
+            let pastMemories = [];
+            if (typeof this.prisma?.conversationMemory?.findMany === 'function') {
+                try {
+                    pastMemories = await this.prisma.conversationMemory.findMany({
+                        where: {
+                            OR: [
+                                { leadId: lead.id },
+                                ...(callIds.length > 0 ? [{ callId: { in: callIds } }] : []),
+                            ],
+                        },
+                        orderBy: { createdAt: 'desc' },
+                        take: 10,
+                    });
+                }
+                catch (err) {
+                    this.logger.warn(`[Memory] Past memories lookup failed: ${err}`);
+                    pastMemories = [];
+                }
+            }
+            const mergedRejectedBuilders = new Set();
+            const mergedPreferredBuilders = new Set();
+            const mergedRejectedProjects = new Set();
+            const mergedPreferredProjects = new Set();
+            const mergedPreferredLocations = new Set();
+            let rememberedPurpose = null;
+            let rememberedPropertyType = null;
+            let rememberedSizePref = null;
+            let rememberedPossessionPref = null;
+            for (const mem of pastMemories) {
+                const facts = (mem.customerFacts || {});
+                if (Array.isArray(facts.rejectedBuilders)) {
+                    facts.rejectedBuilders.forEach((b) => mergedRejectedBuilders.add(b));
+                }
+                if (Array.isArray(facts.preferredBuilders)) {
+                    facts.preferredBuilders.forEach((b) => mergedPreferredBuilders.add(b));
+                }
+                if (Array.isArray(facts.rejectedProjects)) {
+                    facts.rejectedProjects.forEach((p) => mergedRejectedProjects.add(p));
+                }
+                if (Array.isArray(facts.preferredProjects)) {
+                    facts.preferredProjects.forEach((p) => mergedPreferredProjects.add(p));
+                }
+                if (Array.isArray(facts.preferredLocations)) {
+                    facts.preferredLocations.forEach((l) => mergedPreferredLocations.add(l));
+                }
+                if (!rememberedPurpose && facts.purpose)
+                    rememberedPurpose = facts.purpose;
+                if (!rememberedPropertyType && facts.propertyType)
+                    rememberedPropertyType = facts.propertyType;
+                if (!rememberedSizePref && facts.sizePreference)
+                    rememberedSizePref = facts.sizePreference;
+                if (!rememberedPossessionPref && facts.possessionPreference)
+                    rememberedPossessionPref = facts.possessionPreference;
+            }
+            if (lead.objections) {
+                if (/saya/i.test(lead.objections))
+                    mergedRejectedBuilders.add('Saya Group');
+                if (/vvip/i.test(lead.objections) && /nahi|reject/i.test(lead.objections))
+                    mergedRejectedBuilders.add('VVIP Group');
+            }
             return {
                 leadId: lead.id,
                 name: lead.name && !(0, call_scripts_1.isPlaceholderLeadName)(lead.name)
                     ? lead.name
                     : null,
                 phone: normalizedPhone || lead.phone,
-                purpose: null,
+                purpose: rememberedPurpose,
                 bhk: lead.bhkPreference || null,
                 budget: lead.budget || null,
                 budgetLabel: lead.budget ? (lead.budget >= 10000000 ? `${(lead.budget / 10000000).toFixed(1)} Cr` : `${Math.round(lead.budget / 100000)} Lakh`) : null,
                 preferredLocation: lead.preferredLocation || lead.project?.location || null,
+                preferredLocations: mergedPreferredLocations.size > 0
+                    ? Array.from(mergedPreferredLocations)
+                    : lead.preferredLocation ? [lead.preferredLocation] : [],
                 purchaseTimeline: lead.purchaseTimeline || null,
                 interestedProjects: lead.project?.name ? [lead.project.name] : [],
+                preferredProjects: Array.from(mergedPreferredProjects),
+                rejectedProjects: Array.from(mergedRejectedProjects),
+                preferredBuilders: Array.from(mergedPreferredBuilders),
+                rejectedBuilders: Array.from(mergedRejectedBuilders),
+                propertyType: rememberedPropertyType || (lead.propertyType ? String(lead.propertyType) : null),
+                sizePreference: rememberedSizePref,
+                possessionPreference: rememberedPossessionPref,
                 leadStatus: String(lead.status),
                 lastCallOutcome: lastCall?.outcome ? String(lastCall.outcome) : null,
                 previousCallCount: calls.length,

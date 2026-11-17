@@ -71,3 +71,4 @@ If any network or provider outage occurs on the LLM:
 1. `ConversationService` falls back to `call-scripts.ts` (`buildFollowUpReply`).
 2. When the caller asks about properties or projects, the fast script answers directly or acknowledges and continues the dialogue.
 3. The AI **NEVER** issues an unsolicited goodbye, premature appointment, or hangs up on the caller.
+

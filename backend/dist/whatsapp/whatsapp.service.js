@@ -80,7 +80,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                     success: false,
                     status: 'FAILED',
                     reason: `api_error_${response.status}`,
-                    disclaimer: 'Main team ko note karwa deti hoon, wo verified layout aapke WhatsApp par share kar denge.',
+                    disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
                 };
             }
             const data = (await response.json());
@@ -90,7 +90,9 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 success: true,
                 status: 'SENT',
                 messageId,
-                disclaimer: 'Maine aapke WhatsApp number par details share kar di hain, aap ek baar check kar sakte hain.',
+                disclaimer: options.documentType === 'floor_plan'
+                    ? 'Main aapko WhatsApp par floor plan bhej rahi hoon.'
+                    : 'Main aapko WhatsApp par document bhej rahi hoon.',
             };
         }
         catch (err) {
@@ -99,7 +101,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 success: false,
                 status: 'FAILED',
                 reason: err instanceof Error ? err.message : String(err),
-                disclaimer: 'Main team ko note karwa deti hoon, wo details verify karke aapke WhatsApp number par bhej denge.',
+                disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
             };
         }
     }

@@ -18,7 +18,7 @@ export declare function getThinkingFiller(options: {
     userMessage?: string;
     usedFillers?: string[];
 }): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'generic_ack' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'clarify_missing_feature' | 'clarify_ncr' | 'generic_ack' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;

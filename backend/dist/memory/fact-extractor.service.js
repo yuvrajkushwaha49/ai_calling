@@ -117,22 +117,26 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         if (interested.length > 0) {
             result.facts.interestedProjects = interested;
             result.facts.preferredProjects = interested;
+            result.preferredProjects = interested;
             result.confidenceMap.interestedProjects = 'confirmed';
             result.rawSnippets.interestedProjects = interested.join(', ');
         }
         if (rejected.length > 0) {
             result.facts.rejectedProjects = rejected;
+            result.rejectedProjects = rejected;
             result.confidenceMap.rejectedProjects = 'confirmed';
             result.rawSnippets.rejectedProjects = rejected.join(', ');
         }
         const { preferred: prefBuilders, rejected: rejBuilders } = this.extractBuilders(raw);
         if (prefBuilders.length > 0) {
             result.facts.preferredBuilders = prefBuilders;
+            result.preferredBuilders = prefBuilders;
             result.confidenceMap.preferredBuilders = 'confirmed';
             result.rawSnippets.preferredBuilders = prefBuilders.join(', ');
         }
         if (rejBuilders.length > 0) {
             result.facts.rejectedBuilders = rejBuilders;
+            result.rejectedBuilders = rejBuilders;
             result.confidenceMap.rejectedBuilders = 'confirmed';
             result.rawSnippets.rejectedBuilders = rejBuilders.join(', ');
             if (rejBuilders.includes('Saya Group') && !result.facts.rejectedProjects?.includes('Saya South X / Piazza')) {
@@ -326,9 +330,11 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         for (const proj of this.projectPatterns) {
             const match = proj.pattern.exec(text);
             if (match) {
+                const before = text.slice(Math.max(0, match.index - 45), match.index);
                 const after = text.slice(match.index + match[0].length, match.index + match[0].length + 45);
-                const isNegativeImmediate = /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
-                if (isNegativeImmediate) {
+                const isNegativeBefore = /(?:don'?t\s+(?:show|recommend|suggest|give)|do\s+not\s+(?:show|recommend|suggest|give)|not\s+interested\s+in|avoid|mat\s+(?:dikhao|batao)|मत\s+(?:दिखाओ|बताओ))\s*$/i.test(before);
+                const isNegativeAfter = /^\s*(?:(?:ka|ke|ki|ko|se|wala|wale|wali|mujhe|hume|to|bhi|के|का|की|मुझे|तो|भी)\s+)*(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|pasand\s*nahi|nahi\s*pasand|pasand\s*nhi|nhi\s*pasand|nahi\s*chalega|nhi\s*chalega|alawa|ke\s*alawa|chhod\s*kar|chodkar|mat\s*dikhao|mat\s*batao|छोड़कर|अलावा|के\s*अलावा|पसंद\s*नहीं|नहीं\s*पसंद|नहीं\s*चाहिए|का\s*नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
+                if (isNegativeBefore || isNegativeAfter) {
                     rejected.push(proj.name);
                 }
                 else {
@@ -344,16 +350,17 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         for (const b of this.builderPatterns) {
             const match = b.pattern.exec(text);
             if (match) {
+                const before = text.slice(Math.max(0, match.index - 45), match.index);
                 const after = text.slice(match.index + match[0].length, match.index + match[0].length + 45);
-                const isNegativeImmediate = /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
-                if (isNegativeImmediate) {
+                const isNegativeBefore = /(?:don'?t\s+(?:show|recommend|suggest|give)|do\s+not\s+(?:show|recommend|suggest|give)|not\s+interested\s+in|avoid|mat\s+(?:dikhao|batao)|मत\s+(?:दिखाओ|बताओ))\s*$/i.test(before);
+                const isNegativeAfter = /^\s*(?:(?:ka|ke|ki|ko|se|wala|wale|wali|mujhe|hume|to|bhi|के|का|की|मुझे|तो|भी)\s+)*(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|pasand\s*nahi|nahi\s*pasand|pasand\s*nhi|nhi\s*pasand|nahi\s*chalega|nhi\s*chalega|alawa|ke\s*alawa|chhod\s*kar|chodkar|mat\s*dikhao|mat\s*batao|छोड़कर|अलावा|के\s*अलावा|पसंद\s*नहीं|नहीं\s*पसंद|नहीं\s*चाहिए|का\s*नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
+                const isExplicitAffirmative = /(?:chalega|bhi\s*chalega|dikha\s*do|bhi\s*dikha|ab\s*dekh|show\s+me|interested\s+in)/i.test(after) ||
+                    /(?:now\s+show|now\s+interested|i\s+changed\s+my\s+mind)/i.test(before);
+                if (isNegativeBefore || isNegativeAfter) {
                     rejected.push(b.name);
                 }
-                else {
-                    const isAffirmative = /^\s*(?:(?:ka|ke|ki|wala|wale|wali|के|का|की|वाला|वाले|वाली)\s+)?(?:(?:projects?|options?|flats?|properties|property|प्रोजेक्ट|ऑप्शन्स?|फ्लैट)\s+)?(?:chahiye|chaiye|dikhao|batao|lena\s*hai|dekhna\s*hai|का\s*चाहिए|चाहिए|दिखाओ|बताओ|का\s*है)/i.test(after);
-                    if (isAffirmative || /(?:builder|developer)/i.test(text)) {
-                        preferred.push(b.name);
-                    }
+                else if (isExplicitAffirmative || /(?:ka\s*chahiye|chahiye|dikhao|batao|lena\s*hai|dekhna\s*hai|का\s*चाहिए|चाहिए|दिखाओ|बताओ|का\s*है)/i.test(after) || /(?:builder|developer)/i.test(text)) {
+                    preferred.push(b.name);
                 }
             }
         }

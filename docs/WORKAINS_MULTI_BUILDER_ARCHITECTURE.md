@@ -107,3 +107,4 @@ Every project presented to the customer is accompanied by its authentic develope
 | Customer asks *"Tum kaun ho?"* | AI claims to be Saya employee. | **Declares Channel Partner status:** *"Ji namaste! Main Workains Reality real estate helpline se Aria baat kar rahi hoon. Hum multiple builders ke residential aur commercial projects provide karte hain."* |
 | Customer gives generic ack *"Theek hai"* | AI auto-books appointment on Saturday 11 AM. | **Never books on generic acks:** Requires explicit confirmation of date, time, and project. |
 | Customer asks for floor plan/layout | AI repeats site visit pitch. | **Answers sizes and confirms layout:** Offers configuration sizes and promises WhatsApp layout share through team. |
+
