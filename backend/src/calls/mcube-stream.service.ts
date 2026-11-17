@@ -15,7 +15,7 @@ import { ConversationState } from '../memory/memory.types';
 import { maskPhoneNumber } from '../memory/phone-utils';
 import { CallOutcome, CallStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
-import { buildFollowUpReply, isPlaceholderLeadName, FORBIDDEN_NAME_WORDS } from './call-scripts';
+import { buildFollowUpReply, isPlaceholderLeadName, FORBIDDEN_NAME_WORDS, getThinkingFiller, resolveSpeechGender } from './call-scripts';
 import {
   asNodeBuffer,
   boostPcm16,
@@ -73,6 +73,7 @@ type McubeSession = {
   pendingSegments: Set<string>;
   memory?: ConversationState;
   settings?: any;
+  usedFillers?: string[];
 };
 
 @Injectable()
@@ -568,6 +569,11 @@ export class McubeStreamService {
       const activeLang = settings?.language || call?.languageDetected || 'hinglish';
       const isHinglish = activeLang.toLowerCase().includes('hinglish');
 
+      const speechGender = resolveSpeechGender({
+        agentVoice: settings?.agentVoice || 'rachel',
+        agentName,
+      });
+
       const follow = buildFollowUpReply({
         transcript: userMessage,
         leadName: isPlaceholderLeadName(lead.name) ? 'जी' : lead.name,
@@ -577,6 +583,7 @@ export class McubeStreamService {
         agentVoice: settings?.agentVoice || 'rachel',
         agentName,
         companyName,
+        speechGender,
         isInbound: true,
       });
 
@@ -589,8 +596,15 @@ export class McubeStreamService {
       let fillerTimeout: ReturnType<typeof setTimeout> | null = setTimeout(async () => {
         if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN) return;
         try {
-          const filler = isHinglish ? 'Haan ji, main dekh rahi hoon...' : 'हाँ जी, मैं देख रही हूँ...';
-          this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
+          session.usedFillers = session.usedFillers || [];
+          const filler = getThinkingFiller({
+            language: activeLang,
+            speechGender,
+            userMessage,
+            usedFillers: session.usedFillers,
+          });
+          session.usedFillers.push(filler);
+          this.logger.log(`[MCube] ⏳ AI Filler (Turn #${session.turnCount + 1}): "${filler}"`);
           const audioBuffer = await this.synthesizeForSession(
             filler,
             session,

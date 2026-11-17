@@ -53,6 +53,7 @@ type McubeSession = {
     pendingSegments: Set<string>;
     memory?: ConversationState;
     settings?: any;
+    usedFillers?: string[];
 };
 export declare class McubeStreamService {
     private config;

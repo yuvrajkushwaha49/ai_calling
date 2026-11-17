@@ -6,6 +6,7 @@ exports.agentGenderFromVoice = agentGenderFromVoice;
 exports.resolveSpeechGender = resolveSpeechGender;
 exports.ag = ag;
 exports.isPlaceholderLeadName = isPlaceholderLeadName;
+exports.getThinkingFiller = getThinkingFiller;
 exports.normalizeLanguage = normalizeLanguage;
 exports.normalizeTone = normalizeTone;
 exports.phoneSpeechGuide = phoneSpeechGuide;
@@ -286,6 +287,96 @@ function isPlaceholderLeadName(name) {
     if (exports.FORBIDDEN_NAME_WORDS.has(lower))
         return true;
     return false;
+}
+function getThinkingFiller(options) {
+    const lang = (options.language || 'hinglish').toLowerCase();
+    const isEn = lang.startsWith('en');
+    const isMr = lang.includes('mr');
+    const isGu = lang.includes('gu');
+    const isDevanagari = lang.includes('hi') && !lang.includes('hinglish');
+    const gender = options.speechGender || 'female';
+    const isFemale = gender === 'female';
+    const msg = (options.userMessage || '').toLowerCase();
+    const used = options.usedFillers || [];
+    const asksPrice = /price|cost|budget|rate|lakh|cr|payment|kitna|प्राइस|रेट|बजट|कीमत|लाख|करोड़/.test(msg);
+    const asksInventory = /flat|bhk|apartment|villa|size|sqft|possession|floor|ready|फ्लैट|बीएचके|साइज|फ्लोर/.test(msg);
+    let pool = [];
+    if (isEn) {
+        if (asksPrice)
+            pool.push('Sure, let me check the pricing details for you...');
+        if (asksInventory)
+            pool.push('Right, let me check the available inventory for you...');
+        pool.push('Yes, let me check that for you...', 'Sure, just a second while I pull up the details...', 'Right, let me verify that for you...', "I'm checking that right now, one moment...", 'Sure, let me confirm the latest details...');
+    }
+    else if (isMr) {
+        pool.push('हो, मी डिटेल्स पाहतेय, एक सेकंद...', 'होय, मी लगेच चेक करते...', 'एकच मिनिट, मी माहिती काढते...', 'हो, मी सिस्टीममध्ये पाहतेय...');
+    }
+    else if (isGu) {
+        pool.push('હા, હું વિગતો જોઉં છું, એક સેકન્ડ...', 'ચોક્કસ, હું હમણાં જ ચેક કરી લઉં છું...', 'એક જ મિનિટ, હું જોઈને જણાવું છું...');
+    }
+    else if (isDevanagari) {
+        if (asksPrice) {
+            pool.push(isFemale
+                ? 'हाँ जी, मैं प्राइस डिटेल्स चेक कर लेती हूँ...'
+                : 'हाँ जी, मैं प्राइस डिटेल्स चेक कर लेता हूँ...', isFemale
+                ? 'जी बिल्कुल, मैं रेट्स और पेमेंट प्लान देख रही हूँ...'
+                : 'जी बिल्कुल, मैं रेट्स और पेमेंट प्लान देख रहा हूँ...');
+        }
+        if (asksInventory) {
+            pool.push(isFemale
+                ? 'जी बिल्कुल, मैं इन्वेंटरी डिटेल्स देख रही हूँ...'
+                : 'जी बिल्कुल, मैं इन्वेंटरी डिटेल्स देख रहा हूँ...', isFemale
+                ? 'हाँ जी, मैं उपलब्ध फ्लैट्स चेक कर लेती हूँ...'
+                : 'हाँ जी, मैं उपलब्ध फ्लैट्स चेक कर लेता हूँ...');
+        }
+        pool.push(isFemale
+            ? 'जी एक सेकंड दीजिए, मैं देख रही हूँ...'
+            : 'जी एक सेकंड दीजिए, मैं देख रहा हूँ...', 'जी बिल्कुल, बस एक सेकंड...', isFemale
+            ? 'ठीक है, मैं डिटेल्स देख लेती हूँ...'
+            : 'ठीक है, मैं डिटेल्स देख लेता हूँ...', isFemale
+            ? 'जी सुन रही हूँ, बस एक सेकंड...'
+            : 'जी सुन रहा हूँ, बस एक सेकंड...', isFemale
+            ? 'हाँ जी, मैं सिस्टम में चेक कर रही हूँ...'
+            : 'हाँ जी, मैं सिस्टम में चेक कर रहा हूँ...', isFemale
+            ? 'अच्छा जी, मैं अभी देख कर बताती हूँ...'
+            : 'अच्छा जी, मैं अभी देख कर बताता हूँ...', isFemale
+            ? 'हाँ जी, मैं कन्फर्म कर लेती हूँ...'
+            : 'हाँ जी, मैं कन्फर्म कर लेता हूँ...');
+    }
+    else {
+        if (asksPrice) {
+            pool.push(isFemale
+                ? 'Haan ji, main price details check kar leti hoon...'
+                : 'Haan ji, main price details check kar leta hoon...', isFemale
+                ? 'Ji bilkul, main rates aur payment plan dekh rahi hoon...'
+                : 'Ji bilkul, main rates aur payment plan dekh raha hoon...');
+        }
+        if (asksInventory) {
+            pool.push(isFemale
+                ? 'Ji bilkul, main inventory details open kar rahi hoon...'
+                : 'Ji bilkul, main inventory details open kar raha hoon...', isFemale
+                ? 'Haan ji, main available flats check kar leti hoon...'
+                : 'Haan ji, main available flats check kar leta hoon...');
+        }
+        pool.push(isFemale
+            ? 'Ji ek second dijiye, main dekh rahi hoon...'
+            : 'Ji ek second dijiye, main dekh raha hoon...', 'Ji bilkul, bas ek second...', isFemale
+            ? 'Theek hai, main details open kar leti hoon...'
+            : 'Theek hai, main details open kar leta hoon...', isFemale
+            ? 'Ji sun rahi hoon, bas ek second...'
+            : 'Ji sun raha hoon, bas ek second...', isFemale
+            ? 'Haan ji, main system me check kar rahi hoon...'
+            : 'Haan ji, main system me check kar raha hoon...', isFemale
+            ? 'Accha ji, main abhi verify kar leti hoon...'
+            : 'Accha ji, main abhi verify kar leta hoon...', isFemale
+            ? 'Haan ji, main dekh ke batati hoon...'
+            : 'Haan ji, main dekh ke batata hoon...', isFemale
+            ? 'Bilkul, main confirm kar leti hoon...'
+            : 'Bilkul, main confirm kar leta hoon...');
+    }
+    const fresh = pool.filter((p) => !used.includes(p));
+    const candidateList = fresh.length > 0 ? fresh : pool;
+    return candidateList[0] || pool[0];
 }
 function normalizeLanguage(language) {
     const allowed = [
@@ -1020,11 +1111,11 @@ function buildFollowUpReply(options) {
             'gu-IN': `હા, અવાજ આવે છે! હું સાંભળું છું, બોલો.`,
         },
         thinking_filler: {
-            'en-IN': `Ji main dekh rahi hoon, ek second...`,
-            'hi-IN': `जी मैं देख रही हूँ, एक सेकंड...`,
-            hinglish: `जी मैं देख रही हूँ, एक सेकंड...`,
-            'mr-IN': `हो, मी पाहतेय, एक सेकंद...`,
-            'gu-IN': `હા, હું જોઉં છું, એક સેકન્ડ...`,
+            'en-IN': getThinkingFiller({ language: 'en-IN', speechGender: gender, userMessage: current, usedFillers: [] }),
+            'hi-IN': getThinkingFiller({ language: 'hi-IN', speechGender: gender, userMessage: current, usedFillers: [] }),
+            hinglish: getThinkingFiller({ language: 'hinglish', speechGender: gender, userMessage: current, usedFillers: [] }),
+            'mr-IN': getThinkingFiller({ language: 'mr-IN', speechGender: gender, userMessage: current, usedFillers: [] }),
+            'gu-IN': getThinkingFiller({ language: 'gu-IN', speechGender: gender, userMessage: current, usedFillers: [] }),
         },
         ask_planning: {
             'en-IN': `${hasRealName ? `${leadName} जी, ` : ''}घर / flat देखना अभी चालू है क्या आपके side?`,

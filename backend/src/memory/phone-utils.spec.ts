@@ -4,7 +4,7 @@ import {
   isValidPhoneNumber,
   maskPhoneNumber,
 } from './phone-utils';
-import { isPlaceholderLeadName } from '../calls/call-scripts';
+import { isPlaceholderLeadName, getThinkingFiller } from '../calls/call-scripts';
 
 describe('PhoneUtils', () => {
   describe('normalizePhoneNumber', () => {
@@ -80,6 +80,68 @@ describe('PhoneUtils', () => {
       expect(isPlaceholderLeadName('Pooja Verma')).toBe(false);
       expect(isPlaceholderLeadName('Amit')).toBe(false);
       expect(isPlaceholderLeadName('युवराज')).toBe(false);
+    });
+  });
+
+  describe('getThinkingFiller', () => {
+    it('should return varied non-repetitive fillers across turns', () => {
+      const used: string[] = [];
+      const f1 = getThinkingFiller({ language: 'hinglish', speechGender: 'female', usedFillers: used });
+      used.push(f1);
+
+      const f2 = getThinkingFiller({ language: 'hinglish', speechGender: 'female', usedFillers: used });
+      used.push(f2);
+
+      const f3 = getThinkingFiller({ language: 'hinglish', speechGender: 'female', usedFillers: used });
+      used.push(f3);
+
+      expect(f1).toBeTruthy();
+      expect(f2).toBeTruthy();
+      expect(f3).toBeTruthy();
+      // All three must be different phrases
+      expect(f1).not.toBe(f2);
+      expect(f2).not.toBe(f3);
+      expect(f1).not.toBe(f3);
+    });
+
+    it('should return price-aware filler when user asks about budget or price', () => {
+      const filler = getThinkingFiller({
+        language: 'hinglish',
+        speechGender: 'female',
+        userMessage: 'Iska price aur budget kya hai?',
+        usedFillers: [],
+      });
+      expect(filler.toLowerCase()).toContain('price');
+    });
+
+    it('should return inventory-aware filler when user asks about 2 BHK or flats', () => {
+      const filler = getThinkingFiller({
+        language: 'hinglish',
+        speechGender: 'female',
+        userMessage: '2 BHK flat available hai kya?',
+        usedFillers: [],
+      });
+      expect(filler.toLowerCase()).toContain('inventory');
+    });
+
+    it('should support male speech gender correctly', () => {
+      const maleFiller = getThinkingFiller({
+        language: 'hinglish',
+        speechGender: 'male',
+        userMessage: 'Price kitna hai?',
+        usedFillers: [],
+      });
+      expect(maleFiller).toContain('leta hoon');
+      expect(maleFiller).not.toContain('leti hoon');
+    });
+
+    it('should support English language', () => {
+      const enFiller = getThinkingFiller({
+        language: 'en-IN',
+        userMessage: 'Tell me details',
+        usedFillers: [],
+      });
+      expect(enFiller).toMatch(/check|details|verify|moment/i);
     });
   });
 });

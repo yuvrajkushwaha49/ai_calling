@@ -461,6 +461,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             const liveTranscript = session.transcript || call?.transcript || 'Agent: Hello?\n';
             const activeLang = settings?.language || call?.languageDetected || 'hinglish';
             const isHinglish = activeLang.toLowerCase().includes('hinglish');
+            const speechGender = (0, call_scripts_1.resolveSpeechGender)({
+                agentVoice: settings?.agentVoice || 'rachel',
+                agentName,
+            });
             const follow = (0, call_scripts_1.buildFollowUpReply)({
                 transcript: userMessage,
                 leadName: (0, call_scripts_1.isPlaceholderLeadName)(lead.name) ? 'जी' : lead.name,
@@ -470,6 +474,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 agentVoice: settings?.agentVoice || 'rachel',
                 agentName,
                 companyName,
+                speechGender,
                 isInbound: true,
             });
             let replyText = follow.text;
@@ -480,8 +485,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 if (streamedAnyAudio || aborted() || ws.readyState !== ws.OPEN)
                     return;
                 try {
-                    const filler = isHinglish ? 'Haan ji, main dekh rahi hoon...' : 'हाँ जी, मैं देख रही हूँ...';
-                    this.logger.log(`[MCube] ⏳ AI Filler: "${filler}"`);
+                    session.usedFillers = session.usedFillers || [];
+                    const filler = (0, call_scripts_1.getThinkingFiller)({
+                        language: activeLang,
+                        speechGender,
+                        userMessage,
+                        usedFillers: session.usedFillers,
+                    });
+                    session.usedFillers.push(filler);
+                    this.logger.log(`[MCube] ⏳ AI Filler (Turn #${session.turnCount + 1}): "${filler}"`);
                     const audioBuffer = await this.synthesizeForSession(filler, session, settings);
                     if (audioBuffer && !streamedAnyAudio && !aborted() && ws.readyState === ws.OPEN) {
                         await this.sendPlayAudio(ws, session, audioBuffer);
