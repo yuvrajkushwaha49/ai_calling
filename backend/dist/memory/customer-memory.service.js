@@ -381,6 +381,11 @@ let CustomerMemoryService = CustomerMemoryService_1 = class CustomerMemoryServic
                     const merged = new Set([...state.customer.interestedProjects, ...value]);
                     state.customer.interestedProjects = Array.from(merged);
                 }
+                else if (key === 'rejectedProjects' && Array.isArray(value)) {
+                    const rejected = new Set([...(state.customer.rejectedProjects || []), ...value]);
+                    state.customer.rejectedProjects = Array.from(rejected);
+                    state.customer.interestedProjects = state.customer.interestedProjects.filter((p) => !rejected.has(p));
+                }
                 else {
                     state.customer[key] = value;
                 }

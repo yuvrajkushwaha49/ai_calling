@@ -220,7 +220,7 @@ function firstName(name: string) {
  */
 export function speakAgentName(raw?: string | null): string {
   let n = String(raw || '').trim();
-  if (!n) return 'नेहा';
+  if (!n) return 'Aria';
   // "Aria - Real Estate Assistant" → Aria
   n = n.split(/[-–—|:/]/)[0].trim();
   n = n
@@ -232,7 +232,7 @@ export function speakAgentName(raw?: string | null): string {
     .trim();
   const first = (n.split(/\s+/)[0] || '').trim();
   if (!first || /^(real|estate|ai|the|your)$/i.test(first)) {
-    return 'नेहा';
+    return 'Aria';
   }
   return first;
 }
@@ -247,12 +247,8 @@ function speakProjectName(projectRaw: string, _language: AppLanguage): string {
 
 function speakCompanyName(raw: string, language: AppLanguage): string {
   const t = (raw || '').trim();
-  if (!t) return language === 'en-IN' ? 'Saya Group' : 'साया ग्रुप';
-  if (/^saya\s*group$/i.test(t) || /साया\s*ग्रुप/.test(t)) {
-    return language === 'en-IN' ? 'Saya Group' : 'साया ग्रुप';
-  }
-  if (/^saya$/i.test(t)) {
-    return language === 'en-IN' ? 'Saya Group' : 'साया ग्रुप';
+  if (!t || /saya\s*group/i.test(t) || /rgbil/i.test(t)) {
+    return language === 'en-IN' ? 'Workains Realty' : 'वर्केंस रियल्टी';
   }
   return t;
 }

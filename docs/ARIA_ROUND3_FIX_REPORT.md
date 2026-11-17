@@ -146,6 +146,30 @@ isAskingCustomerBudget(text: string): boolean {
 
 ---
 
+### Fix 6: Company & Agent Name Sanitization to Aria & Workains Realty
+- **Files:** [mcube-stream.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/calls/mcube-stream.service.ts), [opener-bank.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/calls/opener-bank.ts), [ai.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/ai/ai.service.ts), [conversation.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/conversation/conversation.service.ts)
+- **Status:** `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION`
+- **Issue:** Live call opener spoke: *"Namaste युवराज ji! Main Aria - Real Estate Assistant, Saya Group (RGBIL) se bol rahi hoon..."*.
+- **Fix:** Sanitized `agentName` using `speakAgentName(rawAgent)` to clean out "Real Estate Assistant" to "Aria". Sanitized `companyName` to "Workains Realty", eliminating "Saya Group (RGBIL)".
+
+### Fix 7: Gemini Flash 400 Invalid Argument Elimination
+- **File:** [llm.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/llm/llm.service.ts)
+- **Status:** `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION`
+- **Issue:** `gemini-flash-lite-latest` threw HTTP 400 `INVALID_ARGUMENT: Request contains an invalid argument` when receiving `thinkingConfig: { thinkingBudget: 0 }`.
+- **Fix:** Guarded `thinkingConfig` to only be attached when `model` is an actual thinking model (`model.includes('thinking') || model.includes('2.5')`). Non-thinking models like `gemini-flash-lite-latest` and `gemini-flash-latest` are exempted.
+
+### Fix 8: Project-Specific Rejection vs Overall Disinterest ("साया का नहीं चाहिए, future state का चाहिए")
+- **Files:** [call-scripts.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/calls/call-scripts.ts), [conversation.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/conversation/conversation.service.ts), [fact-extractor.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/memory/fact-extractor.service.ts), [customer-memory.service.ts](file:///d:/Yuvi/Piyush%20React/ai_calling/backend/src/memory/customer-memory.service.ts)
+- **Status:** `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION`
+- **Issue:** Caller said *"but मुझे साया का नहीं चाहिए future state का चाहिए। तुम्हारे पास future state का है?"*. Fast script matched `नहीं चाहिए` and falsely hung up with *"Koi baat nahi ji. Future me dekhna ho toh connect kar lena — shukriya."*, and `FactExtractorService` attributed interest to Saya South X.
+- **Fix:**
+  1. Guarded `notInterested` in `detectIntent` with `isProjectRejection`: if the customer rejects a project while asking for another (or asks "tumhare paas X hai"), it is never classified as `notInterested`.
+  2. Bypassed `scriptFast` for project requests/rejections, handing control directly to Gemini streaming.
+  3. Mapped "future state" (phonetic STT transcription) to `Future Estate by Future World`.
+  4. Added immediate negation detection in `FactExtractorService.extractProjects`: "साया का नहीं चाहिए" is categorized as `rejectedProjects`, removing it from `interestedProjects`.
+
+---
+
 ## 3. Verification Summary Table
 
 | Requirement / Bug | Target File | Status | Test Reference |
@@ -160,3 +184,8 @@ isAskingCustomerBudget(text: string): boolean {
 | Audio-Transcript Parity tracking across pipeline | `mcube-stream.service.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 10) |
 | Opener mid-call repetition prevention | `conversation.service.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 11) |
 | Appointment booking safety & no default slot | `conversation.service.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 12) |
+| Opener sanitization to Aria & Workains Realty | `mcube-stream.service.ts`, `opener-bank.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 13) |
+| Non-thinking models skip thinkingConfig (no 400) | `llm.service.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 14) |
+| Project rejection does not trigger notInterested | `call-scripts.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 15) |
+| FactExtractor Future Estate mapping & Saya rejection | `fact-extractor.service.ts` | `VERIFIED BY AUTOMATED TEST` | `aria-round3-regression.spec.ts` (Test 16) |
+

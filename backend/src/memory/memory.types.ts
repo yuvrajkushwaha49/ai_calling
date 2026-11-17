@@ -52,6 +52,7 @@ export interface CustomerFacts {
   possession?: 'ready_to_move' | 'under_construction' | string | null;
   propertyType?: 'residential' | 'commercial' | string | null;
   interestedProjects: string[];
+  rejectedProjects?: string[];
   siteVisit?: {
     interested: boolean;
     preferredDay?: string;
@@ -70,6 +71,7 @@ export interface CustomerProfileCache {
   preferredLocation: string | null;
   purchaseTimeline: string | null;
   interestedProjects: string[];
+  rejectedProjects?: string[];
   leadStatus: string | null;
   lastCallOutcome: string | null;
   previousCallCount: number;

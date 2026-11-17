@@ -5,6 +5,8 @@ export declare class AiController {
     private readonly logger;
     constructor(aiService: AiService);
     getSettings(): Promise<{
+        companyName: string;
+        agentName: string;
         llmConfigured: boolean;
         llmProvider: import("../llm/llm.service").LlmProvider;
         ttsProvider: "elevenlabs";
@@ -16,8 +18,6 @@ export declare class AiController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        companyName: string;
-        agentName: string;
         agentVoice: string;
         language: string;
         tone: string;

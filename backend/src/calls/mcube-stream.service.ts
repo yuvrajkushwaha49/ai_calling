@@ -15,6 +15,7 @@ import { ConversationState } from '../memory/memory.types';
 import { maskPhoneNumber } from '../memory/phone-utils';
 import { CallOutcome, CallStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { speakAgentName } from './opener-bank';
 import { buildFollowUpReply, isPlaceholderLeadName, FORBIDDEN_NAME_WORDS, getThinkingFiller, resolveSpeechGender } from './call-scripts';
 import {
   asNodeBuffer,
@@ -320,11 +321,15 @@ export class McubeStreamService {
             // Natural human telecaller: contextual greeting (Issue 7)
             const settings = await this.ai.getSettings();
             session.settings = settings;
-            const companyName =
+            let companyName =
               (settings as { companyName?: string })?.companyName ||
               call?.lead?.project?.companyName ||
-              'Saya Group';
-            const agentName = settings?.agentName || 'Aria';
+              'Workains Realty';
+            if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
+              companyName = 'Workains Realty';
+            }
+            const rawAgent = settings?.agentName || 'Aria';
+            const agentName = speakAgentName(rawAgent) || 'Aria';
 
             let initialOpener: string;
             const isReturning = Boolean(session.memory?.isReturningCustomer);
@@ -665,12 +670,16 @@ export class McubeStreamService {
         }
       }
 
-      const companyName =
+      let companyName =
         (settings as { companyName?: string })?.companyName ||
         lead.project?.companyName ||
         lead.project?.builder ||
-        'Saya Group';
-      const agentName = settings?.agentName || 'Neha';
+        'Workains Realty';
+      if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
+        companyName = 'Workains Realty';
+      }
+      const rawAgent = settings?.agentName || 'Aria';
+      const agentName = speakAgentName(rawAgent) || 'Aria';
 
       const liveTranscript =
         session.transcript || call?.transcript || 'Agent: Hello?\n';
@@ -744,12 +753,8 @@ export class McubeStreamService {
           userMessage,
           priorTranscript: liveTranscript,
           memory: session.memory || (await this.customerMemory.getCallMemory(session.callId)),
-          agentName: settings?.agentName || 'Neha',
-          companyName:
-            (settings as { companyName?: string })?.companyName ||
-            lead.project?.companyName ||
-            lead.project?.builder ||
-            'Saya Group',
+          agentName,
+          companyName,
           defaultLanguage: activeLang,
           tone: (settings as { tone?: string })?.tone || 'friendly',
           systemPrompt: settings?.systemPrompt || undefined,

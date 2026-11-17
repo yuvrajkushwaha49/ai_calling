@@ -935,9 +935,14 @@ function detectIntent(text) {
         /project|flats?|property|floor|location|list\b/i.test(t);
     const askingIdentityOnly = !isWhichOptionQuestion &&
         /(?:\b(?:aap|tum)\s+(?:kaun|kon)\b|\b(?:kaun|kon)\s+(?:ho|hai|bol\s*rahe?|baat\s*kar)\b|कौन\s*(?:हो|हैं?|बोल\s*रहे|बात\s*कर)|\b(?:aap|tum)\s+kaha(?:n)?\s*se\b|आप\s*कहाँ\s*से|\bkiski\s*company\b|किसकी\s*कंपनी|\bkis\s*company\s*(?:se)?\b|\bkisko\s*(?:call|phone|lagaya)\b|किसको\s*(?:कॉल|फोन|लगाया)|\bkaha(?:n)?\s*lag\s*gaya|कहाँ\s*लग\s*गया|\bkisne\s*(?:kiya|lagaya)\b|किसने\s*(?:किया|लगाया))/i.test(t);
+    const isProjectRejection = /(?:kisi\s*aur|dusra|doosra|dusre|doosre|koi\s*aur|aur\s*koi|kisi\s*aur\s*ka)\s*(?:ka\s*)?(?:chahiye|dikhao|batao|options?)/i.test(t) ||
+        /(?:ka\s*nahi\s*chahiye|ka\s*nhi\s*chahiye|wala\s*nahi|nahi\s*chahiye.*(?:balki|lekin|but|chahiye|dikhao|batao|options?|hai\s*kya|tumhare\s*paas))/i.test(t) ||
+        /(?:nahi\s*chahiye.*(?:future|state|estate|vvip|rudra|palace|monarch|aarya|dholera))/i.test(t) ||
+        /(?:future\s*(?:state|estate)|vvip|palace\s*heights?|ncr\s*monarch).*(?:chahiye|hai\s*kya|hai)/i.test(t) ||
+        /(?:continue.*but|continue.*lekin)/i.test(t);
+    const rawNotInterested = /not interested|no thanks|don't call|do not call|wrong number|nahi chahiye|nahi chaiye|nhi chahiye|nhi chaiye|नहीं चाहिए|नाही पाहिजे|નથી જોઈએ|not looking|not searching|kuch nahi|kuch bhi nahi|khuch bhi|कुछ नहीं|कुछ भी नहीं|नहीं\s*देख|search नहीं|कोई property search नहीं|अभी नहीं देख|mere liye nahi|अपने लिए नहीं|rakho phone|rakh do phone|cut (?:the )?call|mat call|band karo|hang up|phone rakh|nhi chahiye khuch|nahi chahiye kuch/i.test(t);
     return {
-        notInterested: !wantsCallback &&
-            /not interested|no thanks|don't call|do not call|wrong number|nahi chahiye|nahi chaiye|nhi chahiye|nhi chaiye|नहीं चाहिए|नाही पाहिजे|નથી જોઈએ|not looking|not searching|kuch nahi|kuch bhi nahi|khuch bhi|कुछ नहीं|कुछ भी नहीं|नहीं\s*देख|search नहीं|कोई property search नहीं|अभी नहीं देख|mere liye nahi|अपने लिए नहीं|rakho phone|rakh do phone|cut (?:the )?call|mat call|band karo|hang up|phone rakh|nhi chahiye khuch|nahi chahiye kuch/i.test(t),
+        notInterested: !wantsCallback && rawNotInterested && !isProjectRejection,
         callback: wantsCallback,
         askingWhyCall: askingIdentityOnly ||
             /kis liye|kyun (?:call|phone)|kyu (?:call|phone)|why (?:did you |have you )?call|kya baat|kaun (?:ho|hai)|reason for (?:call|calling)|phone kyun|phone kis liye|क्यों\s*फोन|किस\s*लिए\s*फोन|किस लिये/i.test(t),
@@ -1106,23 +1111,23 @@ function buildFollowUpReply(options) {
         },
         explain_why_call: {
             'en-IN': options.isInbound
-                ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
+                ? `Ji Namaste! Main ${options.companyName || 'Workains Realty'} helpline se ${options.agentName || 'Aria'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
                 : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
             'hi-IN': options.isInbound
-                ? `जी नमस्ते! मैं ${options.companyName || 'Saya Group'} helpline से ${options.agentName || 'नेहा'} बात कर रही हूँ। बताएं मैं आपकी क्या सहायता कर सकती हूँ?`
+                ? `जी नमस्ते! मैं ${options.companyName || 'Workains Realty'} helpline से ${options.agentName || 'Aria'} बात कर रही हूँ। बताएं मैं आपकी क्या सहायता कर सकती हूँ?`
                 : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी घर/flat देखना चालू है क्या?`,
             hinglish: options.isInbound
-                ? `Ji Namaste! Main ${options.companyName || 'Saya Group'} helpline se ${options.agentName || 'Neha'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
+                ? `Ji Namaste! Main ${options.companyName || 'Workains Realty'} helpline se ${options.agentName || 'Aria'} baat kar rahi hoon. Batayein main aapki kya sahayata kar sakti hoon?`
                 : `${hasRealName ? `${leadName} जी` : 'जी'}, आपकी property enquiry आई थी इसलिए कॉल किया — अभी देखना चालू है क्या?`,
             'mr-IN': `${hasRealName ? `${leadName}, ` : ''}property enquiry आली होती म्हणून कॉल — आता पाहत आहात का?`,
             'gu-IN': `${hasRealName ? `${leadName}, ` : ''}property enquiry આવી હતી એટલે કૉલ — અત્યારે જોઈ રહ્યા છો?`,
         },
         greeting_inbound: {
-            'en-IN': `Haan ji Namaste! ${options.companyName || 'Saya Group'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
-            'hi-IN': `हाँ जी नमस्ते! ${options.companyName || 'Saya Group'} real estate helpline में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
-            hinglish: `हाँ जी नमस्ते! ${options.companyName || 'साया ग्रुप'} रियल एस्टेट हेल्पलाइन में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
-            'mr-IN': `नमस्कार! ${options.companyName || 'Saya Group'} हेल्पलाईनमध्ये आपले स्वागत आहे. मी आपली काय मदत करू शकते?`,
-            'gu-IN': `નમસ્તે! ${options.companyName || 'Saya Group'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
+            'en-IN': `Haan ji Namaste! ${options.companyName || 'Workains Realty'} real estate helpline me aapka swagat hai. Main aapki kya sahayata kar sakti hoon?`,
+            'hi-IN': `हाँ जी नमस्ते! ${options.companyName || 'Workains Realty'} real estate helpline में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
+            hinglish: `हाँ जी नमस्ते! ${options.companyName || 'Workains Realty'} रियल एस्टेट हेल्पलाइन में आपका स्वागत है। मैं आपकी क्या सहायता कर सकती हूँ?`,
+            'mr-IN': `नमस्कार! ${options.companyName || 'Workains Realty'} हेल्पलाईनमध्ये आपले स्वागत आहे. मी आपली काय मदत करू शकते?`,
+            'gu-IN': `નમસ્તે! ${options.companyName || 'Workains Realty'} હેલ્પલાઇનમાં આપનું સ્વાગત છે. હું આપની શું સહાયતા કરી શકું?`,
         },
         liveness_ack: {
             'en-IN': buildContextualLivenessAck({

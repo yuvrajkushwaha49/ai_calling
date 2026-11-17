@@ -144,11 +144,22 @@ export class AiService {
       : cleanedPrompt;
     const promptNeedsClean = nextPrompt !== prompt;
 
+    let companyName = (settings as { companyName?: string }).companyName || '';
+    if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
+      companyName = 'Workains Realty';
+    }
+    let agentName = (settings as { agentName?: string }).agentName || 'Aria';
+    if (!agentName || /real\s*estate/i.test(agentName) || /assistant/i.test(agentName)) {
+      agentName = 'Aria';
+    }
+
     if (
       settings.agentVoice !== normalizedVoice ||
       settings.language !== normalizedLanguage ||
       (settings as { tone?: string }).tone !== normalizedTone ||
       (settings as { llmModel?: string }).llmModel !== normalizedModel ||
+      (settings as { companyName?: string }).companyName !== companyName ||
+      (settings as { agentName?: string }).agentName !== agentName ||
       promptNeedsClean
     ) {
       settings = await this.prisma.aiAgentSettings.update({
@@ -158,6 +169,8 @@ export class AiService {
           language: normalizedLanguage,
           tone: normalizedTone,
           llmModel: normalizedModel,
+          companyName,
+          agentName,
           ...(promptNeedsClean ? { systemPrompt: nextPrompt } : {}),
         },
       });
@@ -166,6 +179,8 @@ export class AiService {
     const llm = this.llm.getStatus();
     return {
       ...settings,
+      companyName,
+      agentName,
       llmConfigured: llm.configured,
       llmProvider: llm.provider,
       ttsProvider: this.voice.getTtsProvider(),

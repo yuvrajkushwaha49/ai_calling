@@ -129,3 +129,4 @@ With these fixes implemented, the expected latency breakdown per conversational 
 | TTS `await ttsChain` sequencing before log output | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 9) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | Telemetry formats `NOT_MEASURED` instead of `0ms` | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 9) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | First playAudio timestamp recorded and tracked | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 9) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+

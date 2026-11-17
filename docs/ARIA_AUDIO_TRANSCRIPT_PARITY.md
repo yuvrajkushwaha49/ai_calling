@@ -138,3 +138,4 @@ if (!bargeInState.cancelled) {
 | `actuallySentSentences` strictly guards against `bargeInState.cancelled` | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 10) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | End-of-turn parity audit line emitted with all 5 stages | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 10) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | `finalTranscript` fed to database and memory matches spoken audio | `VERIFIED IN SOURCE` | `VERIFIED BY AUTOMATED TEST` (Test 10) | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+

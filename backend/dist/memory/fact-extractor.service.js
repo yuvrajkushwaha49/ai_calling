@@ -34,11 +34,11 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
     projectPatterns = [
         { name: 'Palace Heights by Rudra', pattern: /(?:palace\s*heights?|rudra|पैलेस\s*हाइट्स?|रुद्रा)/i },
         { name: 'NCR Monarch', pattern: /(?:ncr\s*monarch|monarch|मोनार्क|एनसीआर\s*मोनार्क)/i },
-        { name: 'Future Estate by Future World', pattern: /(?:future\s*estate|future\s*world|फ्यूचर\s*एस्टेट)/i },
+        { name: 'Future Estate by Future World', pattern: /(?:future\s*(?:estate|state|world|projects?)|फ्यूचर\s*(?:एस्टेट|स्टेट|वर्ल्ड))/i },
         { name: 'Aarya Heights by Divyansh', pattern: /(?:aarya\s*heights?|divyansh|आर्या\s*हाइट्स?)/i },
         { name: 'Dholera Capital City', pattern: /(?:dholera|capital\s*city|धोलेरा)/i },
         { name: 'VVIP Pre-Launch / Namah', pattern: /(?:vvip|namah|वीवीआईपी)/i },
-        { name: 'Saya South X / Piazza', pattern: /(?:saya\s*south|saya\s*piazza|साया\s*साउथ|साया\s*पियाज़ा|साया)/i },
+        { name: 'Saya South X / Piazza', pattern: /(?:saya\s*(?:south|piazza|projects?|group)?|साया\s*(?:साउथ|पियाज़ा|प्रोजेक्ट|ग्रुप)?)/i },
         { name: 'Apex The Kremlin / Quebec / Rosario', pattern: /(?:apex|kremlin|quebec|rosario|एपेक्स|क्रेमलिन)/i },
         { name: 'Godrej Golf Links / Business City', pattern: /(?:godrej|golf\s*links|गोदरेज)/i },
         { name: 'Sobha Rivana', pattern: /(?:sobha|rivana|शोभा)/i },
@@ -100,11 +100,16 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
             result.confidenceMap.timeline = timelineMatch.confidence;
             result.rawSnippets.timeline = timelineMatch.snippet;
         }
-        const matchedProjects = this.extractProjects(raw);
-        if (matchedProjects.length > 0) {
-            result.facts.interestedProjects = matchedProjects;
+        const { interested, rejected } = this.extractProjects(raw);
+        if (interested.length > 0) {
+            result.facts.interestedProjects = interested;
             result.confidenceMap.interestedProjects = 'confirmed';
-            result.rawSnippets.interestedProjects = matchedProjects.join(', ');
+            result.rawSnippets.interestedProjects = interested.join(', ');
+        }
+        if (rejected.length > 0) {
+            result.facts.rejectedProjects = rejected;
+            result.confidenceMap.rejectedProjects = 'confirmed';
+            result.rawSnippets.rejectedProjects = rejected.join(', ');
         }
         const nameMatch = this.extractName(raw, context);
         if (nameMatch) {
@@ -288,13 +293,22 @@ let FactExtractorService = FactExtractorService_1 = class FactExtractorService {
         return null;
     }
     extractProjects(text) {
-        const matched = [];
+        const interested = [];
+        const rejected = [];
         for (const proj of this.projectPatterns) {
-            if (proj.pattern.test(text)) {
-                matched.push(proj.name);
+            const match = proj.pattern.exec(text);
+            if (match) {
+                const after = text.slice(match.index + match[0].length, match.index + match[0].length + 45);
+                const isNegativeImmediate = /^\s*(?:ka\s*nahi|nahi\s*chahiye|nhi\s*chahiye|nahi\s*dekhna|nahi\s*lena|nahi|mat|chodkar|छोड़कर|का\s*नहीं\s*चाहिए|नहीं\s*चाहिए|नहीं\s*देखना|नहीं|नही)/i.test(after);
+                if (isNegativeImmediate) {
+                    rejected.push(proj.name);
+                }
+                else {
+                    interested.push(proj.name);
+                }
             }
         }
-        return matched;
+        return { interested, rejected };
     }
     extractName(text, context) {
         const clean = (text || '').trim();

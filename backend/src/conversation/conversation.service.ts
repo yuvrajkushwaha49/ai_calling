@@ -356,11 +356,15 @@ export class ConversationService {
   }) {
     const hasLinkedProject = Boolean(options.lead.project?.id || options.lead.project?.name);
     const projectName = options.lead.project?.name || undefined;
-    const company =
+    const rawCompany =
       options.companyName ||
       options.lead.project?.companyName ||
       options.lead.project?.builder ||
-      'Saya Group';
+      'Workains Realty';
+    const company =
+      /saya\s*group/i.test(rawCompany) || /rgbil/i.test(rawCompany)
+        ? 'Workains Realty'
+        : rawCompany;
 
     const learning = parseOpenerLearning(options.openerLearning);
     const openingTip = latestOpeningStyleTip(options.openerLearning);
@@ -452,13 +456,17 @@ export class ConversationService {
     const shortCueEarly =
       isShortAffirmation(options.userMessage) ||
       isShortDecline(options.userMessage);
-    const company =
+    const rawCompany =
       options.companyName ||
       options.lead.project?.companyName ||
       options.lead.project?.builder ||
       resolvedProject?.companyName ||
       resolvedProject?.builder ||
-      'Saya Group';
+      'Workains Realty';
+    const company =
+      /saya\s*group/i.test(rawCompany) || /rgbil/i.test(rawCompany)
+        ? 'Workains Realty'
+        : rawCompany;
 
     const rawLeadName = (options.lead.name || '').trim();
     const isGenericLead = isPlaceholderLeadName(rawLeadName);
@@ -500,9 +508,18 @@ export class ConversationService {
     );
 
     const liveTurn = Boolean(options.stream || options.phoneLatency);
+    const userMessage = options.userMessage || '';
+    const isProjectRejection =
+      /(?:kisi\s*aur|dusra|doosra|dusre|doosre|koi\s*aur|aur\s*koi|kisi\s*aur\s*ka)\s*(?:ka\s*)?(?:chahiye|dikhao|batao|options?)/i.test(userMessage) ||
+      /(?:ka\s*nahi\s*chahiye|ka\s*nhi\s*chahiye|wala\s*nahi|nahi\s*chahiye.*(?:balki|lekin|but|chahiye|dikhao|batao|options?|hai\s*kya|tumhare\s*paas))/i.test(userMessage) ||
+      /(?:nahi\s*chahiye.*(?:future|state|estate|vvip|rudra|palace|monarch|aarya|dholera))/i.test(userMessage) ||
+      /(?:future\s*(?:state|estate)|vvip|palace\s*heights?|ncr\s*monarch).*(?:chahiye|hai\s*kya|hai)/i.test(userMessage) ||
+      /(?:continue.*but|continue.*lekin)/i.test(userMessage);
+
     // Fast path: clear intents / short yes-no — skip RAG + Gemini entirely
     const scriptFast =
       liveTurn &&
+      !isProjectRejection &&
       (intentEarly.callback ||
         intentEarly.notInterested ||
         intentEarly.askingWhyCall ||

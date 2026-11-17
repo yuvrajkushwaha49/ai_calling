@@ -9,6 +9,9 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { ConfigService } from '@nestjs/config';
 import { ConversationState } from '../memory/memory.types';
 import { isGenericAcknowledgement, parseMeetingSlot } from '../appointments/meeting-time';
+import { speakAgentName } from '../calls/opener-bank';
+import { detectIntent } from '../calls/call-scripts';
+import { FactExtractorService } from '../memory/fact-extractor.service';
 
 describe('Aria Round 3 — Live Call Critical Bug Fix & Regression Audit', () => {
   let validator: QuestionValidatorService;
@@ -294,5 +297,69 @@ describe('Aria Round 3 — Live Call Critical Bug Fix & Regression Audit', () =>
 
     const slot = parseMeetingSlot('ठीक है');
     expect(slot).toBeNull();
+  });
+
+  // TEST 13: Opener sanitizes agentName & companyName to Aria & Workains Realty
+  it('Test 13: Opener sanitizes agentName and companyName to Workains Realty', () => {
+    const rawAgent = 'Aria - Real Estate Assistant';
+    const rawCompany = 'Saya Group (RGBIL)';
+
+    const cleanAgent = speakAgentName(rawAgent);
+    let cleanCompany = rawCompany;
+    if (/saya\s*group/i.test(cleanCompany) || /rgbil/i.test(cleanCompany)) {
+      cleanCompany = 'Workains Realty';
+    }
+
+    expect(cleanAgent).toBe('Aria');
+    expect(cleanCompany).toBe('Workains Realty');
+
+    const opener = `Namaste युवराज ji! Main ${cleanAgent}, ${cleanCompany} se bol rahi hoon.`;
+    expect(opener).toBe('Namaste युवराज ji! Main Aria, Workains Realty se bol rahi hoon.');
+    expect(opener).not.toContain('Real Estate Assistant');
+    expect(opener).not.toContain('Saya Group');
+    expect(opener).not.toContain('RGBIL');
+  });
+
+  // TEST 14: ThinkingConfig is only passed to models supporting thinking (preventing 400 Invalid Argument)
+  it('Test 14: Non-thinking models like gemini-flash-lite-latest do not receive thinkingConfig', () => {
+    const mockLlmService = new LlmService({} as any);
+    const bodyLite = (mockLlmService as any).buildGeminiBody(
+      [{ role: 'user', content: 'hello' }],
+      'gemini-flash-lite-latest',
+      { lowLatency: true },
+    );
+    expect(bodyLite.generationConfig.thinkingConfig).toBeUndefined();
+
+    const bodyFlash = (mockLlmService as any).buildGeminiBody(
+      [{ role: 'user', content: 'hello' }],
+      'gemini-flash-latest',
+      { lowLatency: true },
+    );
+    expect(bodyFlash.generationConfig.thinkingConfig).toBeUndefined();
+
+    const bodyThinking = (mockLlmService as any).buildGeminiBody(
+      [{ role: 'user', content: 'hello' }],
+      'gemini-2.5-flash',
+      { lowLatency: true },
+    );
+    expect(bodyThinking.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+  });
+
+  // TEST 15: Specific project rejection ("साया का नहीं चाहिए, future state का चाहिए") does not trigger notInterested
+  it('Test 15: "साया का नहीं चाहिए, future state का चाहिए" does not trigger notInterested', () => {
+    const userUtterance = 'हाँ, continue करते हैं but मुझे साया का नहीं चाहिए future state का चाहिए। तुम्हारे पास future state का है?';
+    const intent = detectIntent(userUtterance);
+
+    expect(intent.notInterested).toBe(false);
+  });
+
+  // TEST 16: FactExtractor extracts Future Estate from "future state" and rejects Saya from "साया का नहीं चाहिए"
+  it('Test 16: FactExtractor identifies Future Estate from "future state" and rejects Saya', () => {
+    const extractor = new FactExtractorService();
+    const facts = extractor.extractFromUtterance('हाँ, continue करते हैं but मुझे साया का नहीं चाहिए future state का चाहिए। तुम्हारे पास future state का है?');
+
+    expect(facts.facts.interestedProjects).toContain('Future Estate by Future World');
+    expect(facts.facts.interestedProjects).not.toContain('Saya South X / Piazza');
+    expect(facts.facts.rejectedProjects).toContain('Saya South X / Piazza');
   });
 });

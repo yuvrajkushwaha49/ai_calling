@@ -172,10 +172,53 @@
 
 ---
 
+### Test 13: Opener Sanitization — Aria & Workains Realty
+- **Status:** `VERIFIED BY AUTOMATED TEST`
+- **Scenario:** Customer memory and settings had `agentName = "Aria - Real Estate Assistant"` and `companyName = "Saya Group (RGBIL)"`.
+- **Assertions:**
+  - `cleanAgent` evaluates to `"Aria"`.
+  - `cleanCompany` evaluates to `"Workains Realty"`.
+  - Opener outputs `"Namaste युवराज ji! Main Aria, Workains Realty se bol rahi hoon."`.
+  - Prohibits strings `"Real Estate Assistant"`, `"Saya Group"`, `"RGBIL"`.
+- **Result:** PASSED.
+
+---
+
+### Test 14: Gemini Flash Non-Thinking Models Guard
+- **Status:** `VERIFIED BY AUTOMATED TEST`
+- **Scenario:** Calling `buildGeminiBody` with `gemini-flash-lite-latest` and `gemini-flash-latest` under `lowLatency: true`.
+- **Assertions:**
+  - Non-thinking models omit `thinkingConfig`, preventing HTTP 400 `INVALID_ARGUMENT`.
+  - Thinking models (e.g. `gemini-2.5-flash`) correctly receive `thinkingConfig: { thinkingBudget: 0 }`.
+- **Result:** PASSED.
+
+---
+
+### Test 15: Specific Project Rejection vs Overall Disinterest
+- **Status:** `VERIFIED BY AUTOMATED TEST`
+- **Scenario:** Customer states *"हाँ, continue करते हैं but मुझे साया का नहीं चाहिए future state का चाहिए। तुम्हारे पास future state का है?"*.
+- **Assertions:**
+  - `detectIntent.notInterested` evaluates to `false`.
+  - Fast script is bypassed, allowing full LLM response with inventory.
+- **Result:** PASSED.
+
+---
+
+### Test 16: FactExtractor Future Estate Mapping & Negation Detection
+- **Status:** `VERIFIED BY AUTOMATED TEST`
+- **Scenario:** Extracting facts from *"हाँ, continue करते हैं but मुझे साया का नहीं चाहिए future state का चाहिए। तुम्हारे पास future state का है?"*.
+- **Assertions:**
+  - `facts.interestedProjects` contains `"Future Estate by Future World"`.
+  - `facts.interestedProjects` does NOT contain `"Saya South X / Piazza"`.
+  - `facts.rejectedProjects` contains `"Saya South X / Piazza"`.
+- **Result:** PASSED.
+
+---
+
 ## 3. Full Test Suite Execution Summary
 
 ```
-PASS src/conversation/aria-round3-regression.spec.ts (12 tests)
+PASS src/conversation/aria-round3-regression.spec.ts (16 tests)
 PASS src/conversation/aria-round2-regression.spec.ts (11 tests)
 PASS src/conversation/aria-critical-fixes.spec.ts (12 tests)
 PASS src/appointments/appointments.service.spec.ts
@@ -190,9 +233,9 @@ PASS src/auth/auth.service.spec.ts
 PASS src/leads/leads.service.spec.ts
 
 Test Suites: 13 passed, 13 total
-Tests:       115 passed, 115 total
+Tests:       119 passed, 119 total
 Snapshots:   0 total
-Time:        4.512 s
+Time:        5.026 s
 ```
 
 ---
@@ -207,3 +250,8 @@ Time:        4.512 s
 | TTS Telemetry Measurement Accuracy | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | Direct Answer & Product Catalog Prompts | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
 | Appointment Safety Rules | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+| Opener Sanitization (Aria & Workains Realty) | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+| Gemini Non-Thinking 400 Prevention | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+| Project Rejection vs Disinterest Guard | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+| FactExtractor Negation & Phonetic Mapping | `VERIFIED BY AUTOMATED TEST` | `VERIFIED IN SOURCE` | `VERIFIED BY LIVE CALL: PENDING LIVE CALL SESSION` |
+

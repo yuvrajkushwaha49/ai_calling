@@ -82,3 +82,4 @@ On 17 November 2026, approximately 10:18 AM–10:20 AM, live MCube call `9565763
   3. The prompt explicitly instructed Gemini: *"When caller says Hello at start of call: PITCH THIS EXACT LINE: Namaste [Name] ji! Saya Group mein aapka phir se swaagat hai..."*
   4. Gemini followed this rule and repeated the full welcome greeting.
 - **Root Cause Classification:** `VERIFIED IN SOURCE` & `VERIFIED BY AUTOMATED TEST`.
+

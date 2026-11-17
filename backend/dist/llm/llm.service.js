@@ -160,11 +160,17 @@ let LlmService = LlmService_1 = class LlmService {
         if (merged.length && merged[0].role !== 'user') {
             merged.unshift({ role: 'user', parts: [{ text: 'Continue.' }] });
         }
+        const isThinkingModel = Boolean(model &&
+            (model.includes('thinking') ||
+                model.includes('2.5') ||
+                model.includes('2.0-flash-thinking')));
         const generationConfig = {
             maxOutputTokens: options?.maxOutputTokens ?? (options?.json ? 400 : 120),
             ...(options?.json ? { responseMimeType: 'application/json' } : {}),
             temperature: options?.temperature ?? 0.4,
-            ...(options?.lowLatency ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+            ...(options?.lowLatency && isThinkingModel
+                ? { thinkingConfig: { thinkingBudget: 0 } }
+                : {}),
         };
         const body = {
             contents: merged,

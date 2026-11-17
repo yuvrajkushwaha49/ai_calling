@@ -12,6 +12,8 @@ export declare class AiService {
     private readonly settingsTtlMs;
     constructor(prisma: PrismaService, voice: VoiceService, llm: LlmService);
     getSettings(): Promise<{
+        companyName: string;
+        agentName: string;
         llmConfigured: boolean;
         llmProvider: import("../llm/llm.service").LlmProvider;
         ttsProvider: "elevenlabs";
@@ -23,8 +25,6 @@ export declare class AiService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        companyName: string;
-        agentName: string;
         agentVoice: string;
         language: string;
         tone: string;

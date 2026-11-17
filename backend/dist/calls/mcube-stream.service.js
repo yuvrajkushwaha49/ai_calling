@@ -58,6 +58,7 @@ const fact_extractor_service_1 = require("../memory/fact-extractor.service");
 const question_validator_service_1 = require("../memory/question-validator.service");
 const client_1 = require("@prisma/client");
 const appointments_service_1 = require("../appointments/appointments.service");
+const opener_bank_1 = require("./opener-bank");
 const call_scripts_1 = require("./call-scripts");
 const phone_audio_1 = require("./phone-audio");
 let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
@@ -255,10 +256,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                             }
                             const settings = await this.ai.getSettings();
                             session.settings = settings;
-                            const companyName = settings?.companyName ||
+                            let companyName = settings?.companyName ||
                                 call?.lead?.project?.companyName ||
-                                'Saya Group';
-                            const agentName = settings?.agentName || 'Aria';
+                                'Workains Realty';
+                            if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
+                                companyName = 'Workains Realty';
+                            }
+                            const rawAgent = settings?.agentName || 'Aria';
+                            const agentName = (0, opener_bank_1.speakAgentName)(rawAgent) || 'Aria';
                             let initialOpener;
                             const isReturning = Boolean(session.memory?.isReturningCustomer);
                             const customerName = session.memory?.customer?.name || call?.lead?.name;
@@ -530,11 +535,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     }).catch((e) => this.logger.warn(`[MCube] Failed to update lead name: ${e}`));
                 }
             }
-            const companyName = settings?.companyName ||
+            let companyName = settings?.companyName ||
                 lead.project?.companyName ||
                 lead.project?.builder ||
-                'Saya Group';
-            const agentName = settings?.agentName || 'Neha';
+                'Workains Realty';
+            if (!companyName || /saya\s*group/i.test(companyName) || /rgbil/i.test(companyName)) {
+                companyName = 'Workains Realty';
+            }
+            const rawAgent = settings?.agentName || 'Aria';
+            const agentName = (0, opener_bank_1.speakAgentName)(rawAgent) || 'Aria';
             const liveTranscript = session.transcript || call?.transcript || 'Agent: Hello?\n';
             const activeLang = settings?.language || call?.languageDetected || 'hinglish';
             const isHinglish = activeLang.toLowerCase().includes('hinglish');
@@ -596,11 +605,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     userMessage,
                     priorTranscript: liveTranscript,
                     memory: session.memory || (await this.customerMemory.getCallMemory(session.callId)),
-                    agentName: settings?.agentName || 'Neha',
-                    companyName: settings?.companyName ||
-                        lead.project?.companyName ||
-                        lead.project?.builder ||
-                        'Saya Group',
+                    agentName,
+                    companyName,
                     defaultLanguage: activeLang,
                     tone: settings?.tone || 'friendly',
                     systemPrompt: settings?.systemPrompt || undefined,
