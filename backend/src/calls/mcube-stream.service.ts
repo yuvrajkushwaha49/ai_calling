@@ -25,6 +25,10 @@ import {
   pcm16ToWav,
   pcmEnergy,
   truncateForPhone,
+  filterDcBlockPcm16,
+  createAudioFilterState,
+  calculateDynamicNoiseThresholds,
+  AudioFilterState,
 } from './phone-audio';
 
 export type McubeMediaFormat = {
@@ -74,6 +78,12 @@ type McubeSession = {
   memory?: ConversationState;
   settings?: any;
   usedFillers?: string[];
+  ambientEnergy: number;
+  ambientSamples: number;
+  ambientCalibrated: boolean;
+  voiceThreshold: number;
+  bargeThreshold: number;
+  filterState: AudioFilterState;
 };
 
 @Injectable()
@@ -126,6 +136,12 @@ export class McubeStreamService {
       turnCount: 0,
       transcript: 'Agent: Hello?\n',
       pendingSegments: new Set(),
+      ambientEnergy: 160,
+      ambientSamples: 0,
+      ambientCalibrated: false,
+      voiceThreshold: 450,
+      bargeThreshold: 900,
+      filterState: createAudioFilterState(),
     };
 
     const clearSilence = () => {
@@ -347,21 +363,58 @@ export class McubeStreamService {
         }
 
         const chunk = Buffer.from(msg.media.payload, 'base64');
-        const pcm =
+        const rawPcm =
           session.encoding === 'audio/x-l16'
             ? asNodeBuffer(chunk)
             : mulawToPcm16(chunk);
 
+        // Filter out DC offset and sub-100Hz rumble before measuring energy
+        const pcm = filterDcBlockPcm16(rawPcm, session.filterState);
         const energy = pcmEnergy(pcm);
         const now = Date.now();
 
-        // Barge-in check while agent is speaking
-        if (session.agentPlaying && energy > 900 && now > session.listenAfter) {
+        // 1. Dynamic Noise Calibration:
+        // Sample line noise floor during first 25-30 frames (~500ms) or quiet periods
+        if (!session.ambientCalibrated) {
+          session.ambientSamples += 1;
+          // Ignore sudden high peaks during calibration (caller saying Hello or loud click)
+          if (energy < 650) {
+            session.ambientEnergy =
+              session.ambientSamples === 1
+                ? energy
+                : session.ambientEnergy * 0.85 + energy * 0.15;
+          }
+          if (session.ambientSamples >= 25) {
+            session.ambientCalibrated = true;
+            const thresh = calculateDynamicNoiseThresholds(session.ambientEnergy);
+            session.voiceThreshold = thresh.voiceThreshold;
+            session.bargeThreshold = thresh.bargeThreshold;
+            this.logger.log(
+              `[MCube] 🎛️ Dynamic Noise Gate calibrated: ambient=${Math.round(session.ambientEnergy)} ➔ voiceThreshold=${session.voiceThreshold}, bargeThreshold=${session.bargeThreshold}`,
+            );
+          }
+        } else if (!session.speaking && energy < session.voiceThreshold * 0.75) {
+          // Continuous slow background noise adaptation during silence
+          session.ambientEnergy = session.ambientEnergy * 0.98 + energy * 0.02;
+          const thresh = calculateDynamicNoiseThresholds(session.ambientEnergy);
+          if (Math.abs(thresh.voiceThreshold - session.voiceThreshold) >= 20) {
+            session.voiceThreshold = thresh.voiceThreshold;
+            session.bargeThreshold = thresh.bargeThreshold;
+          }
+        }
+
+        // 2. Barge-in check while agent is speaking
+        if (
+          session.agentPlaying &&
+          energy > session.bargeThreshold &&
+          now > session.listenAfter
+        ) {
           bargeIn();
         }
         if (now < session.listenAfter && !session.agentPlaying) return;
 
-        if (energy > 450) {
+        // 3. Speech detection & turn management
+        if (energy > session.voiceThreshold) {
           if (!session.speaking) {
             session.speaking = true;
             session.speechStartedAt = now;
@@ -466,11 +519,13 @@ export class McubeStreamService {
         return;
       }
 
-      const pcm16 =
+      const boostedPcm =
         session.encoding === 'audio/x-l16'
           ? boostPcm16(rawIn, 1.2)
           : boostPcm16(mulawToPcm16(rawIn), 2.2);
 
+      // Clean DC offset and sub-100Hz rumble before saving to WAV for STT
+      const pcm16 = filterDcBlockPcm16(boostedPcm);
       const wavBuffer = pcm16ToWav(pcm16, session.sampleRate);
 
       const [stt, context] = await Promise.all([

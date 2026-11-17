@@ -26,6 +26,63 @@ export function pcmEnergy(buf: Buffer): number {
   return sum / n;
 }
 
+export interface AudioFilterState {
+  prevIn: number;
+  prevOut: number;
+}
+
+export function createAudioFilterState(): AudioFilterState {
+  return { prevIn: 0, prevOut: 0 };
+}
+
+/**
+ * 1st-order DC-blocking / high-pass filter for 16-bit PCM audio.
+ * Attenuates DC bias, mic handling noise, and sub-100Hz rumble while preserving speech.
+ * Transfer function: y[n] = x[n] - x[n-1] + R * y[n-1]
+ * At 8kHz sample rate, R=0.92 gives -3dB cutoff around ~105Hz.
+ */
+export function filterDcBlockPcm16(
+  pcm: Buffer,
+  state?: AudioFilterState,
+  r = 0.92,
+): Buffer {
+  const src = asNodeBuffer(pcm);
+  const out = Buffer.alloc(src.length);
+  let prevIn = state ? state.prevIn : 0;
+  let prevOut = state ? state.prevOut : 0;
+  for (let i = 0; i + 1 < src.length; i += 2) {
+    const x = src.readInt16LE(i);
+    const y = x - prevIn + r * prevOut;
+    prevIn = x;
+    prevOut = y;
+    const sample = Math.round(y);
+    const clipped = Math.max(-32768, Math.min(32767, sample));
+    out.writeInt16LE(clipped, i);
+  }
+  if (state) {
+    state.prevIn = prevIn;
+    state.prevOut = prevOut;
+  }
+  return out;
+}
+
+export interface DynamicNoiseThresholds {
+  voiceThreshold: number;
+  bargeThreshold: number;
+}
+
+/**
+ * Calculates adaptive voice and barge-in thresholds based on measured ambient noise floor.
+ * - In quiet environments (~100 ambient), keeps default high sensitivity (voice: 450, barge: 900).
+ * - In noisy environments (traffic, fans ~300-500 ambient), elevates thresholds to prevent false speech/barge triggers.
+ */
+export function calculateDynamicNoiseThresholds(ambientEnergy: number): DynamicNoiseThresholds {
+  const safeAmbient = Math.max(0, ambientEnergy || 0);
+  const voice = Math.max(450, Math.min(850, Math.round(safeAmbient * 1.6 + 100)));
+  const barge = Math.max(900, Math.min(1600, Math.round(voice * 1.7)));
+  return { voiceThreshold: voice, bargeThreshold: barge };
+}
+
 export function pcm16ToWav(pcm: Buffer, sampleRate: number): Buffer {
   const body = asNodeBuffer(pcm);
   const header = Buffer.alloc(44);

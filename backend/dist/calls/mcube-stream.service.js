@@ -107,6 +107,12 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             turnCount: 0,
             transcript: 'Agent: Hello?\n',
             pendingSegments: new Set(),
+            ambientEnergy: 160,
+            ambientSamples: 0,
+            ambientCalibrated: false,
+            voiceThreshold: 450,
+            bargeThreshold: 900,
+            filterState: (0, phone_audio_1.createAudioFilterState)(),
         };
         const clearSilence = () => {
             if (session.silenceTimer) {
@@ -281,17 +287,44 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         session.streamId = msg.streamId;
                     }
                     const chunk = Buffer.from(msg.media.payload, 'base64');
-                    const pcm = session.encoding === 'audio/x-l16'
+                    const rawPcm = session.encoding === 'audio/x-l16'
                         ? (0, phone_audio_1.asNodeBuffer)(chunk)
                         : (0, phone_audio_1.mulawToPcm16)(chunk);
+                    const pcm = (0, phone_audio_1.filterDcBlockPcm16)(rawPcm, session.filterState);
                     const energy = (0, phone_audio_1.pcmEnergy)(pcm);
                     const now = Date.now();
-                    if (session.agentPlaying && energy > 900 && now > session.listenAfter) {
+                    if (!session.ambientCalibrated) {
+                        session.ambientSamples += 1;
+                        if (energy < 650) {
+                            session.ambientEnergy =
+                                session.ambientSamples === 1
+                                    ? energy
+                                    : session.ambientEnergy * 0.85 + energy * 0.15;
+                        }
+                        if (session.ambientSamples >= 25) {
+                            session.ambientCalibrated = true;
+                            const thresh = (0, phone_audio_1.calculateDynamicNoiseThresholds)(session.ambientEnergy);
+                            session.voiceThreshold = thresh.voiceThreshold;
+                            session.bargeThreshold = thresh.bargeThreshold;
+                            this.logger.log(`[MCube] 🎛️ Dynamic Noise Gate calibrated: ambient=${Math.round(session.ambientEnergy)} ➔ voiceThreshold=${session.voiceThreshold}, bargeThreshold=${session.bargeThreshold}`);
+                        }
+                    }
+                    else if (!session.speaking && energy < session.voiceThreshold * 0.75) {
+                        session.ambientEnergy = session.ambientEnergy * 0.98 + energy * 0.02;
+                        const thresh = (0, phone_audio_1.calculateDynamicNoiseThresholds)(session.ambientEnergy);
+                        if (Math.abs(thresh.voiceThreshold - session.voiceThreshold) >= 20) {
+                            session.voiceThreshold = thresh.voiceThreshold;
+                            session.bargeThreshold = thresh.bargeThreshold;
+                        }
+                    }
+                    if (session.agentPlaying &&
+                        energy > session.bargeThreshold &&
+                        now > session.listenAfter) {
                         bargeIn();
                     }
                     if (now < session.listenAfter && !session.agentPlaying)
                         return;
-                    if (energy > 450) {
+                    if (energy > session.voiceThreshold) {
                         if (!session.speaking) {
                             session.speaking = true;
                             session.speechStartedAt = now;
@@ -380,9 +413,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 session.busy = false;
                 return;
             }
-            const pcm16 = session.encoding === 'audio/x-l16'
+            const boostedPcm = session.encoding === 'audio/x-l16'
                 ? (0, phone_audio_1.boostPcm16)(rawIn, 1.2)
                 : (0, phone_audio_1.boostPcm16)((0, phone_audio_1.mulawToPcm16)(rawIn), 2.2);
+            const pcm16 = (0, phone_audio_1.filterDcBlockPcm16)(boostedPcm);
             const wavBuffer = (0, phone_audio_1.pcm16ToWav)(pcm16, session.sampleRate);
             const [stt, context] = await Promise.all([
                 this.voice.speechToText({

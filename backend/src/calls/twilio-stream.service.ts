@@ -19,6 +19,10 @@ import {
   pcm16ToWav,
   pcmEnergy,
   truncateForPhone,
+  filterDcBlockPcm16,
+  createAudioFilterState,
+  calculateDynamicNoiseThresholds,
+  AudioFilterState,
 } from './phone-audio';
 
 type TwilioMsg = {
@@ -53,6 +57,12 @@ type StreamSession = {
   lastAgentText: string;
   lastUserText: string;
   turnCount: number;
+  ambientEnergy: number;
+  ambientSamples: number;
+  ambientCalibrated: boolean;
+  voiceThreshold: number;
+  bargeThreshold: number;
+  filterState: AudioFilterState;
 };
 
 @Injectable()
@@ -93,6 +103,12 @@ export class TwilioStreamService {
       lastAgentText: '',
       lastUserText: '',
       turnCount: 0,
+      ambientEnergy: 160,
+      ambientSamples: 0,
+      ambientCalibrated: false,
+      voiceThreshold: 450,
+      bargeThreshold: 900,
+      filterState: createAudioFilterState(),
     };
 
     const clearSilence = () => {
@@ -166,16 +182,50 @@ export class TwilioStreamService {
         if (track.includes('outbound')) return;
 
         const mulaw = Buffer.from(msg.media.payload, 'base64');
-        const pcm = mulawToPcm16(mulaw);
+        const rawPcm = mulawToPcm16(mulaw);
+        const pcm = filterDcBlockPcm16(rawPcm, session.filterState);
         const energy = pcmEnergy(pcm);
         const now = Date.now();
 
-        if (session.agentPlaying && energy > 900 && now > session.listenAfter) {
+        // 1. Dynamic Noise Calibration:
+        if (!session.ambientCalibrated) {
+          session.ambientSamples += 1;
+          if (energy < 650) {
+            session.ambientEnergy =
+              session.ambientSamples === 1
+                ? energy
+                : session.ambientEnergy * 0.85 + energy * 0.15;
+          }
+          if (session.ambientSamples >= 25) {
+            session.ambientCalibrated = true;
+            const thresh = calculateDynamicNoiseThresholds(session.ambientEnergy);
+            session.voiceThreshold = thresh.voiceThreshold;
+            session.bargeThreshold = thresh.bargeThreshold;
+            this.logger.log(
+              `[Twilio] 🎛️ Dynamic Noise Gate calibrated: ambient=${Math.round(session.ambientEnergy)} ➔ voiceThreshold=${session.voiceThreshold}, bargeThreshold=${session.bargeThreshold}`,
+            );
+          }
+        } else if (!session.speaking && energy < session.voiceThreshold * 0.75) {
+          session.ambientEnergy = session.ambientEnergy * 0.98 + energy * 0.02;
+          const thresh = calculateDynamicNoiseThresholds(session.ambientEnergy);
+          if (Math.abs(thresh.voiceThreshold - session.voiceThreshold) >= 20) {
+            session.voiceThreshold = thresh.voiceThreshold;
+            session.bargeThreshold = thresh.bargeThreshold;
+          }
+        }
+
+        // 2. Barge-in check while agent is speaking
+        if (
+          session.agentPlaying &&
+          energy > session.bargeThreshold &&
+          now > session.listenAfter
+        ) {
           bargeIn();
         }
         if (now < session.listenAfter && !session.agentPlaying) return;
 
-        if (energy > 450) {
+        // 3. Speech detection
+        if (energy > session.voiceThreshold) {
           if (!session.speaking) {
             session.speaking = true;
             session.speechStartedAt = now;
@@ -244,7 +294,8 @@ export class TwilioStreamService {
         return;
       }
 
-      const pcm = boostPcm16(mulawToPcm16(mulawIn), 2.2);
+      const boostedPcm = boostPcm16(mulawToPcm16(mulawIn), 2.2);
+      const pcm = filterDcBlockPcm16(boostedPcm);
       const wavPath = path.join(
         this.uploadsDir,
         `twilio-in-${randomUUID()}.wav`,

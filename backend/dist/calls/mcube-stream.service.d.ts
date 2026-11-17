@@ -9,6 +9,7 @@ import { FactExtractorService } from '../memory/fact-extractor.service';
 import { QuestionValidatorService } from '../memory/question-validator.service';
 import { ConversationState } from '../memory/memory.types';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { AudioFilterState } from './phone-audio';
 export type McubeMediaFormat = {
     encoding?: string;
     sampleRate?: number;
@@ -54,6 +55,12 @@ type McubeSession = {
     memory?: ConversationState;
     settings?: any;
     usedFillers?: string[];
+    ambientEnergy: number;
+    ambientSamples: number;
+    ambientCalibrated: boolean;
+    voiceThreshold: number;
+    bargeThreshold: number;
+    filterState: AudioFilterState;
 };
 export declare class McubeStreamService {
     private config;

@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.asNodeBuffer = asNodeBuffer;
 exports.boostPcm16 = boostPcm16;
 exports.pcmEnergy = pcmEnergy;
+exports.createAudioFilterState = createAudioFilterState;
+exports.filterDcBlockPcm16 = filterDcBlockPcm16;
+exports.calculateDynamicNoiseThresholds = calculateDynamicNoiseThresholds;
 exports.pcm16ToWav = pcm16ToWav;
 exports.truncateForPhone = truncateForPhone;
 exports.pcm16ToMulaw = pcm16ToMulaw;
@@ -33,6 +36,35 @@ function pcmEnergy(buf) {
         sum += Math.abs(buf.readInt16LE(i));
     }
     return sum / n;
+}
+function createAudioFilterState() {
+    return { prevIn: 0, prevOut: 0 };
+}
+function filterDcBlockPcm16(pcm, state, r = 0.92) {
+    const src = asNodeBuffer(pcm);
+    const out = Buffer.alloc(src.length);
+    let prevIn = state ? state.prevIn : 0;
+    let prevOut = state ? state.prevOut : 0;
+    for (let i = 0; i + 1 < src.length; i += 2) {
+        const x = src.readInt16LE(i);
+        const y = x - prevIn + r * prevOut;
+        prevIn = x;
+        prevOut = y;
+        const sample = Math.round(y);
+        const clipped = Math.max(-32768, Math.min(32767, sample));
+        out.writeInt16LE(clipped, i);
+    }
+    if (state) {
+        state.prevIn = prevIn;
+        state.prevOut = prevOut;
+    }
+    return out;
+}
+function calculateDynamicNoiseThresholds(ambientEnergy) {
+    const safeAmbient = Math.max(0, ambientEnergy || 0);
+    const voice = Math.max(450, Math.min(850, Math.round(safeAmbient * 1.6 + 100)));
+    const barge = Math.max(900, Math.min(1600, Math.round(voice * 1.7)));
+    return { voiceThreshold: voice, bargeThreshold: barge };
 }
 function pcm16ToWav(pcm, sampleRate) {
     const body = asNodeBuffer(pcm);
