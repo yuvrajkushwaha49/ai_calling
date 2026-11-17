@@ -566,11 +566,50 @@ export class ConversationService {
           }
         } else {
           // Mid-call "Hello" or "Awaz aa rahi hai"
-          replyText = isEn
-            ? `Yes, I can hear you clearly! Please go ahead.`
+          const livenessPoolHinglish =
+            speechGender === 'male'
+              ? [
+                  'Haan ji, main line par hoon, boliye!',
+                  'Haan ji, aawaz aa rahi hai! Boliye, main sun raha hoon.',
+                  'Haan ji bilkul, sun raha hoon, aap boliye!',
+                  'Haan ji, main yahin hoon, boliye!',
+                ]
+              : [
+                  'Haan ji, main line par hoon, boliye!',
+                  'Haan ji, aawaz aa rahi hai! Boliye, main sun rahi hoon.',
+                  'Haan ji bilkul, sun rahi hoon, aap boliye!',
+                  'Haan ji, main yahin hoon, boliye!',
+                ];
+
+          const livenessPoolHindi =
+            speechGender === 'male'
+              ? [
+                  'हाँ जी, मैं लाइन पर हूँ, बोलिए!',
+                  'हाँ जी, आवाज़ आ रही है! बोलिए, मैं सुन रहा हूँ।',
+                  'हाँ जी बिल्कुल, सुन रहा हूँ, बोलिए!',
+                  'हाँ जी, मैं यहीं हूँ, बोलिए!',
+                ]
+              : [
+                  'हाँ जी, मैं लाइन पर हूँ, बोलिए!',
+                  'हाँ जी, आवाज़ आ रही है! बोलिए, मैं सुन रही हूँ।',
+                  'हाँ जी बिल्कुल, सुन रही हूँ, बोलिए!',
+                  'हाँ जी, मैं यहीं हूँ, बोलिए!',
+                ];
+
+          const livenessPoolEn = [
+            'Yes, I can hear you clearly! Please go ahead.',
+            'Yes, I am on the line, please go ahead!',
+            'Yes, please go ahead, I am listening.',
+          ];
+
+          const pool = isEn
+            ? livenessPoolEn
             : isHing
-            ? `Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!`
-            : `हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!`;
+              ? livenessPoolHinglish
+              : livenessPoolHindi;
+          const idx =
+            Math.abs((options.priorTranscript || '').length) % pool.length;
+          replyText = pool[idx] || pool[0];
         }
       } else {
         const fallback = buildFollowUpReply({
@@ -824,10 +863,10 @@ ${realCustomerName
    }
    - If caller asks "Aawaz aa rahi hai?" / "Hello?" / "Sun rahe ho" mid-call: ${
      isHinglish
-       ? `"Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"`
+       ? `"Haan ji, main line par hoon, boliye!" or "Haan ji, aawaz aa rahi hai, boliye!"`
        : isEnglish
        ? `"Yes, I can hear you clearly! Please go ahead."`
-       : `"हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!"`
+       : `"हाँ जी, मैं लाइन पर हूँ, बोलिए!" या "हाँ जी, आवाज़ आ रही है, बोलिए!"`
    }
 2) ALWAYS ANSWER THE CALLER'S QUESTION FIRST:
    - The customer called you. If they ask about projects, available flats, 2BHK/3BHK, price, location, builder, possession, or RERA, ALWAYS ANSWER directly from Available Projects & Knowledge below. Never ignore or dodge their question!
@@ -941,7 +980,7 @@ ${realCustomerName
          ? `PITCH THIS EXACT LINE: "Hello! Welcome to ${company} helpline. I am ${options.agentName}, how may I help you today?"`
          : `PITCH THIS EXACT LINE: "हाँ जी नमस्ते! ${company} हेल्पलाइन में आपका स्वागत है। मैं ${options.agentName} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`}`
 }
-   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" MID-CALL: Reassure immediately: ${isHinglish ? '"Haan ji, bilkul aawaz aa rahi hai! Main sun rahi hoon, boliye!"' : isEnglish ? '"Yes, I can hear you clearly! Please go ahead."' : '"हाँ जी, बिल्कुल आवाज़ आ रही है! मैं सुन रही हूँ, बोलिए!"'}
+   - If customer says "Hello" / "Awaz aa rahi hai" / "Sun rahe ho" MID-CALL: Reassure immediately: ${isHinglish ? '"Haan ji, main line par hoon, boliye!" or "Haan ji, aawaz aa rahi hai, boliye!"' : isEnglish ? '"Yes, I can hear you clearly! Please go ahead."' : '"हाँ जी, मैं लाइन पर हूँ, बोलिए!" या "हाँ जी, आवाज़ आ रही है, बोलिए!"'}
    - If customer asks "Kaun?" / "Kaun bol raha hai?" / "Kahan phone lag gaya?": Clarify directly: ${isHinglish ? `"Ji namaste! Main ${company} real estate helpline se ${options.agentName} baat kar rahi hoon. Bataiye main aapki kya madad kar sakti hoon?"` : isEnglish ? `"Hello! I am ${options.agentName} calling from ${company} real estate helpline. How may I assist you?"` : `"जी नमस्ते! मैं ${company} रियल एस्टेट हेल्पलाइन से ${options.agentName} बात कर रही हूँ। बताइए मैं आपकी क्या मदद कर सकती हूँ?"`}
    - If asked for project/property details: Give facts simply; if looking up: "Ji main dekh rahi hoon, ek second..."
 2) FIRST understand the customer's last message. If they asked a question (e.g. price, location, 2BHK/3BHK), ANSWER that directly before any sales question.
@@ -1037,7 +1076,7 @@ CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
   * If you already greeted the caller once in the conversation history below, DO NOT repeat opening greetings ("Namaste! helpline me swagat...")!
   * DO NOT repeat customer's name in every sentence! Use name at most once warmly, and only rarely thereafter.
   * Move the conversation FORWARD naturally:
-    1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, bilkul aawaz aa rahi hai! Main aapko sun rahi hoon, boliye!"
+    1) If caller says "Hello" / "Awaz aa rahi hai" mid-call: "Haan ji, main line par hoon, boliye!" ya "Haan ji, aawaz aa rahi hai, boliye!"
     2) If caller asks ANY question about project, flat, price, location, amenities, possession: ALWAYS answer their question first from Available Projects & Knowledge.
     3) PROGRESSIVE DETAIL COLLECTION (Check what is already answered in the transcript):
        * Name: ${callerKnownName ? `Known (${callerKnownName}) - Use their name ("${callerKnownName} ji") and DO NOT ask name again!` : 'UNKNOWN (CRITICAL: Politely ask their name early in call: "Vaise main aapka shubh naam jaan sakti hoon?")'}

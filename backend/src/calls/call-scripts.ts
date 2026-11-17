@@ -1185,9 +1185,9 @@ export function buildContextualLivenessAck(options: {
     return `हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! हम ${pName} के बारे में बात कर रहे थे — बोलिए!`;
   }
   if (lastLower.length > 12 && !/hello\?|हेलो\?/i.test(lastLower)) {
-    return 'हाँ जी, बिल्कुल आवाज़ आ रही है! मैं लाइन पर हूँ, आप बोलिए।';
+    return 'हाँ जी, मैं लाइन पर हूँ, आप बोलिए।';
   }
-  return 'हाँ जी, बिल्कुल आवाज़ आ रही है! मैं आपको सुन रही हूँ, बोलिए!';
+  return 'हाँ जी, आवाज़ आ रही है! बोलिए, मैं सुन रही हूँ।';
 }
 
 export function detectIntent(text: string): {
