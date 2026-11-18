@@ -187,6 +187,9 @@ export class AiService {
       useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
     };
 
+    // Propagate to VoiceService so all TTS across the application uses these settings
+    this.voice.setActiveVoiceSettings(voiceSettings);
+
     return {
       ...settings,
       companyName,
@@ -450,6 +453,7 @@ export class AiService {
       },
     });
     this.invalidateSettingsCache();
+    this.voice.setActiveVoiceSettings(updatedVoiceSettings);
     return {
       ...updated,
       voiceSettings: updatedVoiceSettings,

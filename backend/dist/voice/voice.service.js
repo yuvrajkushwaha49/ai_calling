@@ -23,6 +23,25 @@ let VoiceService = VoiceService_1 = class VoiceService {
         this.config = config;
         this.elevenlabs = elevenlabs;
     }
+    activeVoiceSettings = {
+        stability: 0.45,
+        similarityBoost: 0.80,
+        style: 0.15,
+        speed: 1.0,
+        useSpeakerBoost: true,
+    };
+    setActiveVoiceSettings(settings) {
+        if (!settings)
+            return;
+        this.activeVoiceSettings = {
+            ...this.activeVoiceSettings,
+            ...settings,
+        };
+        this.logger.log(`VoiceService active voice settings updated: stability=${this.activeVoiceSettings.stability} similarity=${this.activeVoiceSettings.similarityBoost} style=${this.activeVoiceSettings.style} speed=${this.activeVoiceSettings.speed} speakerBoost=${this.activeVoiceSettings.useSpeakerBoost}`);
+    }
+    getActiveVoiceSettings() {
+        return this.activeVoiceSettings;
+    }
     getTtsProvider() {
         if (!this.elevenlabs.isConfigured()) {
             throw new common_1.ServiceUnavailableException('ELEVENLABS_API_KEY is not configured. Add it to backend/.env');
@@ -79,20 +98,26 @@ let VoiceService = VoiceService_1 = class VoiceService {
         const text = this.formatSpeechText(options.text, options.language);
         const rawVoiceId = (this.config.get('ELEVENLABS_DEFAULT_VOICE_ID') || '').trim();
         const voiceId = /^[a-zA-Z0-9]{20,}$/.test(rawVoiceId) ? rawVoiceId : '';
-        this.logger.log(`TTS via ElevenLabs voice_id=${voiceId || options.speaker || 'default'} lang=${options.language || '-'} format=${options.outputFormat || 'default'}`);
+        const active = this.activeVoiceSettings;
+        const stability = options.stability ?? active?.stability ?? 0.45;
+        const similarityBoost = options.similarityBoost ?? active?.similarityBoost ?? 0.80;
+        const style = options.style ?? active?.style ?? 0.15;
+        const useSpeakerBoost = options.useSpeakerBoost ?? active?.useSpeakerBoost ?? true;
+        const pace = options.pace ?? active?.speed ?? 1.0;
+        this.logger.log(`TTS via ElevenLabs voice_id=${voiceId || options.speaker || 'default'} lang=${options.language || '-'} format=${options.outputFormat || 'default'} stability=${stability} style=${style} speed=${pace}`);
         return this.elevenlabs.textToSpeech({
             text,
             speaker: voiceId || options.speaker || 'custom',
             language: options.language,
-            pace: options.pace ?? 1.0,
+            pace,
             skipSave: options.skipSave,
             outputFormat: options.outputFormat,
             modelId: options.modelId,
             optimizeStreamingLatency: options.optimizeStreamingLatency,
-            stability: options.stability,
-            similarityBoost: options.similarityBoost,
-            style: options.style,
-            useSpeakerBoost: options.useSpeakerBoost,
+            stability,
+            similarityBoost,
+            style,
+            useSpeakerBoost,
         });
     }
     async speechToText(options) {

@@ -25,6 +25,14 @@ function appendImprovement(playbook, event) {
 function normalizePlaybook(raw) {
     if (!raw)
         return { tips: [], autoLessons: [] };
+    if (typeof raw === 'string') {
+        try {
+            raw = JSON.parse(raw);
+        }
+        catch {
+            return { tips: [], autoLessons: [] };
+        }
+    }
     if (Array.isArray(raw)) {
         const tips = raw
             .map((item) => {
@@ -125,11 +133,23 @@ function normalizePlaybook(raw) {
         }
         improvementHistory.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     }
+    let voiceSettings = undefined;
+    if (obj && typeof obj.voiceSettings === 'object' && obj.voiceSettings !== null) {
+        const vs = obj.voiceSettings;
+        voiceSettings = {
+            stability: typeof vs.stability === 'number' ? vs.stability : undefined,
+            similarityBoost: typeof vs.similarityBoost === 'number' ? vs.similarityBoost : undefined,
+            style: typeof vs.style === 'number' ? vs.style : undefined,
+            speed: typeof vs.speed === 'number' ? vs.speed : undefined,
+            useSpeakerBoost: typeof vs.useSpeakerBoost === 'boolean' ? vs.useSpeakerBoost : undefined,
+        };
+    }
     return {
         openerLearning: (0, opener_bank_1.parseOpenerLearning)(obj),
         tips,
         autoLessons,
         improvementHistory: improvementHistory.slice(-80),
+        ...(voiceSettings ? { voiceSettings } : {}),
     };
 }
 function formatPlaybookForPrompt(raw, maxChars = 500) {

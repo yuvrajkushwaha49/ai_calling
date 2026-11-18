@@ -34,12 +34,21 @@ export type ImprovementEvent = {
   callId?: string;
 };
 
+export type VoiceSettings = {
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  speed?: number;
+  useSpeakerBoost?: boolean;
+};
+
 export type AgentPlaybook = {
   openerLearning?: OpenerLearning;
   tips?: PlaybookTip[];
   autoLessons?: AutoLesson[];
   /** Timeline of when/what the agent improved (newest last). */
   improvementHistory?: ImprovementEvent[];
+  voiceSettings?: VoiceSettings;
 };
 
 export function appendImprovement(
@@ -60,6 +69,14 @@ export function appendImprovement(
 
 export function normalizePlaybook(raw: unknown): AgentPlaybook {
   if (!raw) return { tips: [], autoLessons: [] };
+
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return { tips: [], autoLessons: [] };
+    }
+  }
 
   // Legacy: plain array of tip-like objects
   if (Array.isArray(raw)) {
@@ -163,11 +180,24 @@ export function normalizePlaybook(raw: unknown): AgentPlaybook {
     );
   }
 
+  let voiceSettings: VoiceSettings | undefined = undefined;
+  if (obj && typeof obj.voiceSettings === 'object' && obj.voiceSettings !== null) {
+    const vs = obj.voiceSettings as Record<string, unknown>;
+    voiceSettings = {
+      stability: typeof vs.stability === 'number' ? vs.stability : undefined,
+      similarityBoost: typeof vs.similarityBoost === 'number' ? vs.similarityBoost : undefined,
+      style: typeof vs.style === 'number' ? vs.style : undefined,
+      speed: typeof vs.speed === 'number' ? vs.speed : undefined,
+      useSpeakerBoost: typeof vs.useSpeakerBoost === 'boolean' ? vs.useSpeakerBoost : undefined,
+    };
+  }
+
   return {
     openerLearning: parseOpenerLearning(obj),
     tips,
     autoLessons,
     improvementHistory: improvementHistory.slice(-80),
+    ...(voiceSettings ? { voiceSettings } : {}),
   };
 }
 

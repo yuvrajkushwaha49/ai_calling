@@ -95,6 +95,11 @@ export default function AiSettingsPage() {
   const onSubmit = (data: AiSettingsFormData) => {
     updateSettings.mutate({
       ...data,
+      voiceStability: data.voiceStability ?? 0.45,
+      voiceSimilarity: data.voiceSimilarity ?? 0.80,
+      voiceStyle: data.voiceStyle ?? 0.15,
+      voiceSpeed: data.voiceSpeed ?? 1.0,
+      voiceSpeakerBoost: data.voiceSpeakerBoost ?? true,
       voiceSettings: {
         stability: data.voiceStability ?? 0.45,
         similarityBoost: data.voiceSimilarity ?? 0.80,
@@ -303,7 +308,13 @@ export default function AiSettingsPage() {
                     max="1.00"
                     step="0.05"
                     value={form.watch('voiceStability') ?? 0.45}
-                    onChange={(e) => form.setValue('voiceStability', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      form.setValue('voiceStability', parseFloat(e.target.value), {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
                     className="w-full accent-blue-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -334,7 +345,13 @@ export default function AiSettingsPage() {
                     max="0.60"
                     step="0.05"
                     value={form.watch('voiceStyle') ?? 0.15}
-                    onChange={(e) => form.setValue('voiceStyle', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      form.setValue('voiceStyle', parseFloat(e.target.value), {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
                     className="w-full accent-purple-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -368,7 +385,13 @@ export default function AiSettingsPage() {
                     max="1.00"
                     step="0.05"
                     value={form.watch('voiceSimilarity') ?? 0.80}
-                    onChange={(e) => form.setValue('voiceSimilarity', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      form.setValue('voiceSimilarity', parseFloat(e.target.value), {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
                     className="w-full accent-emerald-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -395,7 +418,13 @@ export default function AiSettingsPage() {
                     max="1.20"
                     step="0.05"
                     value={form.watch('voiceSpeed') ?? 1.0}
-                    onChange={(e) => form.setValue('voiceSpeed', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      form.setValue('voiceSpeed', parseFloat(e.target.value), {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
                     className="w-full accent-amber-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -415,7 +444,13 @@ export default function AiSettingsPage() {
                   <input
                     type="checkbox"
                     checked={form.watch('voiceSpeakerBoost') ?? true}
-                    onChange={(e) => form.setValue('voiceSpeakerBoost', e.target.checked)}
+                    onChange={(e) =>
+                      form.setValue('voiceSpeakerBoost', e.target.checked, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
                     className="h-4 w-4 rounded accent-blue-600"
                   />
                   <div>

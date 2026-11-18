@@ -159,6 +159,7 @@ let AiService = class AiService {
             speed: typeof savedVoice.speed === 'number' ? savedVoice.speed : 1.0,
             useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
         };
+        this.voice.setActiveVoiceSettings(voiceSettings);
         return {
             ...settings,
             companyName,
@@ -375,6 +376,7 @@ let AiService = class AiService {
             },
         });
         this.invalidateSettingsCache();
+        this.voice.setActiveVoiceSettings(updatedVoiceSettings);
         return {
             ...updated,
             voiceSettings: updatedVoiceSettings,
