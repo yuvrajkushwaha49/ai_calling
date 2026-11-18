@@ -350,4 +350,18 @@ export class QuestionValidatorService {
       ? 'Kya is project ke baare mein aap kuch aur jaanna chahte hain?'
       : 'क्या इस प्रोजेक्ट के बारे में आप कुछ और जानना चाहते हैं?';
   }
+
+  /**
+   * Enforce one question at a time.
+   * If a turn has multiple questions, retains only the first question to avoid overwhelming the customer.
+   */
+  enforceSingleQuestion(text: string): string {
+    const raw = (text || '').trim();
+    const qMatches = raw.match(/\?/g);
+    if (qMatches && qMatches.length > 1) {
+      const firstQIndex = raw.indexOf('?');
+      return raw.slice(0, firstQIndex + 1).trim();
+    }
+    return raw;
+  }
 }

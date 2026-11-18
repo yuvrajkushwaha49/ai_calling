@@ -11,6 +11,13 @@ import {
   type ParsedMeetingSlot,
 } from './meeting-time';
 
+export type SiteVisitState =
+  | 'REQUESTED'
+  | 'PENDING_CONFIRMATION'
+  | 'CONFIRMED'
+  | 'RESCHEDULED'
+  | 'CANCELLED';
+
 export type BookFromCallResult = {
   booked: boolean;
   appointmentId?: string;
@@ -20,6 +27,7 @@ export type BookFromCallResult = {
   calendarSynced?: boolean;
   label?: string;
   reason?: string;
+  visitState?: SiteVisitState;
 };
 
 @Injectable()
@@ -133,13 +141,28 @@ export class AppointmentsService {
 
     // 1. Never book an appointment from generic acknowledgements like "theek hai", "haan", "accha", "sahi hai"
     if (isGenericAcknowledgement(msg)) {
-      return { booked: false, reason: 'generic_acknowledgement' };
+      return { booked: false, reason: 'generic_acknowledgement', visitState: 'REQUESTED' };
+    }
+
+    // Handle explicit cancellation of visit
+    if (/(?:cancel\s*(?:kar|karo|karna|dijiye|kardo)|nahi\s*aa\s*(?:paunga|sakta|paenge)|visit\s*cancel)/i.test(msg)) {
+      const activeToCancel = await this.prisma.appointment.findFirst({
+        where: { leadId: options.leadId, status: AppointmentStatus.SCHEDULED },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (activeToCancel) {
+        await this.prisma.appointment.update({
+          where: { id: activeToCancel.id },
+          data: { status: AppointmentStatus.CANCELLED, notes: `Cancelled via AI call: "${msg.slice(0, 120)}"` },
+        });
+        return { booked: false, reason: 'appointment_cancelled', appointmentId: activeToCancel.id, visitState: 'CANCELLED' };
+      }
     }
 
     // Only attempt booking if the CURRENT turn actually has meeting/date intent
     const msgLooksLikeMeeting = looksLikeMeetingRequest(msg);
     if (!msgLooksLikeMeeting && !qual.meetingAt) {
-      return { booked: false, reason: 'no_meeting_intent_in_turn' };
+      return { booked: false, reason: 'no_meeting_intent_in_turn', visitState: 'REQUESTED' };
     }
 
     const slot =
@@ -149,15 +172,15 @@ export class AppointmentsService {
         : null);
 
     if (!slot) {
-      return { booked: false, reason: 'no_datetime' };
+      return { booked: false, reason: 'no_datetime', visitState: 'PENDING_CONFIRMATION' };
     }
 
     // 2. Explicitly capture customer-confirmed date and time (NEVER invent default time)
     if (slot.isTimeExplicit === false) {
-      return { booked: false, reason: 'missing_time', date: slot.date };
+      return { booked: false, reason: 'missing_time', date: slot.date, visitState: 'PENDING_CONFIRMATION' };
     }
     if (slot.isDateExplicit === false) {
-      return { booked: false, reason: 'missing_date', time: slot.time };
+      return { booked: false, reason: 'missing_date', time: slot.time, visitState: 'PENDING_CONFIRMATION' };
     }
 
     const lead = await this.prisma.lead.findUnique({
@@ -228,6 +251,7 @@ export class AppointmentsService {
         googleLink: updated.googleLink || cal?.htmlLink || null,
         calendarSynced: Boolean(cal?.success && cal?.eventId),
         label: slot.label,
+        visitState: 'RESCHEDULED',
       };
     }
 
@@ -294,6 +318,7 @@ export class AppointmentsService {
       googleLink: cal?.htmlLink || null,
       calendarSynced: Boolean(cal?.eventId),
       label: slot.label,
+      visitState: 'CONFIRMED',
     };
   }
 

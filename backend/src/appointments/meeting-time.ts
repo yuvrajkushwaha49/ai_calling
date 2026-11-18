@@ -19,13 +19,21 @@ export type ParsedMeetingSlot = {
   isDateExplicit?: boolean;
 };
 
+export type ParsedCallbackSlot = {
+  targetDate: string; // YYYY-MM-DD
+  targetTime: string; // e.g. "05:00 PM"
+  targetIso: string;  // ISO timestamp with +05:30 offset
+  label: string;      // e.g. "Kal shaam 5:00 PM"
+  relativeDescription: string;
+};
+
 /**
  * Detect generic acknowledgements that DO NOT constitute meeting date/time confirmation.
  * Customer saying "theek hai", "haan", "accha", "sahi hai" must never auto-book a slot.
  */
 export function isGenericAcknowledgement(text: string): boolean {
   const t = (text || '').trim();
-  return /^(?:theek\s*hai|theek\s*h|theek|thik|thik\s*hai|haan|ha|haanji|hanji|achha|accha|acha|sahi\s*hai|sahi\s*h|sahi|ok|okay|sure|chalega|chlega|done|bilkul|hmmm|hmm|yep|yeah|yes|ठीक\s*है|ठीक|हाँ|हां|अच्छा|सही\s*है|सही|बिल्कुल)[!.,\s]*$/i.test(t);
+  return /^(?:theek\s*hai|theek\s*h|theek|thik|thik\s*hai|haan|ha|haan\s*ji|haanji|han\s*ji|hanji|achha|accha|acha|sahi\s*hai|sahi\s*h|sahi|ok|okay|sure|chalega|chlega|done|bilkul|hmmm|hmm|yep|yeah|yes|ठीक\s*है|ठीक|हाँ|हां|हाँ\s*जी|अच्छा|सही\s*है|सही|बिल्कुल)[!.,\s]*$/i.test(t);
 }
 
 /**
@@ -376,7 +384,10 @@ export function parseMeetingSlot(
   );
 
   // If customer explicitly declined or said no/not interested, do not book
+  // (unless they are correcting a day/time, e.g. "Saturday nahi, Sunday 4 baje", "kal nahi parso")
+  const isCorrection = /(?:nahi|nahin)\s*,?\s*(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday|रविवार|शनिवार|kal|parso|कल|परसों|shaam|subah|शाम|सुबह|\d{1,2}\s*(?:baje|बजे|am|pm)|balki|lekin)/i.test(focus);
   if (
+    !isCorrection &&
     /(?:nahi|nahin|no\b|not\s+interested|nahi\s+chahiye|cancel|manna)/i.test(focus) &&
     !/(?:kyun|kyu)\s+nahi/i.test(focus)
   ) {
@@ -570,4 +581,65 @@ export function parseMeetingSlot(
   }
 
   return null;
+}
+
+/**
+ * Resolves customer callback requests with relative date and time handling in IST.
+ * e.g. "kal call karna", "evening mein call karna", "kal shaam 5 baje", "parso subah".
+ */
+export function parseCallbackSlot(
+  focusText: string,
+  priorTranscript?: string | null,
+): ParsedCallbackSlot | null {
+  const focus = (focusText || '').trim().toLowerCase();
+  if (
+    !/callback|call\s*later|baad\s*me(?:in)?|बाद\s*में|busy|abhi\s*(?:nahi|nhi)|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call|kal|parso|shaam|evening|tomorrow/i.test(
+      focus,
+    )
+  ) {
+    return null;
+  }
+
+  const base = nowIst();
+  let daysToAdd = 1; // Default to tomorrow for callbacks
+  let relativeDesc = 'Kal';
+
+  if (DAY_AFTER_RE.test(focus)) {
+    daysToAdd = 2;
+    relativeDesc = 'Parso';
+  } else if (TOMORROW_RE.test(focus)) {
+    daysToAdd = 1;
+    relativeDesc = 'Kal';
+  } else if (TODAY_RE.test(focus)) {
+    daysToAdd = 0;
+    relativeDesc = 'Aaj';
+  }
+
+  if (/shaam|evening|शाम/i.test(focus)) {
+    if (!relativeDesc.toLowerCase().includes('shaam') && !relativeDesc.toLowerCase().includes('evening')) {
+      relativeDesc = `${relativeDesc} shaam`;
+    }
+  }
+
+  let hm = parseHourMinute(focus);
+  if (!hm) {
+    if (/shaam|evening|शाम/i.test(focus)) {
+      hm = { hour24: 17, minute: 0 };
+    } else if (/dophar|afternoon|दोपहर/i.test(focus)) {
+      hm = { hour24: 14, minute: 0 };
+    } else if (/subah|morning|सुबह/i.test(focus)) {
+      hm = { hour24: 10, minute: 0 };
+    } else {
+      hm = { hour24: 11, minute: 0 };
+    }
+  }
+
+  const slot = addIstDays(base, daysToAdd, hm.hour24, hm.minute);
+  return {
+    targetDate: slot.date,
+    targetTime: slot.time,
+    targetIso: slot.startIso,
+    label: `${relativeDesc} ${slot.time}`,
+    relativeDescription: relativeDesc,
+  };
 }

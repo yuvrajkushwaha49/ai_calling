@@ -301,9 +301,18 @@ export function normalizeTextForSpeech(text: string, lang = 'hinglish'): string 
   // remaining sq.ft / sqft / sq ft -> square feet
   s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, ' square feet ');
 
+  // Mid-sentence abbreviation dot cleanup: "square feet. hai" / "square feet . hai" -> "square feet hai"
+  s = s.replace(/square feet\s*\.\s*(?=[a-z\u0900-\u097F])/gi, ' square feet ');
+
   // 5b. Indian numbering comma removal for remaining numbers (e.g. 1,50,000 -> 150000)
   s = s.replace(/\b([0-9]{1,2}),([0-9]{2}),([0-9]{3})\b/g, '$1$2$3');
   s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\b/g, '$1$2');
+
+  // 5c. Square yards / Gaj measurements
+  s = s.replace(/\b([0-9]{1,6})\s*(?:sq\.?\s*yd\.?|sqyd|square\s*yards?|gaj|गज)\b/gi, ' $1 square yard ');
+
+  // 5d. RERA registration numbers: UPRERAPRJ11124 -> UP RERA PRJ 11124
+  s = s.replace(/\bUPRERAPRJ([0-9]+)\b/gi, 'UP RERA PRJ $1');
 
   // 6. Generic ₹ / Rs. symbol removal if remaining
   s = s.replace(/[₹]/g, ' rupaye ');

@@ -4,9 +4,10 @@ exports.isGenericAcknowledgement = isGenericAcknowledgement;
 exports.isExplicitMeetingConfirmation = isExplicitMeetingConfirmation;
 exports.looksLikeMeetingRequest = looksLikeMeetingRequest;
 exports.parseMeetingSlot = parseMeetingSlot;
+exports.parseCallbackSlot = parseCallbackSlot;
 function isGenericAcknowledgement(text) {
     const t = (text || '').trim();
-    return /^(?:theek\s*hai|theek\s*h|theek|thik|thik\s*hai|haan|ha|haanji|hanji|achha|accha|acha|sahi\s*hai|sahi\s*h|sahi|ok|okay|sure|chalega|chlega|done|bilkul|hmmm|hmm|yep|yeah|yes|ठीक\s*है|ठीक|हाँ|हां|अच्छा|सही\s*है|सही|बिल्कुल)[!.,\s]*$/i.test(t);
+    return /^(?:theek\s*hai|theek\s*h|theek|thik|thik\s*hai|haan|ha|haan\s*ji|haanji|han\s*ji|hanji|achha|accha|acha|sahi\s*hai|sahi\s*h|sahi|ok|okay|sure|chalega|chlega|done|bilkul|hmmm|hmm|yep|yeah|yes|ठीक\s*है|ठीक|हाँ|हां|हाँ\s*जी|अच्छा|सही\s*है|सही|बिल्कुल)[!.,\s]*$/i.test(t);
 }
 function isExplicitMeetingConfirmation(text) {
     const t = (text || '').toLowerCase().trim();
@@ -277,7 +278,9 @@ function parseMeetingSlot(userMessage, priorTranscript, options) {
         return null;
     const focus = normalizeRelativeDayText(userMessage || text);
     const priorTail = normalizeRelativeDayText((priorTranscript || '').split('\n').slice(-8).join('\n'));
-    if (/(?:nahi|nahin|no\b|not\s+interested|nahi\s+chahiye|cancel|manna)/i.test(focus) &&
+    const isCorrection = /(?:nahi|nahin)\s*,?\s*(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday|रविवार|शनिवार|kal|parso|कल|परसों|shaam|subah|शाम|सुबह|\d{1,2}\s*(?:baje|बजे|am|pm)|balki|lekin)/i.test(focus);
+    if (!isCorrection &&
+        /(?:nahi|nahin|no\b|not\s+interested|nahi\s+chahiye|cancel|manna)/i.test(focus) &&
         !/(?:kyun|kyu)\s+nahi/i.test(focus)) {
         return null;
     }
@@ -429,5 +432,54 @@ function parseMeetingSlot(userMessage, priorTranscript, options) {
         }
     }
     return null;
+}
+function parseCallbackSlot(focusText, priorTranscript) {
+    const focus = (focusText || '').trim().toLowerCase();
+    if (!/callback|call\s*later|baad\s*me(?:in)?|बाद\s*में|busy|abhi\s*(?:nahi|nhi)|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call|kal|parso|shaam|evening|tomorrow/i.test(focus)) {
+        return null;
+    }
+    const base = nowIst();
+    let daysToAdd = 1;
+    let relativeDesc = 'Kal';
+    if (DAY_AFTER_RE.test(focus)) {
+        daysToAdd = 2;
+        relativeDesc = 'Parso';
+    }
+    else if (TOMORROW_RE.test(focus)) {
+        daysToAdd = 1;
+        relativeDesc = 'Kal';
+    }
+    else if (TODAY_RE.test(focus)) {
+        daysToAdd = 0;
+        relativeDesc = 'Aaj';
+    }
+    if (/shaam|evening|शाम/i.test(focus)) {
+        if (!relativeDesc.toLowerCase().includes('shaam') && !relativeDesc.toLowerCase().includes('evening')) {
+            relativeDesc = `${relativeDesc} shaam`;
+        }
+    }
+    let hm = parseHourMinute(focus);
+    if (!hm) {
+        if (/shaam|evening|शाम/i.test(focus)) {
+            hm = { hour24: 17, minute: 0 };
+        }
+        else if (/dophar|afternoon|दोपहर/i.test(focus)) {
+            hm = { hour24: 14, minute: 0 };
+        }
+        else if (/subah|morning|सुबह/i.test(focus)) {
+            hm = { hour24: 10, minute: 0 };
+        }
+        else {
+            hm = { hour24: 11, minute: 0 };
+        }
+    }
+    const slot = addIstDays(base, daysToAdd, hm.hour24, hm.minute);
+    return {
+        targetDate: slot.date,
+        targetTime: slot.time,
+        targetIso: slot.startIso,
+        label: `${relativeDesc} ${slot.time}`,
+        relativeDescription: relativeDesc,
+    };
 }
 //# sourceMappingURL=meeting-time.js.map

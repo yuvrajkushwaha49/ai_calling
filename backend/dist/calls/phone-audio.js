@@ -242,8 +242,11 @@ function normalizeTextForSpeech(text, lang = 'hinglish') {
     s = s.replace(/\b([0-9]{2,6})\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)\b/gi, ' $1 square feet ');
     s = s.replace(/(?:\/|per)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|वर्ग\s*फुट)/gi, ' per square foot ');
     s = s.replace(/\b(?:sq\.?\s*ft\.?|sqft|वर्ग\s*फुट)\b/gi, ' square feet ');
+    s = s.replace(/square feet\s*\.\s*(?=[a-z\u0900-\u097F])/gi, ' square feet ');
     s = s.replace(/\b([0-9]{1,2}),([0-9]{2}),([0-9]{3})\b/g, '$1$2$3');
     s = s.replace(/\b([0-9]{1,2}),([0-9]{3})\b/g, '$1$2');
+    s = s.replace(/\b([0-9]{1,6})\s*(?:sq\.?\s*yd\.?|sqyd|square\s*yards?|gaj|गज)\b/gi, ' $1 square yard ');
+    s = s.replace(/\bUPRERAPRJ([0-9]+)\b/gi, 'UP RERA PRJ $1');
     s = s.replace(/[₹]/g, ' rupaye ');
     s = s.replace(/\s+/g, ' ').replace(/\s+([.,!?:;।])/g, '$1').trim();
     return s;

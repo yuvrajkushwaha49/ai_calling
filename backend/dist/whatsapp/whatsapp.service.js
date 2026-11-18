@@ -16,6 +16,7 @@ const config_1 = require("@nestjs/config");
 let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
     config;
     logger = new common_1.Logger(WhatsAppService_1.name);
+    processedWebhooks = new Map();
     constructor(config) {
         this.config = config;
     }
@@ -26,6 +27,15 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         return Boolean(apiKey && phoneId);
     }
     async sendDocument(options) {
+        if (options.isOptedOut || options.hasConsent === false) {
+            this.logger.warn(`[WhatsApp] Dispatch blocked: Customer ${options.toPhone} has opted out or lacks consent`);
+            return {
+                success: false,
+                status: 'FAILED',
+                reason: 'consent_missing_or_opted_out',
+                disclaimer: 'Customer has opted out of communication or consent is not provided.',
+            };
+        }
         const rawPhone = (options.toPhone || '').replace(/\D/g, '');
         if (!rawPhone || rawPhone.length < 10) {
             return {
@@ -35,13 +45,17 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 disclaimer: 'Aapka valid WhatsApp number verify nahi ho paya hai. Humari team aapse call ke baad sampark karegi.',
             };
         }
+        const builderAttribution = options.projectName && options.builderName
+            ? `${options.projectName} by ${options.builderName}`
+            : options.projectName || 'Workains Reality Partner Project';
         if (!this.isConfigured()) {
-            this.logger.log(`[WhatsApp] Gateway not configured. Queuing document dispatch note for lead=${options.toPhone} project=${options.projectName || 'general'}`);
+            this.logger.log(`[WhatsApp] Gateway not configured. Queuing document dispatch note for lead=${options.toPhone} project=${builderAttribution}`);
             return {
                 success: false,
                 status: 'UNAVAILABLE',
                 reason: 'gateway_not_configured',
                 disclaimer: 'Main team ko note karwa deti hoon, wo details aur layout verify karke aapke WhatsApp number par share kar denge.',
+                builderAttribution,
             };
         }
         try {
@@ -63,12 +77,12 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                         ? {
                             document: {
                                 link: options.documentUrl,
-                                caption: `${options.projectName ? `${options.projectName} - ` : ''}Workains Reality - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
+                                caption: `${builderAttribution} - Workains Reality - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
                             },
                         }
                         : {
                             text: {
-                                body: `Namaste ${options.leadName || ''}! ${options.projectName ? `${options.projectName} ke ` : ''}details aur layout Workains Reality ke dwara share kiye gaye hain.`,
+                                body: `Namaste ${options.leadName || ''}! ${builderAttribution} ke details aur verified floor plans Workains Reality ke dwara share kiye gaye hain.`,
                             },
                         }),
                 }),
@@ -81,6 +95,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                     status: 'FAILED',
                     reason: `api_error_${response.status}`,
                     disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
+                    builderAttribution,
                 };
             }
             const data = (await response.json());
@@ -90,6 +105,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 success: true,
                 status: 'SENT',
                 messageId,
+                builderAttribution,
                 disclaimer: options.documentType === 'floor_plan'
                     ? 'Main aapko WhatsApp par floor plan bhej rahi hoon.'
                     : 'Main aapko WhatsApp par document bhej rahi hoon.',
@@ -102,6 +118,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 status: 'FAILED',
                 reason: err instanceof Error ? err.message : String(err),
                 disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
+                builderAttribution,
             };
         }
     }
@@ -113,11 +130,29 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             failed: 'FAILED',
         };
         const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';
+        const key = `${messageId}:${resolvedStatus}`;
+        const isDuplicate = this.processedWebhooks.has(key);
+        if (isDuplicate) {
+            this.logger.log(`[WhatsApp-Webhook] Idempotent retry ignored for messageId=${messageId} status=${resolvedStatus}`);
+            return {
+                messageId,
+                status: resolvedStatus,
+                timestamp: timestamp || new Date().toISOString(),
+                idempotent: true,
+            };
+        }
+        this.processedWebhooks.set(key, Date.now());
+        if (this.processedWebhooks.size > 5000) {
+            const oldestKey = this.processedWebhooks.keys().next().value;
+            if (oldestKey)
+                this.processedWebhooks.delete(oldestKey);
+        }
         this.logger.log(`[WhatsApp-Webhook] Delivery status update: messageId=${messageId} status=${resolvedStatus}`);
         return {
             messageId,
             status: resolvedStatus,
             timestamp: timestamp || new Date().toISOString(),
+            idempotent: false,
         };
     }
 };

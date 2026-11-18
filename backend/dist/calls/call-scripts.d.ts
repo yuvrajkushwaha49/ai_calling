@@ -18,7 +18,7 @@ export declare function getThinkingFiller(options: {
     userMessage?: string;
     usedFillers?: string[];
 }): string;
-type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'clarify_missing_feature' | 'clarify_ncr' | 'generic_ack' | 'recall_past_project' | 'continue_current_project' | 'query_price_current' | 'query_size_current' | 'clarify_which_project' | 'show_alternatives' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
+type ReplyKind = 'not_interested' | 'close_ack' | 'callback' | 'explain_why_call' | 'greeting_inbound' | 'liveness_ack' | 'thinking_filler' | 'ask_planning' | 'ask_bhk' | 'ask_possession' | 'offer_visit' | 'confirm_followup' | 'confirm_details' | 'clarify_ambiguous' | 'clarify_missing_feature' | 'clarify_ncr' | 'generic_ack' | 'recall_past_project' | 'continue_current_project' | 'query_price_current' | 'query_size_current' | 'query_location_current' | 'query_tell_more' | 'budget_uncertain_guide' | 'clarify_which_project' | 'show_alternatives' | 'price_soft' | 'reject_builder_pivot' | 'confirm_future_estate' | 'default';
 export type ConversationFacts = {
     budgetLabel?: string;
     location?: string;
@@ -121,6 +121,10 @@ export declare function detectIntent(text: string): {
     askingContinueCurrentProject?: boolean;
     askingPriceCurrent?: boolean;
     askingSizeCurrent?: boolean;
+    askingLocationCurrent?: boolean;
+    askingTellMore?: boolean;
+    budgetUncertain?: boolean;
+    askingWhatsApp?: boolean;
     askingPriorConversation?: boolean;
 };
 export declare function buildFollowUpReply(options: {

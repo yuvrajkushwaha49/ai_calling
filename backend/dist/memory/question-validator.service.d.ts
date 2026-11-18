@@ -21,4 +21,5 @@ export declare class QuestionValidatorService {
     };
     validateAndSanitize(first: ConversationState | string, second: ConversationState | string): ValidationResult;
     private getNextUnaskedQuestion;
+    enforceSingleQuestion(text: string): string;
 }

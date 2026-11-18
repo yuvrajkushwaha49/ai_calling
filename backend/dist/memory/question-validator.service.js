@@ -241,6 +241,15 @@ let QuestionValidatorService = QuestionValidatorService_1 = class QuestionValida
             ? 'Kya is project ke baare mein aap kuch aur jaanna chahte hain?'
             : 'क्या इस प्रोजेक्ट के बारे में आप कुछ और जानना चाहते हैं?';
     }
+    enforceSingleQuestion(text) {
+        const raw = (text || '').trim();
+        const qMatches = raw.match(/\?/g);
+        if (qMatches && qMatches.length > 1) {
+            const firstQIndex = raw.indexOf('?');
+            return raw.slice(0, firstQIndex + 1).trim();
+        }
+        return raw;
+    }
 };
 exports.QuestionValidatorService = QuestionValidatorService;
 exports.QuestionValidatorService = QuestionValidatorService = QuestionValidatorService_1 = __decorate([

@@ -78,6 +78,7 @@ export declare class McubeStreamService {
     private appointments;
     private readonly logger;
     private readonly uploadsDir;
+    private readonly activeSessions;
     constructor(config: ConfigService, prisma: PrismaService, ai: AiService, voice: VoiceService, conversation: ConversationService, customerMemory: CustomerMemoryService, factExtractor: FactExtractorService, questionValidator: QuestionValidatorService, appointments: AppointmentsService);
     attachClient(ws: WebSocket, callIdHint?: string, queryParams?: Record<string, string>): void;
     private flushTurn;

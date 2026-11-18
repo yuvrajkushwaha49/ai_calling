@@ -923,6 +923,11 @@ function buildContextualLivenessAck(options) {
 }
 function detectIntent(text) {
     const t = text.toLowerCase();
+    const asksLocationCurrent = /(?:location\s*kahan\s*hai|kahan\s*(?:par\s*)?hai|kis\s*jagah\s*hai|kahan\s*padta\s*hai|where\s*is\s*it\s*located|exact\s*location|kaha\s*pe\s*hai)/i.test(t);
+    const asksTellMore = /(?:(?:aur\s*batao|aur\s*bataiye|details\s*batao|details\s*bataiye|aur\s*kya\s*hai)|(?:haan\s*,?\s*batao)|(?:uske\s*baare\s*mein\s*aur))/i.test(t);
+    const isBudgetUncertain = /(?:(?:abhi\s*)?budget\s*(?:clear|fix|decide)?\s*(?:nahi|nhi)\s*hai)|(?:budget\s*ka\s*idea\s*nahi)|(?:abhi\s*socha\s*nahi)|(?:budget\s*clear\s*nahi)/i.test(t);
+    const asksWhatsApp = /(?:whatsapp|वाट्सएप|व्हाट्सएप).*(?:bhej|send|share|kar|do|karo|dena)/i.test(t) ||
+        /(?:bhej|send|share)\s*(?:do|dena|karo|kar\s*do)?.*(?:whatsapp|वाट्सएप|व्हाट्सएप)/i.test(t);
     const asksContinueCurrentProject = /(?:(?:nahi|ha+n|ji)?\s*(?:usi|wahi|vahi|same)\s*(?:ke\s*baare|project|ko)?\s*(?:mein\s*)?(?:continue|batao|charcha|rakho|karo|karte\s*hai[n]?))|(?:aage\s*batao)|(?:usi\s*ka\s*detail\s*do)|(?:usi\s*ke\s*baare\s*mein)|(?:pehle\s*to\??)|(?:pehle\s*wala\s*project)|(?:wahi\s*project\s*continue)|(?:kisi\s*ek\s*project\s*ke\s*baare\s*mein\s*to\s*usi\s*ka\s*detail\s*do)|(?:usi\s*ki\s*details\s*do)|(?:haan\s*,?\s*continue\s*karo)|(?:same\s*project\s*ke\s*baare)/i.test(t);
     const asksPriceCurrent = /(?:kitne\s*ka\s*hai|kitne\s*ka\s*padega|price\s*kya\s*hai|kya\s*rate\s*hai|kya\s*cost\s*hai|kitna\s*daam\s*hai|kitne\s*mein\s*aayega)/i.test(t);
     const asksSizeCurrent = /(?:kitna\s*bada\s*hai|size\s*kya\s*hai|area\s*kitna\s*hai|carpet\s*area|super\s*area|kitna\s*size\s*hai)/i.test(t);
@@ -931,7 +936,9 @@ function detectIntent(text) {
         /(?:which|what)\s*project\s*(?:did\s*we|was\s*discussed|last\s*time|previously)/i.test(t);
     const asksAlternatives = /(?:uske|inke|iske)?\s*(?:alawa|chhod\s*kar|other\s*than|apart\s*from)\s*(?:aur\s*)?(?:kya|konsa|kaunse|other)?\s*(?:options?|projects?|flats?)/i.test(t) ||
         /(?:kisi\s*aur|dusra|doosra|dusre|doosre|koi\s*aur|aur\s*koi)\s*(?:ka\s*)?(?:chahiye|dikhao|batao|options?)/i.test(t);
-    const wantsCallback = /callback|call\s*back|call\s*later|baad\s*me(?:in)?|बाद\s*में|नंतर|પછી|busy|व्यस्त|abhi\s*(?:nahi|nhi)\s*(?:kar|kr|bol|baat|time)|(?:nahi|nhi)\s*(?:kar|kr)\s*sak|baad\s*me(?:in)?\s*call|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call/i.test(t) && !/weekend|saturday|sunday|friday|site\s*visit/i.test(t);
+    const isDncOrOptOut = /mat\s*call|don't\s*call|do\s*not\s*call|phone\s*rakh|band\s*karo/i.test(t);
+    const wantsCallback = !isDncOrOptOut &&
+        /callback|call\s*back|call\s*later|baad\s*me(?:in)?|बाद\s*में|नंतर|પછી|busy|व्यस्त|abhi\s*(?:nahi|nhi)\s*(?:kar|kr|bol|baat|time)|(?:nahi|nhi)\s*(?:kar|kr)\s*sak|baad\s*me(?:in)?\s*call|call\s*(?:karna|krna|karo|kar\s*dena)|phir\s*call|later\s*call/i.test(t) && !/weekend|saturday|sunday|friday|site\s*visit/i.test(t);
     const isGreetingOnly = /^(?:hello|helo|halo|haan\s*ji|ha\s*ji|namaste|pranam|hello\s*ji|suno|boliye|haan|han|ha)[!?.\s]*$/i.test(t.trim()) ||
         /^(?:नमस्ते|हेलो|हाँजी|प्रणाम|हाँ\s*जी|सुनिए|हाँ)[!?.\s]*$/.test(t.trim()) ||
         /(?:aawaz|awaaz|awaz|voice|sound)\s*(?:aa\s*rahi|nhi|nahi|aarhi|cut|aarahi|gayab)/i.test(t) ||
@@ -978,6 +985,10 @@ function detectIntent(text) {
         askingContinueCurrentProject: asksContinueCurrentProject,
         askingPriceCurrent: asksPriceCurrent,
         askingSizeCurrent: asksSizeCurrent,
+        askingLocationCurrent: asksLocationCurrent,
+        askingTellMore: asksTellMore,
+        budgetUncertain: isBudgetUncertain,
+        askingWhatsApp: asksWhatsApp,
         askingPriorConversation: asksPriorConversation,
     };
 }
@@ -1052,6 +1063,18 @@ function buildFollowUpReply(options) {
         kind = 'query_size_current';
         outcome = client_1.CallOutcome.CONNECTED;
     }
+    else if (intent.askingLocationCurrent) {
+        kind = 'query_location_current';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.askingTellMore) {
+        kind = 'query_tell_more';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
+    else if (intent.budgetUncertain) {
+        kind = 'budget_uncertain_guide';
+        outcome = client_1.CallOutcome.CONNECTED;
+    }
     else if (intent.specificProjectInquiry) {
         kind = 'confirm_future_estate';
         outcome = client_1.CallOutcome.QUALIFIED;
@@ -1098,6 +1121,10 @@ function buildFollowUpReply(options) {
     else if (intent.callback && !intent.statingVisitDay) {
         kind = 'callback';
         outcome = client_1.CallOutcome.CALLBACK_REQUESTED;
+        const cbSlot = (0, meeting_time_1.parseCallbackSlot)(current, options.priorTranscript);
+        if (cbSlot) {
+            facts.callbackLabel = cbSlot.label;
+        }
     }
     else if (intent.notInterested) {
         kind = 'not_interested';
@@ -1192,9 +1219,15 @@ function buildFollowUpReply(options) {
             'gu-IN': `બરાબર, આભાર.`,
         },
         callback: {
-            'en-IN': `Bilkul, abhi time nahi hai — baad mein call kar ${letaHi} हूँ।`,
-            'hi-IN': `बिल्कुल, अभी समय नहीं है — बाद में call कर ${letaHi} हूँ।`,
-            hinglish: `Bilkul, abhi time nahi — baad mein call kar ${letaHi} हूँ।`,
+            'en-IN': facts.callbackLabel
+                ? `Bilkul, main ${facts.callbackLabel} baad mein call kar ${letaHi} hoon — shukriya!`
+                : `Bilkul, abhi time nahi hai — baad mein call kar ${letaHi} हूँ।`,
+            'hi-IN': facts.callbackLabel
+                ? `बिल्कुल, मैं ${facts.callbackLabel} बाद में call कर ${letaHi} हूँ — शुक्रिया!`
+                : `बिल्कुल, अभी समय नहीं है — बाद में call कर ${letaHi} हूँ।`,
+            hinglish: facts.callbackLabel
+                ? `Bilkul, main ${facts.callbackLabel} baad mein call kar ${letaHi} hoon — shukriya!`
+                : `Bilkul, abhi time nahi — baad mein call kar ${letaHi} हूँ।`,
             'mr-IN': `ठीक, नंतर कॉल करतो.`,
             'gu-IN': `બરાબર, પછી કૉલ કરીશ.`,
         },
@@ -1370,6 +1403,39 @@ function buildFollowUpReply(options) {
             hinglish: `Palace Heights mein 2 BHK configurations 1015 sq.ft aur 1088 sq.ft sizes mein available hain. Kya aap iska floor plan layout dekhna chahenge?`,
             'mr-IN': `२ BHK चे आकार १०१५ आणि १०८८ चौरस फूट उपलब्ध आहेत.`,
             'gu-IN': `૨ BHK ના કદ ૧૦૧૫ અને ૧૦૮૮ ચોરસ ફૂટમાં ઉપલબ્ધ છે.`,
+        },
+        query_location_current: {
+            'en-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch is located in Sector 1 Greater Noida West, right on the wide 130-meter road with excellent metro connectivity.`
+                : `Palace Heights by Rudra is located in Sector 1 Greater Noida West near Gaur Chowk, with seamless access to central Noida.`,
+            'hi-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch सेक्टर 1 ग्रेटर नोएडा वेस्ट में 130 मीटर रोड पर स्थित है, जिसकी मेट्रो और हाईवे कनेक्टिविटी बेहतरीन है।`
+                : `Palace Heights by Rudra सेक्टर 1 ग्रेटर नोएडा वेस्ट में गौर चौक के पास स्थित है, जहाँ से सेंट्रल नोएडा की कनेक्टिविटी सीधी है।`,
+            hinglish: (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch Sector 1 Greater Noida West mein 130-meter road par sthit hai, jahan se metro connectivity bilkul paas hai.`
+                : `Palace Heights by Rudra Sector 1 Greater Noida West mein Gaur Chowk ke paas sthit hai, jahan se Noida aur Delhi dono smoothly connected hain.`,
+            'mr-IN': `प्रकल्प ग्रेटर नोएडा वेस्ट सेक्टर १ मध्ये मोक्याच्या ठिकाणी आहे.`,
+            'gu-IN': `પ્રોજેક્ટ ગ્રેટર નોઈડા વેસ્ટ સેક્ટર ૧ માં મુખ્ય સ્થળે છે.`,
+        },
+        query_tell_more: {
+            'en-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch is a premium 4-side open development featuring clubhouse, sports arenas, and 1 to 3 BHK homes. Would you like to check available unit layouts?`
+                : `Palace Heights by Rudra features 2 BHK homes in 1015 and 1088 sq.ft with swimming pool, gym, and an attractive 50:50 payment plan. Would you like to review the floor plan?`,
+            'hi-IN': (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch एक 4-side open प्रोजेक्ट है जिसमें क्लबहाउस, स्विमिंग पूल और 1 से 3 BHK ऑप्शन्स उपलब्ध हैं। क्या आप इसका लेआउट देखना चाहेंगे?`
+                : `Palace Heights by Rudra में 1015 और 1088 sq.ft के 2 BHK, क्लबहाउस और 50:50 पेमेंट प्लान उपलब्ध है। क्या आप इसका फ्लोर प्लान देखना चाहेंगे?`,
+            hinglish: (options.knownFacts?.selectedProjectId || options.knownFacts?.lastDiscussedProject || '').toLowerCase().includes('monarch')
+                ? `NCR Monarch 4-side open project hai jisme clubhouse, sports arena aur 1 to 3 BHK flats available hain. Kya aap iska floor plan layout dekhna chahenge?`
+                : `Palace Heights by Rudra mein 1015 aur 1088 sq.ft ke 2 BHK, clubhouse aur 50:50 payment plan available hai. Kya aap iska layout dekhna chahenge?`,
+            'mr-IN': `प्रकल्पामध्ये सर्व आधुनिक सुविधा आणि उत्तम लेआउट उपलब्ध आहेत.`,
+            'gu-IN': `પ્રોજેક્ટમાં તમામ આધુનિક સુવિધાઓ અને સુંદર લેઆઉટ ઉપલબ્ધ છે.`,
+        },
+        budget_uncertain_guide: {
+            'en-IN': `No problem at all! In Sector 1 Greater Noida West, verified homes start from ₹60 Lakh up to ₹90 Lakh. Which configuration would you prefer — 2 BHK or 3 BHK?`,
+            'hi-IN': `कोई बात नहीं जी! सेक्टर 1 ग्रेटर नोएडा वेस्ट में हमारे पास ₹60 Lakh से ₹90 Lakh तक verified ऑप्शन्स हैं। आप 2 BHK पसंद करेंगे या 3 BHK?`,
+            hinglish: `Koi baat nahi ji! Sector 1 Greater Noida West mein verified homes ₹60 Lakh se ₹90 Lakh tak start hote hain. Aap 2 BHK prefer karenge ya 3 BHK?`,
+            'mr-IN': `काही अडचण नाही! आमच्याकडे ६० ते ९० लाखांपर्यंत उत्तम पर्याय आहेत.`,
+            'gu-IN': `કોઈ વાંધો નહીં! અમારી પાસે ૬૦ થી ૯૦ લાખ સુધીના સારા વિકલ્પો છે.`,
         },
         clarify_which_project: {
             'en-IN': `Certainly! Which project would you like to explore — Palace Heights by Rudra or NCR Monarch?`,

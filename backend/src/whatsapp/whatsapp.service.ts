@@ -15,11 +15,13 @@ export interface WhatsAppSendResult {
   messageId?: string;
   reason?: string;
   disclaimer: string;
+  builderAttribution?: string;
 }
 
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
+  private readonly processedWebhooks = new Map<string, number>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -37,14 +39,29 @@ export class WhatsAppService {
   /**
    * Attempt to dispatch project brochure / floor plan / details to customer's WhatsApp.
    * If gateway is unconfigured or fails, returns clear status with safe disclaimer.
+   * Enforces customer consent and accurate builder attribution.
    */
   async sendDocument(options: {
     toPhone: string;
     leadName?: string;
     projectName?: string;
+    builderName?: string;
     documentType: 'brochure' | 'floor_plan' | 'price_sheet';
     documentUrl?: string;
+    hasConsent?: boolean;
+    isOptedOut?: boolean;
   }): Promise<WhatsAppSendResult> {
+    // 1. Consent and Opt-out verification
+    if (options.isOptedOut || options.hasConsent === false) {
+      this.logger.warn(`[WhatsApp] Dispatch blocked: Customer ${options.toPhone} has opted out or lacks consent`);
+      return {
+        success: false,
+        status: 'FAILED',
+        reason: 'consent_missing_or_opted_out',
+        disclaimer: 'Customer has opted out of communication or consent is not provided.',
+      };
+    }
+
     const rawPhone = (options.toPhone || '').replace(/\D/g, '');
     if (!rawPhone || rawPhone.length < 10) {
       return {
@@ -56,9 +73,14 @@ export class WhatsAppService {
       };
     }
 
+    const builderAttribution =
+      options.projectName && options.builderName
+        ? `${options.projectName} by ${options.builderName}`
+        : options.projectName || 'Workains Reality Partner Project';
+
     if (!this.isConfigured()) {
       this.logger.log(
-        `[WhatsApp] Gateway not configured. Queuing document dispatch note for lead=${options.toPhone} project=${options.projectName || 'general'}`,
+        `[WhatsApp] Gateway not configured. Queuing document dispatch note for lead=${options.toPhone} project=${builderAttribution}`,
       );
       return {
         success: false,
@@ -66,6 +88,7 @@ export class WhatsAppService {
         reason: 'gateway_not_configured',
         disclaimer:
           'Main team ko note karwa deti hoon, wo details aur layout verify karke aapke WhatsApp number par share kar denge.',
+        builderAttribution,
       };
     }
 
@@ -93,12 +116,12 @@ export class WhatsAppService {
               ? {
                   document: {
                     link: options.documentUrl,
-                    caption: `${options.projectName ? `${options.projectName} - ` : ''}Workains Reality - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
+                    caption: `${builderAttribution} - Workains Reality - ${options.documentType === 'floor_plan' ? 'Floor Plan Layout' : 'Project Brochure'}`,
                   },
                 }
               : {
                   text: {
-                    body: `Namaste ${options.leadName || ''}! ${options.projectName ? `${options.projectName} ke ` : ''}details aur layout Workains Reality ke dwara share kiye gaye hain.`,
+                    body: `Namaste ${options.leadName || ''}! ${builderAttribution} ke details aur verified floor plans Workains Reality ke dwara share kiye gaye hain.`,
                   },
                 }),
           }),
@@ -113,6 +136,7 @@ export class WhatsAppService {
           status: 'FAILED',
           reason: `api_error_${response.status}`,
           disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
+          builderAttribution,
         };
       }
 
@@ -124,6 +148,7 @@ export class WhatsAppService {
         success: true,
         status: 'SENT',
         messageId,
+        builderAttribution,
         disclaimer:
           options.documentType === 'floor_plan'
             ? 'Main aapko WhatsApp par floor plan bhej rahi hoon.'
@@ -136,19 +161,21 @@ export class WhatsAppService {
         status: 'FAILED',
         reason: err instanceof Error ? err.message : String(err),
         disclaimer: 'WhatsApp par document abhi send nahi ho paya.',
+        builderAttribution,
       };
     }
   }
 
   /**
    * Process incoming Meta Cloud API delivery webhook status callbacks.
-   * Lifecycle states: sent -> delivered -> read | failed
+   * Lifecycle states: sent -> delivered -> read | failed.
+   * Handles idempotent webhook retries safely.
    */
   handleWebhookStatus(
     messageId: string,
     status: 'sent' | 'delivered' | 'read' | 'failed',
     timestamp?: string,
-  ): { messageId: string; status: WhatsAppDeliveryStatus; timestamp: string } {
+  ): { messageId: string; status: WhatsAppDeliveryStatus; timestamp: string; idempotent: boolean } {
     const deliveryStatusMap: Record<string, WhatsAppDeliveryStatus> = {
       sent: 'SENT',
       delivered: 'DELIVERED',
@@ -156,6 +183,26 @@ export class WhatsAppService {
       failed: 'FAILED',
     };
     const resolvedStatus = deliveryStatusMap[status.toLowerCase()] || 'SENT';
+    const key = `${messageId}:${resolvedStatus}`;
+    const isDuplicate = this.processedWebhooks.has(key);
+
+    if (isDuplicate) {
+      this.logger.log(`[WhatsApp-Webhook] Idempotent retry ignored for messageId=${messageId} status=${resolvedStatus}`);
+      return {
+        messageId,
+        status: resolvedStatus,
+        timestamp: timestamp || new Date().toISOString(),
+        idempotent: true,
+      };
+    }
+
+    this.processedWebhooks.set(key, Date.now());
+    // Evict older items if map exceeds 5000 items
+    if (this.processedWebhooks.size > 5000) {
+      const oldestKey = this.processedWebhooks.keys().next().value;
+      if (oldestKey) this.processedWebhooks.delete(oldestKey);
+    }
+
     this.logger.log(
       `[WhatsApp-Webhook] Delivery status update: messageId=${messageId} status=${resolvedStatus}`,
     );
@@ -163,7 +210,7 @@ export class WhatsAppService {
       messageId,
       status: resolvedStatus,
       timestamp: timestamp || new Date().toISOString(),
+      idempotent: false,
     };
   }
 }
-

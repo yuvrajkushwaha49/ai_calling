@@ -1559,7 +1559,14 @@ ${learned ? learned : ''}`;
         }
         else if (/callback|later|tomorrow|baad/.test(lower)) {
             base.outcome = 'CALLBACK_REQUESTED';
-            base.suggestedNextAction = 'Schedule callback at preferred time';
+            const cbSlot = (0, meeting_time_1.parseCallbackSlot)(input.userMessage, input.priorTranscript);
+            if (cbSlot) {
+                base.callbackAt = cbSlot.targetIso;
+                base.suggestedNextAction = `Callback ${cbSlot.label}`;
+            }
+            else {
+                base.suggestedNextAction = 'Schedule callback at preferred time';
+            }
         }
         else if (/site visit|visit|dekhna/.test(lower)) {
             base.siteVisitInterest = true;
@@ -1695,7 +1702,12 @@ ${learned ? learned : ''}`;
             ...(qualification.callbackAt
                 ? { callbackAt: new Date(String(qualification.callbackAt)) }
                 : {}),
-            ...(outcome === 'NOT_INTERESTED' ? { doNotCall: false } : {}),
+            ...(qualification.doNotCall === true ||
+                /don't call|do not call|mat call|मत कॉल|wrong number|गलत नंबर/i.test(String(qualification.objections || '') + ' ' + String(qualification.summary || ''))
+                ? { doNotCall: true, consentToCall: false }
+                : outcome === 'NOT_INTERESTED'
+                    ? { doNotCall: false }
+                    : {}),
         };
         if (callerName && callerName.length >= 2 && !(0, call_scripts_1.isPlaceholderLeadName)(callerName) && !call_scripts_1.FORBIDDEN_NAME_WORDS.has(callerName.trim().toLowerCase())) {
             data.name = callerName;

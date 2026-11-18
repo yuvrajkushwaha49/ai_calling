@@ -2,6 +2,7 @@ import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
 import { CreateAppointmentDto, UpdateAppointmentDto } from './dto/appointment.dto';
+export type SiteVisitState = 'REQUESTED' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'RESCHEDULED' | 'CANCELLED';
 export type BookFromCallResult = {
     booked: boolean;
     appointmentId?: string;
@@ -11,6 +12,7 @@ export type BookFromCallResult = {
     calendarSynced?: boolean;
     label?: string;
     reason?: string;
+    visitState?: SiteVisitState;
 };
 export declare class AppointmentsService {
     private prisma;

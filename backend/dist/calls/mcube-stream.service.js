@@ -75,6 +75,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     appointments;
     logger = new common_1.Logger(McubeStreamService_1.name);
     uploadsDir = path.join(process.cwd(), 'uploads', 'audio');
+    activeSessions = new Map();
     constructor(config, prisma, ai, voice, conversation, customerMemory, factExtractor, questionValidator, appointments) {
         this.config = config;
         this.prisma = prisma;
@@ -88,6 +89,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         fs.mkdirSync(this.uploadsDir, { recursive: true });
     }
     attachClient(ws, callIdHint, queryParams) {
+        const prior = callIdHint ? this.activeSessions.get(callIdHint) : undefined;
+        if (prior) {
+            this.logger.log(`[MCube-Reconnect] Reconnecting existing callId=${callIdHint}, preserving conversation state and facts`);
+        }
         const session = {
             streamId: '',
             callId: callIdHint || '',
@@ -104,19 +109,23 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             agentPlaying: false,
             cancelPlay: false,
             bargeHits: 0,
-            flushGen: 0,
-            lastAgentText: 'Hello?',
-            lastUserText: '',
-            turnCount: 0,
-            transcript: 'Agent: Hello?\n',
+            flushGen: prior ? prior.flushGen + 1 : 0,
+            lastAgentText: prior?.lastAgentText || 'Hello?',
+            lastUserText: prior?.lastUserText || '',
+            turnCount: prior?.turnCount || 0,
+            transcript: prior?.transcript || 'Agent: Hello?\n',
             pendingSegments: new Set(),
-            ambientEnergy: 160,
+            memory: prior?.memory,
+            ambientEnergy: prior?.ambientEnergy || 160,
             ambientSamples: 0,
             ambientCalibrated: false,
-            voiceThreshold: 450,
-            bargeThreshold: 900,
+            voiceThreshold: prior?.voiceThreshold || 450,
+            bargeThreshold: prior?.bargeThreshold || 900,
             filterState: (0, phone_audio_1.createAudioFilterState)(),
         };
+        if (session.callId) {
+            this.activeSessions.set(session.callId, session);
+        }
         const clearSilence = () => {
             if (session.silenceTimer) {
                 clearTimeout(session.silenceTimer);
@@ -137,6 +146,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 return;
             const tStart = Date.now();
             session.actualCancellationConfirmed = false;
+            this.logger.log(`[Audio-Lifecycle] [Step 8: CUSTOMER_INTERRUPTS] streamId=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
             this.logger.log(`[MCube-BargeIn] [State 1: BARGE_IN_DETECTED] streamId=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
             this.sendClearAudio(ws, session.streamId);
             this.logger.log(`[MCube-BargeIn] [State 2: CLEAR_COMMAND_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`);
@@ -145,12 +155,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
             session.agentPlaying = false;
             session.pendingSegments.clear();
             session.flushGen += 1;
+            this.logger.log(`[Audio-Lifecycle] [Step 11: PENDING_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
             this.logger.log(`[MCube-BargeIn] [State 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
             const hasActiveAbort = Boolean(session.turnAbortController);
             if (session.turnAbortController) {
                 session.turnAbortController.abort();
                 session.turnAbortController = null;
             }
+            this.logger.log(`[Audio-Lifecycle] [Step 9: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=${hasActiveAbort}`);
+            this.logger.log(`[Audio-Lifecycle] [Step 10: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=${hasActiveAbort}`);
             this.logger.log(`[MCube-BargeIn] [State 4: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=${hasActiveAbort}`);
             this.logger.log(`[MCube-BargeIn] [State 5: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=${hasActiveAbort}`);
             this.logger.log(`[MCube-BargeIn] [State 6: LAST_AUDIO_CHUNK_SENT] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`);

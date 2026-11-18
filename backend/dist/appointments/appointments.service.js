@@ -105,24 +105,37 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
         const qual = options.qualification || {};
         const prior = options.priorTranscript || '';
         if ((0, meeting_time_1.isGenericAcknowledgement)(msg)) {
-            return { booked: false, reason: 'generic_acknowledgement' };
+            return { booked: false, reason: 'generic_acknowledgement', visitState: 'REQUESTED' };
+        }
+        if (/(?:cancel\s*(?:kar|karo|karna|dijiye|kardo)|nahi\s*aa\s*(?:paunga|sakta|paenge)|visit\s*cancel)/i.test(msg)) {
+            const activeToCancel = await this.prisma.appointment.findFirst({
+                where: { leadId: options.leadId, status: client_1.AppointmentStatus.SCHEDULED },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (activeToCancel) {
+                await this.prisma.appointment.update({
+                    where: { id: activeToCancel.id },
+                    data: { status: client_1.AppointmentStatus.CANCELLED, notes: `Cancelled via AI call: "${msg.slice(0, 120)}"` },
+                });
+                return { booked: false, reason: 'appointment_cancelled', appointmentId: activeToCancel.id, visitState: 'CANCELLED' };
+            }
         }
         const msgLooksLikeMeeting = (0, meeting_time_1.looksLikeMeetingRequest)(msg);
         if (!msgLooksLikeMeeting && !qual.meetingAt) {
-            return { booked: false, reason: 'no_meeting_intent_in_turn' };
+            return { booked: false, reason: 'no_meeting_intent_in_turn', visitState: 'REQUESTED' };
         }
         const slot = (0, meeting_time_1.parseMeetingSlot)(msg, options.priorTranscript) ||
             (typeof qual.meetingAt === 'string'
                 ? this.slotFromIso(String(qual.meetingAt))
                 : null);
         if (!slot) {
-            return { booked: false, reason: 'no_datetime' };
+            return { booked: false, reason: 'no_datetime', visitState: 'PENDING_CONFIRMATION' };
         }
         if (slot.isTimeExplicit === false) {
-            return { booked: false, reason: 'missing_time', date: slot.date };
+            return { booked: false, reason: 'missing_time', date: slot.date, visitState: 'PENDING_CONFIRMATION' };
         }
         if (slot.isDateExplicit === false) {
-            return { booked: false, reason: 'missing_date', time: slot.time };
+            return { booked: false, reason: 'missing_date', time: slot.time, visitState: 'PENDING_CONFIRMATION' };
         }
         const lead = await this.prisma.lead.findUnique({
             where: { id: options.leadId },
@@ -186,6 +199,7 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
                 googleLink: updated.googleLink || cal?.htmlLink || null,
                 calendarSynced: Boolean(cal?.success && cal?.eventId),
                 label: slot.label,
+                visitState: 'RESCHEDULED',
             };
         }
         const projectId = options.projectId || lead.projectId || undefined;
@@ -241,6 +255,7 @@ let AppointmentsService = AppointmentsService_1 = class AppointmentsService {
             googleLink: cal?.htmlLink || null,
             calendarSynced: Boolean(cal?.eventId),
             label: slot.label,
+            visitState: 'CONFIRMED',
         };
     }
     slotFromIso(iso) {
