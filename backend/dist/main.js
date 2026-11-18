@@ -8,7 +8,9 @@ const app_module_1 = require("./app.module");
 const twilio_stream_service_1 = require("./calls/twilio-stream.service");
 const exotel_stream_service_1 = require("./calls/exotel-stream.service");
 const mcube_stream_service_1 = require("./calls/mcube-stream.service");
+const version_1 = require("./version");
 async function bootstrap() {
+    const logger = new common_1.Logger('Bootstrap');
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.use((0, express_1.json)({ limit: '15mb' }));
     app.use((0, express_1.urlencoded)({ extended: true, limit: '15mb' }));
@@ -29,6 +31,8 @@ async function bootstrap() {
     }));
     const port = process.env.PORT ?? 4000;
     await app.listen(port);
+    const telemetry = (0, version_1.getVersionTelemetry)();
+    logger.log(`🚀 Server running on port ${port} [version=${telemetry.version} deployment=${telemetry.deploymentId} commit=${telemetry.commitSha}]`);
     const server = app.getHttpServer();
     const twilioStream = app.get(twilio_stream_service_1.TwilioStreamService);
     const exotelStream = app.get(exotel_stream_service_1.ExotelStreamService);

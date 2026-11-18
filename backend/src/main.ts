@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 import { WebSocketServer } from 'ws';
 import type { IncomingMessage } from 'http';
@@ -7,8 +7,10 @@ import { AppModule } from './app.module';
 import { TwilioStreamService } from './calls/twilio-stream.service';
 import { ExotelStreamService } from './calls/exotel-stream.service';
 import { McubeStreamService } from './calls/mcube-stream.service';
+import { getVersionTelemetry } from './version';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
   app.use(json({ limit: '15mb' }));
@@ -36,6 +38,11 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 4000;
   await app.listen(port);
+
+  const telemetry = getVersionTelemetry();
+  logger.log(
+    `🚀 Server running on port ${port} [version=${telemetry.version} deployment=${telemetry.deploymentId} commit=${telemetry.commitSha}]`,
+  );
 
   const server = app.getHttpServer();
   const twilioStream = app.get(TwilioStreamService);
