@@ -873,9 +873,7 @@ let CallsService = CallsService_1 = class CallsService {
                 language: ackLang,
                 pace: 1.15,
                 skipSave: true,
-                modelId: 'eleven_flash_v2_5',
                 outputFormat: 'mp3_22050_32',
-                optimizeStreamingLatency: 4,
             })
                 .then(async (tts) => {
                 if (streamedAnyAudio)
@@ -933,9 +931,7 @@ let CallsService = CallsService_1 = class CallsService {
                                 'hi-IN',
                             pace: 1.05,
                             skipSave: true,
-                            modelId: 'eleven_flash_v2_5',
                             outputFormat: 'mp3_22050_32',
-                            optimizeStreamingLatency: 4,
                         });
                         streamedAnyAudio = true;
                         await emit({
@@ -1093,9 +1089,7 @@ let CallsService = CallsService_1 = class CallsService {
                 language: result.languageDetected || settings.language || 'hi-IN',
                 pace: 1.05,
                 skipSave: true,
-                modelId: 'eleven_flash_v2_5',
                 outputFormat: 'mp3_22050_32',
-                optimizeStreamingLatency: 4,
             });
         if (streamedAnyAudio && booking.booked) {
             const confirm = this.appointments.confirmationLine(booking, result.languageDetected);
@@ -1106,9 +1100,7 @@ let CallsService = CallsService_1 = class CallsService {
                     language: result.languageDetected || settings.language || 'hi-IN',
                     pace: 1.0,
                     skipSave: true,
-                    modelId: 'eleven_flash_v2_5',
                     outputFormat: 'mp3_22050_32',
-                    optimizeStreamingLatency: 4,
                 });
                 await emit({
                     type: 'sentence',

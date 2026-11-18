@@ -406,6 +406,9 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
         }
     }
     async ttsToMulaw(text, speaker, language) {
+        const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
+            'eleven_multilingual_v2';
+        const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
         try {
             const tts = await this.voice.textToSpeech({
                 text,
@@ -414,8 +417,8 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
                 outputFormat: 'ulaw_8000',
                 skipSave: true,
                 pace: 1.0,
-                modelId: 'eleven_flash_v2_5',
-                optimizeStreamingLatency: 4,
+                modelId: preferredModel,
+                optimizeStreamingLatency: latencyOpt,
             });
             return (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
         }
@@ -428,8 +431,8 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
                     outputFormat: 'pcm_16000',
                     skipSave: true,
                     pace: 1.0,
-                    modelId: 'eleven_flash_v2_5',
-                    optimizeStreamingLatency: 4,
+                    modelId: preferredModel,
+                    optimizeStreamingLatency: latencyOpt,
                 });
                 const pcm16k = (0, phone_audio_1.boostPcm16)((0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64')), 1.05);
                 return (0, phone_audio_1.pcm16ToMulaw)((0, phone_audio_1.downsamplePcm16)(pcm16k, 16000, 8000));

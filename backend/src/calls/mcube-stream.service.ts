@@ -1442,7 +1442,21 @@ export class McubeStreamService {
   ): Promise<Buffer | null> {
     const lang = settings?.language || session.settings?.language || 'en-IN';
     const spokenText = normalizeTextForSpeech(text, lang);
-    const cacheKey = `${session.encoding}:${lang}:${spokenText}`;
+
+    const voicePace = settings?.voiceSettings?.speed ?? settings?.voiceSpeed ?? 1.0;
+    const voiceStability = settings?.voiceSettings?.stability ?? settings?.voiceStability ?? 0.45;
+    const voiceSimilarity = settings?.voiceSettings?.similarityBoost ?? settings?.voiceSimilarity ?? 0.80;
+    const voiceStyle = settings?.voiceSettings?.style ?? settings?.voiceStyle ?? 0.15;
+    const voiceSpeakerBoost = settings?.voiceSettings?.useSpeakerBoost ?? settings?.voiceSpeakerBoost ?? true;
+
+    // Use configured ElevenLabs model (multilingual_v2 preserves natural Indian Hindi/Hinglish warmth without robotic romanization)
+    const preferredModel =
+      this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
+      'eleven_multilingual_v2';
+    // Latency level 2 maintains studio neural resonance and prevents metallic compression artifacts
+    const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+
+    const cacheKey = `${session.encoding}:${lang}:${preferredModel}:${voiceStability}:${voiceStyle}:${voiceSimilarity}:${voicePace}:${voiceSpeakerBoost}:${spokenText}`;
 
     // Fast-path TTS cache (0ms latency for greetings, acknowledgements, fillers)
     if (this.ttsCache.has(cacheKey)) {
@@ -1455,11 +1469,6 @@ export class McubeStreamService {
 
     try {
       let buf: Buffer | null = null;
-      const voicePace = settings?.voiceSettings?.speed ?? settings?.voiceSpeed ?? 1.0;
-      const voiceStability = settings?.voiceSettings?.stability ?? settings?.voiceStability;
-      const voiceSimilarity = settings?.voiceSettings?.similarityBoost ?? settings?.voiceSimilarity;
-      const voiceStyle = settings?.voiceSettings?.style ?? settings?.voiceStyle;
-      const voiceSpeakerBoost = settings?.voiceSettings?.useSpeakerBoost ?? settings?.voiceSpeakerBoost ?? true;
 
       if (session.encoding === 'audio/x-l16') {
         const tts = await this.voice.textToSpeech({
@@ -1469,8 +1478,8 @@ export class McubeStreamService {
           outputFormat: 'pcm_16000',
           skipSave: true,
           pace: voicePace,
-          modelId: 'eleven_flash_v2_5',
-          optimizeStreamingLatency: 4,
+          modelId: preferredModel,
+          optimizeStreamingLatency: latencyOpt,
           stability: voiceStability,
           similarityBoost: voiceSimilarity,
           style: voiceStyle,
@@ -1487,8 +1496,8 @@ export class McubeStreamService {
             outputFormat: 'ulaw_8000',
             skipSave: true,
             pace: voicePace,
-            modelId: 'eleven_flash_v2_5',
-            optimizeStreamingLatency: 4,
+            modelId: preferredModel,
+            optimizeStreamingLatency: latencyOpt,
             stability: voiceStability,
             similarityBoost: voiceSimilarity,
             style: voiceStyle,
@@ -1503,8 +1512,8 @@ export class McubeStreamService {
             outputFormat: 'pcm_16000',
             skipSave: true,
             pace: voicePace,
-            modelId: 'eleven_flash_v2_5',
-            optimizeStreamingLatency: 4,
+            modelId: preferredModel,
+            optimizeStreamingLatency: latencyOpt,
             stability: voiceStability,
             similarityBoost: voiceSimilarity,
             style: voiceStyle,

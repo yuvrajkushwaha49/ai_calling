@@ -1116,7 +1116,15 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     async synthesizeForSession(text, session, settings) {
         const lang = settings?.language || session.settings?.language || 'en-IN';
         const spokenText = (0, phone_audio_1.normalizeTextForSpeech)(text, lang);
-        const cacheKey = `${session.encoding}:${lang}:${spokenText}`;
+        const voicePace = settings?.voiceSettings?.speed ?? settings?.voiceSpeed ?? 1.0;
+        const voiceStability = settings?.voiceSettings?.stability ?? settings?.voiceStability ?? 0.45;
+        const voiceSimilarity = settings?.voiceSettings?.similarityBoost ?? settings?.voiceSimilarity ?? 0.80;
+        const voiceStyle = settings?.voiceSettings?.style ?? settings?.voiceStyle ?? 0.15;
+        const voiceSpeakerBoost = settings?.voiceSettings?.useSpeakerBoost ?? settings?.voiceSpeakerBoost ?? true;
+        const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
+            'eleven_multilingual_v2';
+        const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+        const cacheKey = `${session.encoding}:${lang}:${preferredModel}:${voiceStability}:${voiceStyle}:${voiceSimilarity}:${voicePace}:${voiceSpeakerBoost}:${spokenText}`;
         if (this.ttsCache.has(cacheKey)) {
             const cached = this.ttsCache.get(cacheKey);
             session.lastTtsSuccessAt = Date.now();
@@ -1126,11 +1134,6 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
         }
         try {
             let buf = null;
-            const voicePace = settings?.voiceSettings?.speed ?? settings?.voiceSpeed ?? 1.0;
-            const voiceStability = settings?.voiceSettings?.stability ?? settings?.voiceStability;
-            const voiceSimilarity = settings?.voiceSettings?.similarityBoost ?? settings?.voiceSimilarity;
-            const voiceStyle = settings?.voiceSettings?.style ?? settings?.voiceStyle;
-            const voiceSpeakerBoost = settings?.voiceSettings?.useSpeakerBoost ?? settings?.voiceSpeakerBoost ?? true;
             if (session.encoding === 'audio/x-l16') {
                 const tts = await this.voice.textToSpeech({
                     text: spokenText,
@@ -1139,8 +1142,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     outputFormat: 'pcm_16000',
                     skipSave: true,
                     pace: voicePace,
-                    modelId: 'eleven_flash_v2_5',
-                    optimizeStreamingLatency: 4,
+                    modelId: preferredModel,
+                    optimizeStreamingLatency: latencyOpt,
                     stability: voiceStability,
                     similarityBoost: voiceSimilarity,
                     style: voiceStyle,
@@ -1157,8 +1160,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         outputFormat: 'ulaw_8000',
                         skipSave: true,
                         pace: voicePace,
-                        modelId: 'eleven_flash_v2_5',
-                        optimizeStreamingLatency: 4,
+                        modelId: preferredModel,
+                        optimizeStreamingLatency: latencyOpt,
                         stability: voiceStability,
                         similarityBoost: voiceSimilarity,
                         style: voiceStyle,
@@ -1174,8 +1177,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         outputFormat: 'pcm_16000',
                         skipSave: true,
                         pace: voicePace,
-                        modelId: 'eleven_flash_v2_5',
-                        optimizeStreamingLatency: 4,
+                        modelId: preferredModel,
+                        optimizeStreamingLatency: latencyOpt,
                         stability: voiceStability,
                         similarityBoost: voiceSimilarity,
                         style: voiceStyle,

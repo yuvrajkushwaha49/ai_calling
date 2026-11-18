@@ -1002,9 +1002,7 @@ export class CallsService {
           language: ackLang,
           pace: 1.15,
           skipSave: true,
-          modelId: 'eleven_flash_v2_5',
           outputFormat: 'mp3_22050_32',
-          optimizeStreamingLatency: 4,
         })
         .then(async (tts) => {
           if (streamedAnyAudio) return;
@@ -1068,9 +1066,7 @@ export class CallsService {
                     'hi-IN',
                   pace: 1.05,
                   skipSave: true,
-                  modelId: 'eleven_flash_v2_5',
                   outputFormat: 'mp3_22050_32',
-                  optimizeStreamingLatency: 4,
                 });
                 streamedAnyAudio = true;
                 await emit({
@@ -1270,9 +1266,7 @@ export class CallsService {
           language: result.languageDetected || settings.language || 'hi-IN',
           pace: 1.05,
           skipSave: true,
-          modelId: 'eleven_flash_v2_5',
           outputFormat: 'mp3_22050_32',
-          optimizeStreamingLatency: 4,
         });
 
     // If booking confirmation was appended after streamed LLM text, speak the tail
@@ -1288,9 +1282,7 @@ export class CallsService {
           language: result.languageDetected || settings.language || 'hi-IN',
           pace: 1.0,
           skipSave: true,
-          modelId: 'eleven_flash_v2_5',
           outputFormat: 'mp3_22050_32',
-          optimizeStreamingLatency: 4,
         });
         await emit({
           type: 'sentence',

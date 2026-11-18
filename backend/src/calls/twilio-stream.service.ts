@@ -466,6 +466,11 @@ export class TwilioStreamService {
     speaker: string,
     language: string,
   ): Promise<Buffer | null> {
+    const preferredModel =
+      this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
+      'eleven_multilingual_v2';
+    const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+
     try {
       const tts = await this.voice.textToSpeech({
         text,
@@ -474,8 +479,8 @@ export class TwilioStreamService {
         outputFormat: 'ulaw_8000',
         skipSave: true,
         pace: 1.0,
-        modelId: 'eleven_flash_v2_5',
-        optimizeStreamingLatency: 4,
+        modelId: preferredModel,
+        optimizeStreamingLatency: latencyOpt,
       });
       return asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
     } catch {
@@ -487,8 +492,8 @@ export class TwilioStreamService {
           outputFormat: 'pcm_16000',
           skipSave: true,
           pace: 1.0,
-          modelId: 'eleven_flash_v2_5',
-          optimizeStreamingLatency: 4,
+          modelId: preferredModel,
+          optimizeStreamingLatency: latencyOpt,
         });
         const pcm16k = boostPcm16(
           asNodeBuffer(Buffer.from(tts.audioBase64, 'base64')),

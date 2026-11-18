@@ -478,15 +478,22 @@ let ExotelStreamService = ExotelStreamService_1 = class ExotelStreamService {
                 return;
             }
             const spoken = truncateForPhone(replyText);
+            const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
+                'eleven_multilingual_v2';
+            const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
             const tts = await this.voice.textToSpeech({
                 text: spoken,
                 speaker: settings.agentVoice || 'custom',
                 language: languageDetected,
                 outputFormat: 'pcm_16000',
                 skipSave: true,
-                pace: 1.0,
-                modelId: 'eleven_flash_v2_5',
-                optimizeStreamingLatency: 4,
+                pace: settings.voiceSettings?.speed ?? 1.0,
+                modelId: preferredModel,
+                optimizeStreamingLatency: latencyOpt,
+                stability: settings.voiceSettings?.stability,
+                similarityBoost: settings.voiceSettings?.similarityBoost,
+                style: settings.voiceSettings?.style,
+                useSpeakerBoost: settings.voiceSettings?.useSpeakerBoost ?? true,
             });
             if (aborted()) {
                 session.cancelPlay = false;
@@ -529,14 +536,17 @@ let ExotelStreamService = ExotelStreamService_1 = class ExotelStreamService {
             return this.fillerLoading;
         this.fillerLoading = (async () => {
             try {
+                const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
+                    'eleven_multilingual_v2';
+                const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
                 const tts = await this.voice.textToSpeech({
                     text: 'जी।',
                     language: 'hi-IN',
                     outputFormat: 'pcm_16000',
                     skipSave: true,
                     pace: 1.0,
-                    modelId: 'eleven_flash_v2_5',
-                    optimizeStreamingLatency: 4,
+                    modelId: preferredModel,
+                    optimizeStreamingLatency: latencyOpt,
                 });
                 this.fillerPcm = boostPcm16(asNodeBuffer(Buffer.from(tts.audioBase64, 'base64')), 1.05);
                 return this.fillerPcm;
