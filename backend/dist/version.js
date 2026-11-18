@@ -25,9 +25,9 @@ function resolveGitCommitSha() {
     cachedGitSha = 'e5399cc';
     return cachedGitSha;
 }
-exports.APP_VERSION = '1.8.2';
+exports.APP_VERSION = '1.8.3';
 exports.GIT_COMMIT_SHA = resolveGitCommitSha();
-exports.DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round8.2';
+exports.DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round8.3';
 exports.PROCESS_PID = process.pid;
 function getVersionTelemetry() {
     return {

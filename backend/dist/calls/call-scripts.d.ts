@@ -101,6 +101,7 @@ export declare function buildContextualLivenessAck(options: {
     priorTranscript?: string | null;
     language?: string;
     projectName?: string | null;
+    consecutiveLivenessChecks?: number;
 }): string;
 export declare function detectIntent(text: string): {
     notInterested: boolean;
@@ -139,6 +140,7 @@ export declare function buildFollowUpReply(options: {
     agentName?: string;
     companyName?: string;
     isInbound?: boolean;
+    consecutiveLivenessChecks?: number;
 }): {
     text: string;
     outcome: CallOutcome;

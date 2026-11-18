@@ -28,9 +28,9 @@ function resolveGitCommitSha(): string {
   return cachedGitSha;
 }
 
-export const APP_VERSION = '1.8.2';
+export const APP_VERSION = '1.8.3';
 export const GIT_COMMIT_SHA = resolveGitCommitSha();
-export const DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round8.2';
+export const DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round8.3';
 export const PROCESS_PID = process.pid;
 
 export function getVersionTelemetry() {

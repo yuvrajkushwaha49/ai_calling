@@ -19,10 +19,10 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
 
-    it('should return version telemetry with version 1.8.2', () => {
+    it('should return version telemetry with version 1.8.3', () => {
       const v = appController.getVersion();
-      expect(v.version).toBe('1.8.2');
-      expect(v.deploymentId).toContain('round8.2');
+      expect(v.version).toBe('1.8.3');
+      expect(v.deploymentId).toContain('round8.3');
     });
   });
 });

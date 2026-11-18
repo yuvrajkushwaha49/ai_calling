@@ -912,9 +912,13 @@ CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
   * If asked about project details, prices, possession, amenities: Answer from Available Projects & Knowledge first. Mention missing information honestly.
   * POSSESSION & READY-TO-MOVE ACCURACY (CRITICAL):
     - If customer specifically asks for ready-to-move / immediate possession / ready flats:
-      * NEVER claim Under-Construction or Pre-Launch projects (Saya Pre-Launch, VVIP Pre-Launch, Future Estate) are Ready-to-Move!
-      * Only offer projects verified as Ready-to-Move or Near-Ready (e.g. Palace Heights 3 towers in 6 months).
-      * If customer asks for ready-to-move 3 BHK and no verified ready project exists, clearly state: "Abhi hamare paas Noida Extension mein mostly under-construction options hain jisme Palace Heights mein 6 months mein possession mil raha hai. Kya aap under-construction dekhna chahenge ya sirf ready-to-move hi chahiye?"
+      * NEVER claim Under-Construction or Pre-Launch projects (Saya Pre-Launch, VVIP Pre-Launch, Future Estate, NCR Monarch) are Ready-to-Move!
+      * Only offer verified Ready-to-Move or Near-Ready inventory:
+        1. Apex The Kremlin (Siddharth Vihar): Almost Ready-to-Move 2/3/4 BHK (3 BHK: 1340, 1495, 1698 sq.ft) with 100% payment plan.
+        2. Quebec by Apex Group (Siddharth Vihar): Almost Ready-to-Move 2/3/4 BHK (3 BHK: 1515-2400 sq.ft) with 100% payment plan.
+        3. Palace Heights (Greater Noida West): Near-Ready (3 towers within 6 months, 3 BHK: 1341-1568 sq.ft).
+      * If customer asks for ready-to-move 3 BHK in an area without immediate ready inventory (e.g. Greater Noida West), state the reality honestly: "Greater Noida West mein mostly under-construction options hain jisme Palace Heights mein 6 months mein possession mil raha hai. Agar aapko immediate ready-to-move hi chahiye toh Siddharth Vihar mein Apex The Kremlin ek accha option hai, ya main hamari team se check karwa kar aapko verified list share karwa doongi?"
+      * NEVER invent inventory or pricing. If no verified ready option matches their specific location or criteria, ask permission to have the team verify and follow up.
   * If they switch topics or ask something new: Immediately prioritize answering their new query! Never drag them back to site visit scheduling until answered.
   * If they correct information (e.g. "Actually mera budget 90 lakh hai" or "Nahi mujhe ready-to-move chahiye"): Immediately accept and update to their latest preference!
 - PRIORITY 2 (STRICT BUDGET MATCHING, SOURCE FACTS & WHATSAPP RULES):
@@ -1264,6 +1268,18 @@ ${learned ? learned : ''}`;
                 bsp: '₹5,750/sq.ft',
                 possession: 'Under Construction',
             },
+            'apex the kremlin': {
+                sizes: '2 BHK (998 sq.ft), 2 BHK + Kids (1175, 1270 sq.ft), 3 BHK (1340, 1495, 1698 sq.ft), 4 BHK (1830 sq.ft)',
+                club: '6.4 Acres, 7 Towers (A to G), Russian luxury architecture, opposite 46-acre park',
+                bsp: '₹10,000 - ₹10,500/sq.ft',
+                possession: 'Almost Ready to Move (100% payment plan)',
+            },
+            'quebec': {
+                sizes: '2 BHK (950 sq.ft), 3 BHK (1515, 1895, 2060, 2400 sq.ft), 4 BHK (2510, 2775 sq.ft)',
+                club: '4.9 Acres, 5 Towers up to 33 floors, opposite 43-acre park, Italian marble lobby',
+                bsp: '₹12,000/sq.ft',
+                possession: 'Almost Ready to Move (100% payment plan)',
+            },
         };
         const getVerifiedMeta = (name) => {
             const lower = name.toLowerCase();
@@ -1414,7 +1430,7 @@ ${learned ? learned : ''}`;
             const isReadyPref = /ready/i.test(options.possessionPreference);
             if (isReadyPref) {
                 sections.push(`[CUSTOMER POSSESSION PREFERENCE: READY-TO-MOVE / NEAR-READY INVENTORY]\n` +
-                    `(STRICT INSTRUCTION: Customer requested ready-to-move flats. Prioritize near-ready options (such as Palace Heights towers possessing in 6 months). For under-construction or pre-launch projects like Saya Pre-Launch, VVIP Pre-Launch, or Future Estate, NEVER misrepresent them as ready-to-move!)`);
+                    `(STRICT INSTRUCTION: Customer requested ready-to-move flats. Prioritize verified ready/near-ready options: Apex The Kremlin (Siddharth Vihar, 3 BHK 1340-1698 sq.ft, almost ready-to-move), Quebec by Apex Group (almost ready-to-move), or Palace Heights (Greater Noida West, 3 towers in 6 months). For under-construction or pre-launch projects like Saya Pre-Launch, VVIP Pre-Launch, Future Estate, or NCR Monarch, NEVER misrepresent them as ready-to-move! If no ready inventory matches their specific area, ask permission to have the team verify and follow up.)`);
             }
         }
         if (customerBudgetRupees && customerBudgetRupees > 0) {

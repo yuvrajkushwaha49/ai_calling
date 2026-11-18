@@ -96,11 +96,32 @@ export type McubeSession = {
     audioTransmittedBytes: number;
     audioPlayedCount: number;
     audioPlayedBytes: number;
+    audioProviderAcceptedCount: number;
+    audioProviderAcceptedBytes: number;
+    audioConfirmedPlayedCount: number;
+    audioConfirmedPlayedBytes: number;
+    audioInferredDrainCount: number;
+    audioInferredDrainBytes: number;
     segmentBytes: Map<string, number>;
     activeOperationId: string | null;
+    activeGenerationId: number;
+    operationState: TurnLifecycleState;
+    lastCancellationReason: 'CUSTOMER_INTERRUPT' | 'TIMEOUT' | 'WS_CLOSED' | 'DISCARDED_STALE' | null;
+    consecutiveLivenessChecks: number;
     cleanupCompleted: boolean;
     cachedCallContext?: any;
 };
+export declare const TurnLifecycleState: {
+    readonly IDLE: "IDLE";
+    readonly STT_IN_PROGRESS: "STT_IN_PROGRESS";
+    readonly LLM_IN_PROGRESS: "LLM_IN_PROGRESS";
+    readonly TTS_IN_PROGRESS: "TTS_IN_PROGRESS";
+    readonly AUDIO_BUFFERED: "AUDIO_BUFFERED";
+    readonly CARRIER_PLAYING: "CARRIER_PLAYING";
+    readonly COMPLETED: "COMPLETED";
+    readonly ABORTED: "ABORTED";
+};
+export type TurnLifecycleState = (typeof TurnLifecycleState)[keyof typeof TurnLifecycleState];
 export declare class McubeStreamService {
     private config;
     private prisma;
@@ -139,6 +160,12 @@ export declare class McubeStreamService {
         audioGeneratedBytes: number;
         audioTransmittedCount: number;
         audioTransmittedBytes: number;
+        audioProviderAcceptedCount: number;
+        audioProviderAcceptedBytes: number;
+        audioConfirmedPlayedCount: number;
+        audioConfirmedPlayedBytes: number;
+        audioInferredDrainCount: number;
+        audioInferredDrainBytes: number;
         audioPlayedCount: number;
         audioPlayedBytes: number;
         lastInboundAudioAgeMs: number | null;
@@ -147,6 +174,8 @@ export declare class McubeStreamService {
         heartbeatRttMs: number | null;
         wsCloseCode: number | null;
         audioPipelineState: string;
+        operationLifecycleState: TurnLifecycleState;
+        lastCancellationReason: "TIMEOUT" | "CUSTOMER_INTERRUPT" | "WS_CLOSED" | "DISCARDED_STALE" | null;
         recoveryAttempts: number;
         failureReason: string;
     } | null;

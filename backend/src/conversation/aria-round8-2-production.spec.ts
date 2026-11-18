@@ -429,15 +429,15 @@ describe('Aria Round 8.2 — Production Reliability, Audio Stability & Complete 
   // SECTION 6: TELEMETRY & VERSION DEPLOYMENT ENDPOINT
   // ==========================================
   describe('Section 6: Version & Deployment Telemetry', () => {
-    it('6.1: APP_VERSION is 1.8.2 and DEPLOYMENT_ID is workains-prod-round8.2', () => {
-      expect(APP_VERSION).toBe('1.8.2');
-      expect(DEPLOYMENT_ID).toBe('workains-prod-round8.2');
+    it('6.1: APP_VERSION is 1.8.x and DEPLOYMENT_ID is workains-prod-round8.x', () => {
+      expect(APP_VERSION).toMatch(/^1\.8\./);
+      expect(DEPLOYMENT_ID).toMatch(/^workains-prod-round8/);
     });
 
-    it('6.2: AppController @Get("version") exposes telemetry matching Round 8.2', () => {
+    it('6.2: AppController @Get("version") exposes telemetry matching Round 8.x', () => {
       const ver = appController.getVersion();
-      expect(ver.version).toBe('1.8.2');
-      expect(ver.deploymentId).toBe('workains-prod-round8.2');
+      expect(ver.version).toMatch(/^1\.8\./);
+      expect(ver.deploymentId).toMatch(/^workains-prod-round8/);
       expect(ver.processPid).toBe(process.pid);
       expect(ver.uptimeSeconds).toBeGreaterThanOrEqual(0);
       expect(ver.nodeVersion).toBe(process.version);

@@ -889,32 +889,54 @@ function buildGreetingText(options) {
     }).text;
 }
 function buildContextualLivenessAck(options) {
+    const checkCount = options.consecutiveLivenessChecks ?? 1;
     const prior = options.priorTranscript || '';
     const last = lastAgentLine(prior).trim();
     const lastLower = last.toLowerCase();
+    if (checkCount >= 4) {
+        return 'हेलो जी? शायद नेटवर्क में कुछ दिक्कत लग रही है। क्या मैं आपको थोड़ी देर में दोबारा कॉल करूँ?';
+    }
+    if (checkCount === 3) {
+        return 'जी मैं सुन रही हूँ! क्या आपको मेरी आवाज़ साफ़ आ रही है?';
+    }
     const projectMatch = options.projectName ||
         (prior.match(/(palace heights|ncr monarch|future estate|aarya heights|dholera|vvip|saya|apex|godrej|sobha|gulshan|parx laureate|eternia|synq|biigtech|town square|autograph|kutumb|पैलेस|मोनार्क)/i)?.[0]);
     if (/2\s*bhk|3\s*bhk|bedroom|configuration|बीएचके/i.test(lastLower)) {
-        return 'हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! मैंने पूछा था कि आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?';
+        return checkCount === 2
+            ? 'हाँ जी बिल्कुल सुन पा रही हूँ! आप 2 बीएचके देख रहे हैं या 3 बीएचके?'
+            : 'हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! मैंने पूछा था कि आप 2 बीएचके फ्लैट देख रहे हैं या 3 बीएचके?';
     }
     if (/budget|बजट/i.test(lastLower)) {
-        return 'हाँ जी सुन रही हूँ, बोलिए! आपका बजट लगभग कितना है?';
+        return checkCount === 2
+            ? 'जी आवाज़ आ रही है! आपका बजट लगभग कितना रहेगा?'
+            : 'हाँ जी सुन रही हूँ, बोलिए! आपका बजट लगभग कितना है?';
     }
     if (/rehne|end use|investment|रहने|इन्वेस्टमेंट/i.test(lastLower)) {
-        return 'हाँ जी, मैं लाइन पर हूँ! मैं पूछ रही थी कि आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?';
+        return checkCount === 2
+            ? 'जी मैं लाइन पर हूँ! आप खुद रहने के लिए देख रहे हैं या निवेश के लिए?'
+            : 'हाँ जी, मैं लाइन पर हूँ! मैं पूछ रही थी कि आप अपने रहने के लिए देख रहे हैं या इन्वेस्टमेंट के लिए?';
     }
     if (/possession|ready to move|under construction|पजेशन|रेडी|अंडर/i.test(lastLower)) {
-        return 'हाँ जी, बिल्कुल आवाज़ आ रही है! आप रेडी-टू-मूव देख रहे हैं या अंडर-कंस्ट्रक्शन चलेगा?';
+        return checkCount === 2
+            ? 'जी सुन रही हूँ! आप रेडी-टू-मूव प्रेफर करेंगे या अंडर-कंस्ट्रक्शन?'
+            : 'हाँ जी, बिल्कुल आवाज़ आ रही है! आप रेडी-टू-मूव देख रहे हैं या अंडर-कंस्ट्रक्शन चलेगा?';
     }
     if (/site visit|visit|weekend|sample flat|विजिट|सैंपल/i.test(lastLower)) {
-        return 'हाँ जी, बिल्कुल सुन रही हूँ! क्या आप इस वीकेंड सैंपल फ्लैट विजिट प्लान करना चाहेंगे?';
+        return checkCount === 2
+            ? 'जी बिल्कुल! क्या आप इस शनिवार या रविवार को साइट विजिट प्लान करना चाहेंगे?'
+            : 'हाँ जी, बिल्कुल सुन रही हूँ! क्या आप इस वीकेंड सैंपल फ्लैट विजिट प्लान करना चाहेंगे?';
     }
     if (/naam|shubh naam|नाम|शुभ नाम/i.test(lastLower)) {
         return 'हाँ जी, मैं लाइन पर हूँ! मैं आपका शुभ नाम जान सकती हूँ?';
     }
     if (projectMatch && lastLower.length > 10) {
         const pName = projectMatch.replace(/\b\w/g, (c) => c.toUpperCase());
-        return `हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! हम ${pName} के बारे में बात कर रहे थे — बोलिए!`;
+        return checkCount === 2
+            ? `जी हाँ, हम ${pName} के बारे में बात कर रहे थे — आप बताइए?`
+            : `हाँ जी, मैं लाइन पर हूँ, सुन रही हूँ! हम ${pName} के बारे में बात कर रहे थे — बोलिए!`;
+    }
+    if (checkCount === 2) {
+        return 'हाँ जी मैं लाइन पर ही हूँ, बिल्कुल सुन पा रही हूँ! आप बताइए?';
     }
     if (lastLower.length > 12 && !/hello\?|हेलो\?/i.test(lastLower)) {
         return 'हाँ जी, मैं लाइन पर हूँ, आप बोलिए।';
@@ -1263,19 +1285,26 @@ function buildFollowUpReply(options) {
                 priorTranscript: options.priorTranscript,
                 language: 'en-IN',
                 projectName: options.knownFacts?.location || null,
+                consecutiveLivenessChecks: options.consecutiveLivenessChecks,
             }),
             'hi-IN': buildContextualLivenessAck({
                 priorTranscript: options.priorTranscript,
                 language: 'hi-IN',
                 projectName: options.knownFacts?.location || null,
+                consecutiveLivenessChecks: options.consecutiveLivenessChecks,
             }),
             hinglish: buildContextualLivenessAck({
                 priorTranscript: options.priorTranscript,
                 language: 'hinglish',
                 projectName: options.knownFacts?.location || null,
+                consecutiveLivenessChecks: options.consecutiveLivenessChecks,
             }),
-            'mr-IN': `होय, आवाज येतोय! मी ऐकतेय, बोला.`,
-            'gu-IN': `હા, અવાજ આવે છે! હું સાંભળું છું, બોલો.`,
+            'mr-IN': options.consecutiveLivenessChecks && options.consecutiveLivenessChecks >= 4
+                ? `हॅलो? आवाज येत नाहीये, मी थोड्या वेळाने पुन्हा कॉल करू का?`
+                : `होय, आवाज येतोय! मी ऐकतेय, बोला.`,
+            'gu-IN': options.consecutiveLivenessChecks && options.consecutiveLivenessChecks >= 4
+                ? `હેલો? અવાજ નથી આવતો, હું થોડીવાર પછી ફરીથી કૉલ કરું?`
+                : `હા, અવાજ આવે છે! હું સાંભળું છું, બોલો.`,
         },
         thinking_filler: {
             'en-IN': getThinkingFiller({ language: 'en-IN', speechGender: gender, userMessage: current, usedFillers: [] }),
