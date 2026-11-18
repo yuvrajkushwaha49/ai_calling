@@ -75,6 +75,10 @@ export class VoiceService {
     outputFormat?: string;
     modelId?: string;
     optimizeStreamingLatency?: number;
+    stability?: number;
+    similarityBoost?: number;
+    style?: number;
+    useSpeakerBoost?: boolean;
   }) {
     this.getTtsProvider();
     const text = this.formatSpeechText(options.text, options.language);
@@ -95,6 +99,10 @@ export class VoiceService {
       outputFormat: options.outputFormat,
       modelId: options.modelId,
       optimizeStreamingLatency: options.optimizeStreamingLatency,
+      stability: options.stability,
+      similarityBoost: options.similarityBoost,
+      style: options.style,
+      useSpeakerBoost: options.useSpeakerBoost,
     });
   }
 

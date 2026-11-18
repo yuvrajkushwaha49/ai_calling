@@ -1455,6 +1455,12 @@ export class McubeStreamService {
 
     try {
       let buf: Buffer | null = null;
+      const voicePace = settings?.voiceSettings?.speed ?? settings?.voiceSpeed ?? 1.0;
+      const voiceStability = settings?.voiceSettings?.stability ?? settings?.voiceStability;
+      const voiceSimilarity = settings?.voiceSettings?.similarityBoost ?? settings?.voiceSimilarity;
+      const voiceStyle = settings?.voiceSettings?.style ?? settings?.voiceStyle;
+      const voiceSpeakerBoost = settings?.voiceSettings?.useSpeakerBoost ?? settings?.voiceSpeakerBoost ?? true;
+
       if (session.encoding === 'audio/x-l16') {
         const tts = await this.voice.textToSpeech({
           text: spokenText,
@@ -1462,9 +1468,13 @@ export class McubeStreamService {
           language: lang,
           outputFormat: 'pcm_16000',
           skipSave: true,
-          pace: 1.0,
+          pace: voicePace,
           modelId: 'eleven_flash_v2_5',
           optimizeStreamingLatency: 4,
+          stability: voiceStability,
+          similarityBoost: voiceSimilarity,
+          style: voiceStyle,
+          useSpeakerBoost: voiceSpeakerBoost,
         });
         buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
       } else {
@@ -1476,9 +1486,13 @@ export class McubeStreamService {
             language: lang,
             outputFormat: 'ulaw_8000',
             skipSave: true,
-            pace: 1.0,
+            pace: voicePace,
             modelId: 'eleven_flash_v2_5',
             optimizeStreamingLatency: 4,
+            stability: voiceStability,
+            similarityBoost: voiceSimilarity,
+            style: voiceStyle,
+            useSpeakerBoost: voiceSpeakerBoost,
           });
           buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
         } catch {
@@ -1488,9 +1502,13 @@ export class McubeStreamService {
             language: lang,
             outputFormat: 'pcm_16000',
             skipSave: true,
-            pace: 1.0,
+            pace: voicePace,
             modelId: 'eleven_flash_v2_5',
             optimizeStreamingLatency: 4,
+            stability: voiceStability,
+            similarityBoost: voiceSimilarity,
+            style: voiceStyle,
+            useSpeakerBoost: voiceSpeakerBoost,
           });
           const pcm16k = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
           buf = pcm16ToMulaw(downsamplePcm16(pcm16k, 16000, 8000));

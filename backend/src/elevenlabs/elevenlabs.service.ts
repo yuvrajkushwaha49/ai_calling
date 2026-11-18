@@ -271,6 +271,14 @@ export class ElevenLabsService {
     modelId?: string;
     /** 0–4 — higher = lower latency (ElevenLabs streaming optimize) */
     optimizeStreamingLatency?: number;
+    /** Voice stability: 0.0 - 1.0 (lower = more expressive/emotional, higher = steady) */
+    stability?: number;
+    /** Similarity boost: 0.0 - 1.0 */
+    similarityBoost?: number;
+    /** Style exaggeration: 0.0 - 1.0 */
+    style?: number;
+    /** Speaker boost: boost clarity and volume */
+    useSpeakerBoost?: boolean;
   }): Promise<{
     audioBase64: string;
     fileName: string;
@@ -331,13 +339,26 @@ export class ElevenLabsService {
       }
       const url = `${this.baseUrl}/text-to-speech/${encodeURIComponent(id)}?${qs.toString()}`;
       // Omit voice_settings so ElevenLabs uses the Voice Lab saved defaults
-      // (forced stability/style made the agent sound robotic vs the website).
+      // unless caller specifies custom stability, similarity, style or speed
       const body: Record<string, unknown> = {
         text,
         model_id: modelId,
       };
-      // Only override speed when caller asks for non-default pace
-      if (Math.abs(speed - 1) > 0.02) {
+      const hasCustomVoiceSettings =
+        options.stability != null ||
+        options.similarityBoost != null ||
+        options.style != null ||
+        options.useSpeakerBoost != null;
+
+      if (hasCustomVoiceSettings) {
+        body.voice_settings = {
+          stability: Math.max(0, Math.min(1, options.stability ?? 0.45)),
+          similarity_boost: Math.max(0, Math.min(1, options.similarityBoost ?? 0.80)),
+          style: Math.max(0, Math.min(1, options.style ?? 0.15)),
+          use_speaker_boost: options.useSpeakerBoost ?? true,
+          speed,
+        };
+      } else if (Math.abs(speed - 1) > 0.02) {
         body.voice_settings = {
           stability: 0.5,
           similarity_boost: 0.75,

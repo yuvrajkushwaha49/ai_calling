@@ -36,6 +36,10 @@ export declare class ElevenLabsService {
         outputFormat?: string;
         modelId?: string;
         optimizeStreamingLatency?: number;
+        stability?: number;
+        similarityBoost?: number;
+        style?: number;
+        useSpeakerBoost?: boolean;
     }): Promise<{
         audioBase64: string;
         fileName: string;

@@ -298,7 +298,20 @@ let ElevenLabsService = ElevenLabsService_1 = class ElevenLabsService {
                 text,
                 model_id: modelId,
             };
-            if (Math.abs(speed - 1) > 0.02) {
+            const hasCustomVoiceSettings = options.stability != null ||
+                options.similarityBoost != null ||
+                options.style != null ||
+                options.useSpeakerBoost != null;
+            if (hasCustomVoiceSettings) {
+                body.voice_settings = {
+                    stability: Math.max(0, Math.min(1, options.stability ?? 0.45)),
+                    similarity_boost: Math.max(0, Math.min(1, options.similarityBoost ?? 0.80)),
+                    style: Math.max(0, Math.min(1, options.style ?? 0.15)),
+                    use_speaker_boost: options.useSpeakerBoost ?? true,
+                    speed,
+                };
+            }
+            else if (Math.abs(speed - 1) > 0.02) {
                 body.voice_settings = {
                     stability: 0.5,
                     similarity_boost: 0.75,

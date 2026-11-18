@@ -64,7 +64,16 @@ export const aiService = {
     api.post<AiAgentSettings>('/ai/knowledge-base', { files }, token),
   previewVoice: (
     token: string,
-    data?: { text?: string; speaker?: string; language?: string },
+    data?: {
+      text?: string;
+      speaker?: string;
+      language?: string;
+      stability?: number;
+      similarityBoost?: number;
+      style?: number;
+      speed?: number;
+      useSpeakerBoost?: boolean;
+    },
   ) =>
     api.post<{
       speaker: string;

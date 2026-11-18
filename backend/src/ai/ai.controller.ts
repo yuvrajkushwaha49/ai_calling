@@ -40,6 +40,11 @@ export class AiController {
       text?: string;
       speaker?: string;
       language?: string;
+      stability?: number;
+      similarityBoost?: number;
+      style?: number;
+      speed?: number;
+      useSpeakerBoost?: boolean;
     },
   ) {
     return this.aiService.previewVoice(body);

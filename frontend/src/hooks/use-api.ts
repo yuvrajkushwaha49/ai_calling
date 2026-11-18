@@ -188,7 +188,16 @@ export function useAiSettings() {
 export function usePreviewVoice() {
   const token = useToken();
   return useMutation({
-    mutationFn: (data?: { text?: string; speaker?: string; language?: string }) =>
+    mutationFn: (data?: {
+      text?: string;
+      speaker?: string;
+      language?: string;
+      stability?: number;
+      similarityBoost?: number;
+      style?: number;
+      speed?: number;
+      useSpeakerBoost?: boolean;
+    }) =>
       aiService.previewVoice(token!, data),
   });
 }

@@ -177,10 +177,26 @@ export class AiService {
     }
 
     const llm = this.llm.getStatus();
+    const playbook = normalizePlaybook(settings.approvedPlaybook);
+    const savedVoice = (playbook as any)?.voiceSettings || {};
+    const voiceSettings = {
+      stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.45,
+      similarityBoost: typeof savedVoice.similarityBoost === 'number' ? savedVoice.similarityBoost : 0.80,
+      style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.15,
+      speed: typeof savedVoice.speed === 'number' ? savedVoice.speed : 1.0,
+      useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
+    };
+
     return {
       ...settings,
       companyName,
       agentName,
+      voiceSettings,
+      voiceStability: voiceSettings.stability,
+      voiceSimilarity: voiceSettings.similarityBoost,
+      voiceStyle: voiceSettings.style,
+      voiceSpeed: voiceSettings.speed,
+      voiceSpeakerBoost: voiceSettings.useSpeakerBoost,
       llmConfigured: llm.configured,
       llmProvider: llm.provider,
       ttsProvider: this.voice.getTtsProvider(),
@@ -377,7 +393,19 @@ export class AiService {
 
   async updateSettings(dto: UpdateAiSettingsDto) {
     const existing = await this.getSettings();
-    const { workingHours, llmModel, language, systemPrompt, ...rest } = dto;
+    const {
+      workingHours,
+      llmModel,
+      language,
+      systemPrompt,
+      voiceSettings: dtoVoiceSettings,
+      voiceStability,
+      voiceSimilarity,
+      voiceStyle,
+      voiceSpeed,
+      voiceSpeakerBoost,
+      ...rest
+    } = dto;
     const normalizedLang = language
       ? this.voice.normalizeAppLanguage(language)
       : existing.language;
@@ -394,10 +422,23 @@ export class AiService {
       resolvedPrompt = buildDefaultSalesAgentPrompt('en-IN');
     }
 
+    const playbook = normalizePlaybook(existing.approvedPlaybook) as any;
+    const currentVoice = playbook.voiceSettings || (existing as any).voiceSettings || {};
+
+    const updatedVoiceSettings = {
+      stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.45),
+      similarityBoost: typeof voiceSimilarity === 'number' ? voiceSimilarity : (dtoVoiceSettings?.similarityBoost ?? currentVoice.similarityBoost ?? 0.80),
+      style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.15),
+      speed: typeof voiceSpeed === 'number' ? voiceSpeed : (dtoVoiceSettings?.speed ?? currentVoice.speed ?? 1.0),
+      useSpeakerBoost: typeof voiceSpeakerBoost === 'boolean' ? voiceSpeakerBoost : (dtoVoiceSettings?.useSpeakerBoost ?? currentVoice.useSpeakerBoost ?? true),
+    };
+    playbook.voiceSettings = updatedVoiceSettings;
+
     const updated = await this.prisma.aiAgentSettings.update({
       where: { id: existing.id },
       data: {
         ...rest,
+        approvedPlaybook: playbook as unknown as Prisma.InputJsonValue,
         language: normalizedLang,
         ...(resolvedPrompt !== undefined && { systemPrompt: resolvedPrompt }),
         ...(llmModel !== undefined && {
@@ -409,7 +450,15 @@ export class AiService {
       },
     });
     this.invalidateSettingsCache();
-    return updated;
+    return {
+      ...updated,
+      voiceSettings: updatedVoiceSettings,
+      voiceStability: updatedVoiceSettings.stability,
+      voiceSimilarity: updatedVoiceSettings.similarityBoost,
+      voiceStyle: updatedVoiceSettings.style,
+      voiceSpeed: updatedVoiceSettings.speed,
+      voiceSpeakerBoost: updatedVoiceSettings.useSpeakerBoost,
+    };
   }
 
   async uploadKnowledgeBase(files: string[]) {
@@ -429,6 +478,11 @@ export class AiService {
     text?: string;
     speaker?: string;
     language?: string;
+    stability?: number;
+    similarityBoost?: number;
+    style?: number;
+    speed?: number;
+    useSpeakerBoost?: boolean;
   }) {
     const settings = await this.getSettings();
     const speaker = options?.speaker || settings.agentVoice || 'rachel';
@@ -439,9 +493,16 @@ export class AiService {
       .split(/\s+/)[0] || 'नेहा';
     const text =
       options?.text?.trim() ||
-      `नमस्ते, मैं ${agentLabel} बोल रही हूँ। साया राज नगर एक्सटेंशन की आपकी enquiry आई थी — क्या दो मिनट बात हो सकती है?`;
+      `नमस्ते, मैं ${agentLabel} बोल रही हूँ। आपकी real estate property enquiry आई थी — क्या दो मिनट बात हो सकती है?`;
 
     if (!text) throw new BadRequestException('Preview text is required');
+
+    const voiceSettings = (settings as any).voiceSettings || {};
+    const stability = typeof options?.stability === 'number' ? options.stability : (voiceSettings.stability ?? 0.45);
+    const similarityBoost = typeof options?.similarityBoost === 'number' ? options.similarityBoost : (voiceSettings.similarityBoost ?? 0.80);
+    const style = typeof options?.style === 'number' ? options.style : (voiceSettings.style ?? 0.15);
+    const pace = typeof options?.speed === 'number' ? options.speed : (voiceSettings.speed ?? 1.0);
+    const useSpeakerBoost = typeof options?.useSpeakerBoost === 'boolean' ? options.useSpeakerBoost : (voiceSettings.useSpeakerBoost ?? true);
 
     const result = await this.voice.textToSpeech({
       text,
@@ -449,7 +510,11 @@ export class AiService {
       language,
       skipSave: true,
       modelId: 'eleven_multilingual_v2',
-      pace: 1.0,
+      pace,
+      stability,
+      similarityBoost,
+      style,
+      useSpeakerBoost,
     });
 
     return {

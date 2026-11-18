@@ -89,6 +89,10 @@ let VoiceService = VoiceService_1 = class VoiceService {
             outputFormat: options.outputFormat,
             modelId: options.modelId,
             optimizeStreamingLatency: options.optimizeStreamingLatency,
+            stability: options.stability,
+            similarityBoost: options.similarityBoost,
+            style: options.style,
+            useSpeakerBoost: options.useSpeakerBoost,
         });
     }
     async speechToText(options) {

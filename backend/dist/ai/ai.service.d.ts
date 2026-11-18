@@ -14,6 +14,18 @@ export declare class AiService {
     getSettings(): Promise<{
         companyName: string;
         agentName: string;
+        voiceSettings: {
+            stability: any;
+            similarityBoost: any;
+            style: any;
+            speed: any;
+            useSpeakerBoost: any;
+        };
+        voiceStability: any;
+        voiceSimilarity: any;
+        voiceStyle: any;
+        voiceSpeed: any;
+        voiceSpeakerBoost: any;
         llmConfigured: boolean;
         llmProvider: import("../llm/llm.service").LlmProvider;
         ttsProvider: "elevenlabs";
@@ -72,6 +84,18 @@ export declare class AiService {
         };
     }>;
     updateSettings(dto: UpdateAiSettingsDto): Promise<{
+        voiceSettings: {
+            stability: any;
+            similarityBoost: any;
+            style: any;
+            speed: any;
+            useSpeakerBoost: any;
+        };
+        voiceStability: any;
+        voiceSimilarity: any;
+        voiceStyle: any;
+        voiceSpeed: any;
+        voiceSpeakerBoost: any;
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -111,6 +135,11 @@ export declare class AiService {
         text?: string;
         speaker?: string;
         language?: string;
+        stability?: number;
+        similarityBoost?: number;
+        style?: number;
+        speed?: number;
+        useSpeakerBoost?: boolean;
     }): Promise<{
         speaker: string;
         language: string;

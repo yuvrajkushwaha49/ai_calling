@@ -22,6 +22,12 @@ class UpdateAiSettingsDto {
     workingHours;
     knowledgeBase;
     isActive;
+    voiceSettings;
+    voiceStability;
+    voiceSimilarity;
+    voiceStyle;
+    voiceSpeed;
+    voiceSpeakerBoost;
 }
 exports.UpdateAiSettingsDto = UpdateAiSettingsDto;
 __decorate([
@@ -75,4 +81,29 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateAiSettingsDto.prototype, "isActive", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], UpdateAiSettingsDto.prototype, "voiceSettings", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateAiSettingsDto.prototype, "voiceStability", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateAiSettingsDto.prototype, "voiceSimilarity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateAiSettingsDto.prototype, "voiceStyle", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateAiSettingsDto.prototype, "voiceSpeed", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateAiSettingsDto.prototype, "voiceSpeakerBoost", void 0);
 //# sourceMappingURL=ai-settings.dto.js.map

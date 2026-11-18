@@ -243,3 +243,4 @@ This single command will:
 4. Reload `crm-backend` via PM2 with zero downtime.
 5. Verify `http://localhost:4000/api/version` returns `1.8.3`.
 6. Automatically roll back if any step fails.
+

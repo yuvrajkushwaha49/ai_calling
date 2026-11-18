@@ -47,4 +47,29 @@ export class UpdateAiSettingsDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  voiceSettings?: {
+    stability?: number;
+    similarityBoost?: number;
+    style?: number;
+    speed?: number;
+    useSpeakerBoost?: boolean;
+  };
+
+  @IsOptional()
+  voiceStability?: number;
+
+  @IsOptional()
+  voiceSimilarity?: number;
+
+  @IsOptional()
+  voiceStyle?: number;
+
+  @IsOptional()
+  voiceSpeed?: number;
+
+  @IsOptional()
+  voiceSpeakerBoost?: boolean;
 }

@@ -75,6 +75,12 @@ export const aiSettingsSchema = z.object({
     days: z.array(z.string()).optional(),
   }).optional(),
   isActive: z.boolean().optional(),
+  voiceStability: z.number().min(0).max(1).optional(),
+  voiceSimilarity: z.number().min(0).max(1).optional(),
+  voiceStyle: z.number().min(0).max(1).optional(),
+  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
+  voiceSpeakerBoost: z.boolean().optional(),
+  voiceSettings: z.any().optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

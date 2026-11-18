@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bot, Upload, Loader2, Volume2 } from 'lucide-react';
+import { Bot, Upload, Loader2, Volume2, Sliders, Sparkles } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -57,12 +58,18 @@ export default function AiSettingsPage() {
       systemPrompt: '',
       workingHours: { start: '09:00', end: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'] },
       isActive: true,
+      voiceStability: 0.45,
+      voiceSimilarity: 0.80,
+      voiceStyle: 0.15,
+      voiceSpeed: 1.0,
+      voiceSpeakerBoost: true,
     },
   });
 
   useEffect(() => {
     if (settings) {
       const hours = (settings.workingHours || {}) as Partial<AiSettingsFormData['workingHours']>;
+      const vSettings = (settings as any).voiceSettings || {};
       form.reset({
         agentName: settings.agentName || '',
         agentVoice: settings.agentVoice || 'custom',
@@ -76,12 +83,26 @@ export default function AiSettingsPage() {
           days: hours.days || ['mon', 'tue', 'wed', 'thu', 'fri'],
         },
         isActive: settings.isActive ?? true,
+        voiceStability: (settings as any).voiceStability ?? vSettings.stability ?? 0.45,
+        voiceSimilarity: (settings as any).voiceSimilarity ?? vSettings.similarityBoost ?? 0.80,
+        voiceStyle: (settings as any).voiceStyle ?? vSettings.style ?? 0.15,
+        voiceSpeed: (settings as any).voiceSpeed ?? vSettings.speed ?? 1.0,
+        voiceSpeakerBoost: (settings as any).voiceSpeakerBoost ?? vSettings.useSpeakerBoost ?? true,
       });
     }
   }, [settings, form]);
 
   const onSubmit = (data: AiSettingsFormData) => {
-    updateSettings.mutate(data);
+    updateSettings.mutate({
+      ...data,
+      voiceSettings: {
+        stability: data.voiceStability ?? 0.45,
+        similarityBoost: data.voiceSimilarity ?? 0.80,
+        style: data.voiceStyle ?? 0.15,
+        speed: data.voiceSpeed ?? 1.0,
+        useSpeakerBoost: data.voiceSpeakerBoost ?? true,
+      },
+    });
   };
 
   const onInvalid = (errors: any) => {
@@ -114,6 +135,11 @@ export default function AiSettingsPage() {
         speaker: form.getValues('agentVoice'),
         language,
         text: sample,
+        stability: form.getValues('voiceStability'),
+        similarityBoost: form.getValues('voiceSimilarity'),
+        style: form.getValues('voiceStyle'),
+        speed: form.getValues('voiceSpeed'),
+        useSpeakerBoost: form.getValues('voiceSpeakerBoost'),
       });
       const audio = new Audio(`data:${result.mimeType};base64,${result.audioBase64}`);
       await audio.play();
@@ -240,6 +266,190 @@ export default function AiSettingsPage() {
                   </Select>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Card: Voice Model & Emotion Controls (Live Telephony) */}
+          <Card className="border-blue-200 dark:border-blue-900 shadow-sm">
+            <CardHeader className="bg-gradient-to-r from-blue-50/60 to-indigo-50/60 dark:from-blue-950/30 dark:to-indigo-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Sliders className="h-5 w-5 text-blue-600" />
+                  Voice Model & Emotion Setup (Live Calling)
+                </CardTitle>
+                <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/50">
+                  <Sparkles className="mr-1 h-3 w-3 text-blue-500" />
+                  CRM Voice Engine
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Aria की बोलने की आवाज़, भाव (emotions), stability और speed को सीधे CRM से कस्टमाइज़ करें।
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-5">
+              {/* Row 1: Stability & Style (Emotions) */}
+              <div className="grid gap-6 sm:grid-cols-2">
+                {/* 1. Stability Slider */}
+                <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Voice Stability (स्थिरता व भाव)</Label>
+                    <Badge variant="secondary" className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                      {Math.round((form.watch('voiceStability') ?? 0.45) * 100)}%
+                    </Badge>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.10"
+                    max="1.00"
+                    step="0.05"
+                    value={form.watch('voiceStability') ?? 0.45}
+                    onChange={(e) => form.setValue('voiceStability', parseFloat(e.target.value))}
+                    className="w-full accent-blue-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>10% (Expressive)</span>
+                    <span className="font-semibold text-blue-600">45% (Recommended)</span>
+                    <span>100% (Steady)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {(form.watch('voiceStability') ?? 0.45) <= 0.40
+                      ? '✨ Highly natural, lively & conversational with emotional pitch variation.'
+                      : (form.watch('voiceStability') ?? 0.45) <= 0.65
+                      ? '⚖️ Balanced natural tone with consistent clarity.'
+                      : '🏢 Steady, structured, formal delivery.'}
+                  </p>
+                </div>
+
+                {/* 2. Emotion & Style Exaggeration Slider */}
+                <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Emotion & Style (उत्साह / भाव)</Label>
+                    <Badge variant="secondary" className="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">
+                      {Math.round((form.watch('voiceStyle') ?? 0.15) * 100)}%
+                    </Badge>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.00"
+                    max="0.60"
+                    step="0.05"
+                    value={form.watch('voiceStyle') ?? 0.15}
+                    onChange={(e) => form.setValue('voiceStyle', parseFloat(e.target.value))}
+                    className="w-full accent-purple-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>0% (Neutral)</span>
+                    <span className="font-semibold text-purple-600">15-20% (Warm/Polite)</span>
+                    <span>60% (High Energy)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {(form.watch('voiceStyle') ?? 0.15) === 0
+                      ? '😐 Neutral and straightforward speaking style.'
+                      : (form.watch('voiceStyle') ?? 0.15) <= 0.25
+                      ? '🌟 Warm, cheerful and welcoming (Best for Aria Hospitality/Sales).'
+                      : '🔥 Enthusiastic and dramatic speaking style.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Row 2: Similarity Boost & Speed */}
+              <div className="grid gap-6 sm:grid-cols-2">
+                {/* 3. Clarity & Similarity Boost */}
+                <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Clarity / Similarity Boost (स्पष्टता)</Label>
+                    <Badge variant="secondary" className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {Math.round((form.watch('voiceSimilarity') ?? 0.80) * 100)}%
+                    </Badge>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.30"
+                    max="1.00"
+                    step="0.05"
+                    value={form.watch('voiceSimilarity') ?? 0.80}
+                    onChange={(e) => form.setValue('voiceSimilarity', parseFloat(e.target.value))}
+                    className="w-full accent-emerald-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>30% (Low match)</span>
+                    <span className="font-semibold text-emerald-600">80% (Recommended)</span>
+                    <span>100% (Exact match)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Original voice character ki fidelity aur clarity ensure karta hai.
+                  </p>
+                </div>
+
+                {/* 4. Speaking Speed / Pace */}
+                <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Speaking Speed (बोलने की गति)</Label>
+                    <Badge variant="secondary" className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+                      {(form.watch('voiceSpeed') ?? 1.0).toFixed(2)}x
+                    </Badge>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.80"
+                    max="1.20"
+                    step="0.05"
+                    value={form.watch('voiceSpeed') ?? 1.0}
+                    onChange={(e) => form.setValue('voiceSpeed', parseFloat(e.target.value))}
+                    className="w-full accent-amber-600 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>0.80x (Slow & Calm)</span>
+                    <span className="font-semibold text-amber-600">1.00x (Natural Pace)</span>
+                    <span>1.20x (Brisk)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Live phone calls par Aria kis speed se bolegi.
+                  </p>
+                </div>
+              </div>
+
+              {/* Speaker Boost & Live Test Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 p-4 border border-dashed border-slate-300 dark:border-slate-700">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.watch('voiceSpeakerBoost') ?? true}
+                    onChange={(e) => form.setValue('voiceSpeakerBoost', e.target.checked)}
+                    className="h-4 w-4 rounded accent-blue-600"
+                  />
+                  <div>
+                    <span className="text-sm font-medium">Speaker Boost (Mobile Line Optimization)</span>
+                    <p className="text-xs text-muted-foreground">
+                      Mobile phone networks par aawaaz ko crisp aur clear banata hai.
+                    </p>
+                  </div>
+                </label>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePreviewVoice}
+                  disabled={previewVoice.isPending}
+                  className="gap-2 border-blue-400 bg-blue-50/50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0"
+                >
+                  {previewVoice.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating Sample...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-4 w-4 text-blue-600" />
+                      Test Voice with These Settings
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {previewError && (
+                <p className="text-xs text-destructive bg-destructive/10 p-2 rounded-lg">{previewError}</p>
+              )}
             </CardContent>
           </Card>
 
