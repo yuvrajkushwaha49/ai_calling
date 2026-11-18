@@ -178,6 +178,7 @@ export declare class ConversationService {
         propertyType?: 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED' | null;
         selectedProjectId?: string | null;
         selectedProjectLock?: boolean;
+        possessionPreference?: string | null;
     }): Promise<string>;
     matchProjectFromSpeech(text: string): Promise<{
         id: string;

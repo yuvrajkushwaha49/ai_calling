@@ -25,9 +25,9 @@ function resolveGitCommitSha() {
     cachedGitSha = 'e5399cc';
     return cachedGitSha;
 }
-exports.APP_VERSION = '1.7.0';
+exports.APP_VERSION = '1.8.2';
 exports.GIT_COMMIT_SHA = resolveGitCommitSha();
-exports.DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round7';
+exports.DEPLOYMENT_ID = process.env.DEPLOYMENT_ID || 'workains-prod-round8.2';
 exports.PROCESS_PID = process.pid;
 function getVersionTelemetry() {
     return {
@@ -35,6 +35,9 @@ function getVersionTelemetry() {
         commitSha: exports.GIT_COMMIT_SHA,
         deploymentId: exports.DEPLOYMENT_ID,
         processPid: exports.PROCESS_PID,
+        uptimeSeconds: Math.round(process.uptime()),
+        nodeVersion: process.version,
+        environment: process.env.NODE_ENV || 'production',
     };
 }
 //# sourceMappingURL=version.js.map

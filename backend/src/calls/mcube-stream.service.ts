@@ -118,6 +118,18 @@ export type McubeSession = {
   heartbeatTimer: NodeJS.Timeout | null;
   watchdogTimer: NodeJS.Timeout | null;
   callerPhone?: string;
+
+  // Round 8.2 Distinct Audio Stages & Heartbeat RTT
+  heartbeatRttMs: number | null;
+  audioGeneratedCount: number;
+  audioGeneratedBytes: number;
+  audioTransmittedCount: number;
+  audioTransmittedBytes: number;
+  audioPlayedCount: number;
+  audioPlayedBytes: number;
+  segmentBytes: Map<string, number>;
+  activeOperationId: string | null;
+  cleanupCompleted: boolean;
 };
 
 @Injectable()
@@ -234,6 +246,18 @@ export class McubeStreamService {
       lastFailureCondition: null,
       heartbeatTimer: null,
       watchdogTimer: null,
+
+      // Round 8.2 Distinct Audio Stages & Heartbeat RTT
+      heartbeatRttMs: prior?.heartbeatRttMs ?? null,
+      audioGeneratedCount: prior?.audioGeneratedCount || 0,
+      audioGeneratedBytes: prior?.audioGeneratedBytes || 0,
+      audioTransmittedCount: prior?.audioTransmittedCount || 0,
+      audioTransmittedBytes: prior?.audioTransmittedBytes || 0,
+      audioPlayedCount: prior?.audioPlayedCount || 0,
+      audioPlayedBytes: prior?.audioPlayedBytes || 0,
+      segmentBytes: new Map(),
+      activeOperationId: null,
+      cleanupCompleted: false,
     };
 
     if (session.callId) {
@@ -245,6 +269,14 @@ export class McubeStreamService {
       if (session.heartbeatTimer) clearInterval(session.heartbeatTimer);
       session.heartbeatTimer = setInterval(() => {
         if (session.closed || ws.readyState !== 1) return;
+        if (session.heartbeatPingAt > 0 && session.heartbeatPongAt < session.heartbeatPingAt) {
+          session.missedPings++;
+          if (session.missedPings > 1) {
+            this.logger.warn(
+              `[MCube-Heartbeat] Stale connection detected: missed ${session.missedPings} pings callId=${session.callId}`,
+            );
+          }
+        }
         session.heartbeatPingAt = Date.now();
         if (typeof (ws as any).ping === 'function') {
           try {
@@ -261,7 +293,9 @@ export class McubeStreamService {
 
     if (typeof (ws as any).on === 'function') {
       (ws as any).on('pong', () => {
-        session.heartbeatPongAt = Date.now();
+        const now = Date.now();
+        session.heartbeatPongAt = now;
+        session.heartbeatRttMs = session.heartbeatPingAt > 0 ? now - session.heartbeatPingAt : null;
         session.missedPings = 0;
       });
     }
@@ -300,40 +334,61 @@ export class McubeStreamService {
 
       const tStart = Date.now();
       session.actualCancellationConfirmed = false;
+      const currentOp = session.activeOperationId || 'none';
+      const currentGen = session.flushGen;
 
       // 1. Barge-in detected (Audio Lifecycle Step 8: CUSTOMER_INTERRUPTS)
-      this.logger.log(`[Audio-Lifecycle] [Step 8: CUSTOMER_INTERRUPTS] streamId=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
-      this.logger.log(`[MCube-BargeIn] [State 1: BARGE_IN_DETECTED] streamId=${session.streamId} gen=${session.flushGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`);
+      this.logger.log(
+        `[Audio-Lifecycle] [Step 8: CUSTOMER_INTERRUPTS] streamId=${session.streamId} callId=${session.callId} operationId=${currentOp} gen=${currentGen} ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`,
+      );
+      this.logger.log(
+        `[MCube-BargeIn] [State 1: BARGE_IN_DETECTED] callId=${session.callId} operationId=${currentOp} generationId=${currentGen} reason="CUSTOMER_SPEECH_OVER_AGENT" ambient=${Math.round(session.ambientEnergy)} thresh=${session.bargeThreshold}`,
+      );
 
       // 2. MCube clear command sent
       this.sendClearAudio(ws, session.streamId);
-      this.logger.log(`[MCube-BargeIn] [State 2: CLEAR_COMMAND_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`);
+      this.logger.log(
+        `[MCube-BargeIn] [State 2: CLEAR_COMMAND_SENT] clearAudio & clear frames sent to MCube in ${Date.now() - tStart}ms`,
+      );
 
       // 3. Local queue cleared (Audio Lifecycle Step 11: PENDING_QUEUE_CLEARED)
       const droppedCount = session.pendingSegments.size;
       session.cancelPlay = true;
       session.agentPlaying = false;
       session.pendingSegments.clear();
+      session.segmentBytes.clear();
       session.flushGen += 1;
-      this.logger.log(`[Audio-Lifecycle] [Step 11: PENDING_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
-      this.logger.log(`[MCube-BargeIn] [State 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`);
+      this.logger.log(
+        `[Audio-Lifecycle] [Step 11: PENDING_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`,
+      );
+      this.logger.log(
+        `[MCube-BargeIn] [State 3: LOCAL_QUEUE_CLEARED] Cleared ${droppedCount} pending segments, incremented flushGen=${session.flushGen}`,
+      );
 
-      // 4. LLM generation aborted & 5. TTS generation aborted (Audio Lifecycle Step 9 & 10)
-      const hasActiveAbort = Boolean(session.turnAbortController);
+      // 4. LLM generation aborted & 5. TTS generation aborted
+      const hasActiveAbort = Boolean(session.turnAbortController && !session.turnAbortController.signal.aborted);
       if (session.turnAbortController) {
         session.turnAbortController.abort();
         session.turnAbortController = null;
       }
-      this.logger.log(`[Audio-Lifecycle] [Step 9: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=${hasActiveAbort}`);
-      this.logger.log(`[Audio-Lifecycle] [Step 10: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=${hasActiveAbort}`);
-      this.logger.log(`[MCube-BargeIn] [State 4: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=${hasActiveAbort}`);
-      this.logger.log(`[MCube-BargeIn] [State 5: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=${hasActiveAbort}`);
+      if (hasActiveAbort) {
+        this.logger.log(`[Audio-Lifecycle] [Step 9: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=true operationId=${currentOp}`);
+        this.logger.log(`[Audio-Lifecycle] [Step 10: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=true operationId=${currentOp}`);
+        this.logger.log(`[MCube-BargeIn] [State 4: LLM_GENERATION_ABORTED] In-flight LLM stream aborted=true operationId=${currentOp}`);
+        this.logger.log(`[MCube-BargeIn] [State 5: TTS_GENERATION_ABORTED] In-flight ElevenLabs synthesis aborted=true operationId=${currentOp}`);
+      } else {
+        this.logger.debug(`[MCube-BargeIn] Generation already completed for operationId=${currentOp}, cleared audio playback queue.`);
+      }
 
       // 6. Last audio chunk sent info
-      this.logger.log(`[MCube-BargeIn] [State 6: LAST_AUDIO_CHUNK_SENT] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`);
+      this.logger.log(
+        `[MCube-BargeIn] [State 6: LAST_AUDIO_CHUNK_SENT] Last chunk sent was segment=${session.lastAudioChunkSegment || 'none'} (${session.lastAudioChunkSentAt ? `${tStart - session.lastAudioChunkSentAt}ms ago` : 'no previous chunk in turn'})`,
+      );
 
       // 8. Carrier drain status
-      this.logger.log(`[MCube-BargeIn] [State 8: CARRIER_DRAIN_STATUS] Status: ${session.actualCancellationConfirmed ? 'EXPLICIT_ACK_CONFIRMED' : 'INFERRED_CARRIER_DRAIN'}`);
+      this.logger.log(
+        `[MCube-BargeIn] [State 8: CARRIER_DRAIN_STATUS] Status: ${session.actualCancellationConfirmed ? 'EXPLICIT_ACK_CONFIRMED' : 'INFERRED_CARRIER_DRAIN'}`,
+      );
     };
 
     ws.on('message', (raw) => {
@@ -552,11 +607,15 @@ export class McubeStreamService {
         const segName = msg.name || '';
         if (session.pendingSegments.has(segName)) {
           session.pendingSegments.delete(segName);
+          session.audioPlayedCount++;
+          const bytes = session.segmentBytes.get(segName) || 0;
+          session.audioPlayedBytes += bytes;
+          session.segmentBytes.delete(segName);
           if (session.pendingSegments.size === 0) {
             session.agentPlaying = false;
           }
           this.logger.debug(
-            `[MCube] playedStream finished name=${segName} streamId=${msg.streamId}`,
+            `[MCube] playedStream finished name=${segName} streamId=${msg.streamId} bytes=${bytes}`,
           );
         } else {
           this.logger.debug(
@@ -668,12 +727,15 @@ export class McubeStreamService {
   });
 
     ws.on('close', (code, reason) => {
+      if (session.cleanupCompleted) return;
+      session.cleanupCompleted = true;
       session.closed = true;
       session.cancelPlay = true;
       session.agentPlaying = false;
       session.flushGen += 1;
       session.rawChunks = [];
       session.pendingSegments.clear();
+      session.segmentBytes.clear();
       session.wsReadyState = 3;
       session.wsCloseCode = typeof code === 'number' ? code : null;
       session.wsCloseReason = reason ? reason.toString() : null;
@@ -685,6 +747,10 @@ export class McubeStreamService {
       if (session.watchdogTimer) {
         clearInterval(session.watchdogTimer);
         session.watchdogTimer = null;
+      }
+      if (session.turnAbortController) {
+        session.turnAbortController.abort();
+        session.turnAbortController = null;
       }
 
       // Condition G: WS_UNEXPECTED_CLOSE check
@@ -777,6 +843,8 @@ export class McubeStreamService {
    */
   private async flushTurn(ws: WebSocket, session: McubeSession) {
     if (session.busy || session.closed) return;
+    const operationId = `op_${randomUUID().slice(0, 8)}`;
+    session.activeOperationId = operationId;
     session.busy = true;
     session.busySince = Date.now();
     const wasInterrupted = session.cancelPlay;
@@ -1278,6 +1346,7 @@ export class McubeStreamService {
       }
       session.busy = false;
       session.busySince = 0;
+      session.activeOperationId = null;
       this.logCallMetrics(session);
     }
   }
@@ -1338,6 +1407,8 @@ export class McubeStreamService {
 
       if (buf && buf.length > 0) {
         session.lastTtsSuccessAt = Date.now();
+        session.audioGeneratedCount++;
+        session.audioGeneratedBytes += buf.length;
         return buf;
       }
 
@@ -1382,6 +1453,7 @@ export class McubeStreamService {
 
     const segmentName = `seg_${randomUUID().slice(0, 8)}`;
     session.pendingSegments.add(segmentName);
+    session.segmentBytes.set(segmentName, audioBuffer.length);
     session.agentPlaying = true;
 
     // 1. playAudio
@@ -1407,6 +1479,8 @@ export class McubeStreamService {
     session.lastAudioChunkSentAt = Date.now();
     session.lastAudioChunkSegment = segmentName;
     session.outboundFrameCount++;
+    session.audioTransmittedCount++;
+    session.audioTransmittedBytes += audioBuffer.length;
     session.lastOutboundAudioAt = Date.now();
     session.lastMcubeTransmitAt = Date.now();
 
@@ -1512,17 +1586,25 @@ export class McubeStreamService {
       session.agentPlaying = false;
     }
 
-    // Self-Healing 1: Reset stuck busy state
+    // Self-Healing 1: Reset stuck busy state with generation invalidation
     if (session.busy && session.busySince > 0 && now - session.busySince > 15000) {
       session.recoveryAttempts++;
-      session.busy = false;
-      session.busySince = 0;
+      const stuckOp = session.activeOperationId || 'unknown';
+      const priorGen = session.flushGen;
       if (session.turnAbortController) {
         session.turnAbortController.abort();
         session.turnAbortController = null;
       }
+      session.flushGen++;
+      session.pendingSegments.clear();
+      session.segmentBytes.clear();
+      session.agentPlaying = false;
+      session.busy = false;
+      session.busySince = 0;
+      session.activeOperationId = null;
+
       this.logger.warn(
-        `[MCube-Watchdog] ⚠️ Pipeline Self-Healing: Reset stuck busy state after ${now - session.busySince}ms for callId=${session.callId}`,
+        `[MCube-Watchdog] ⚠️ Pipeline Self-Healing: Aborted stuck operation ${stuckOp} (gen=${priorGen} -> ${session.flushGen}) after ${now - session.busySince}ms for callId=${session.callId}`,
       );
     }
 
@@ -1557,6 +1639,18 @@ export class McubeStreamService {
   logCallMetrics(session: McubeSession) {
     const versionTelemetry = getVersionTelemetry();
     const now = Date.now();
+
+    let heartbeatStatus: 'HEALTHY' | 'DEGRADED' | 'DEAD' | 'INITIALIZING' = 'INITIALIZING';
+    if (session.heartbeatPingAt > 0) {
+      if (session.missedPings >= 2) {
+        heartbeatStatus = 'DEAD';
+      } else if (session.missedPings === 1) {
+        heartbeatStatus = 'DEGRADED';
+      } else if (session.heartbeatPongAt > 0) {
+        heartbeatStatus = 'HEALTHY';
+      }
+    }
+
     this.logger.log(
       `[MCube-Metrics] ${JSON.stringify({
         callId: session.callId,
@@ -1567,9 +1661,16 @@ export class McubeStreamService {
         sessionAgeMs: now - session.sessionStartedAt,
         inboundFrames: session.inboundFrameCount,
         outboundFrames: session.outboundFrameCount,
+        audioGeneratedCount: session.audioGeneratedCount,
+        audioGeneratedBytes: session.audioGeneratedBytes,
+        audioTransmittedCount: session.audioTransmittedCount,
+        audioTransmittedBytes: session.audioTransmittedBytes,
+        audioPlayedCount: session.audioPlayedCount,
+        audioPlayedBytes: session.audioPlayedBytes,
         lastInboundAudioAgeMs: session.lastInboundAudioAt ? now - session.lastInboundAudioAt : null,
         lastOutboundAudioAgeMs: session.lastOutboundAudioAt ? now - session.lastOutboundAudioAt : null,
-        heartbeatStatus: session.missedPings > 1 ? 'STALE' : 'HEALTHY',
+        heartbeatStatus,
+        heartbeatRttMs: session.heartbeatRttMs,
         wsCloseCode: session.wsCloseCode,
         audioPipelineState: session.busy ? 'BUSY' : session.agentPlaying ? 'PLAYING' : 'IDLE',
         recoveryAttempts: session.recoveryAttempts,
@@ -1586,6 +1687,18 @@ export class McubeStreamService {
     if (!session) return null;
     const versionTelemetry = getVersionTelemetry();
     const now = Date.now();
+
+    let heartbeatStatus: 'HEALTHY' | 'DEGRADED' | 'DEAD' | 'INITIALIZING' = 'INITIALIZING';
+    if (session.heartbeatPingAt > 0) {
+      if (session.missedPings >= 2) {
+        heartbeatStatus = 'DEAD';
+      } else if (session.missedPings === 1) {
+        heartbeatStatus = 'DEGRADED';
+      } else if (session.heartbeatPongAt > 0) {
+        heartbeatStatus = 'HEALTHY';
+      }
+    }
+
     return {
       callId: session.callId,
       streamId: session.streamId,
@@ -1595,9 +1708,16 @@ export class McubeStreamService {
       sessionAgeMs: now - session.sessionStartedAt,
       inboundFrames: session.inboundFrameCount,
       outboundFrames: session.outboundFrameCount,
+      audioGeneratedCount: session.audioGeneratedCount,
+      audioGeneratedBytes: session.audioGeneratedBytes,
+      audioTransmittedCount: session.audioTransmittedCount,
+      audioTransmittedBytes: session.audioTransmittedBytes,
+      audioPlayedCount: session.audioPlayedCount,
+      audioPlayedBytes: session.audioPlayedBytes,
       lastInboundAudioAgeMs: session.lastInboundAudioAt ? now - session.lastInboundAudioAt : null,
       lastOutboundAudioAgeMs: session.lastOutboundAudioAt ? now - session.lastOutboundAudioAt : null,
-      heartbeatStatus: session.missedPings > 1 ? 'STALE' : 'HEALTHY',
+      heartbeatStatus,
+      heartbeatRttMs: session.heartbeatRttMs,
       wsCloseCode: session.wsCloseCode,
       audioPipelineState: session.busy ? 'BUSY' : session.agentPlaying ? 'PLAYING' : 'IDLE',
       recoveryAttempts: session.recoveryAttempts,

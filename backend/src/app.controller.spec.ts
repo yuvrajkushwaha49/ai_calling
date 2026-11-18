@@ -18,5 +18,11 @@ describe('AppController', () => {
     it('should return "Hello World!"', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
+
+    it('should return version telemetry with version 1.8.2', () => {
+      const v = appController.getVersion();
+      expect(v.version).toBe('1.8.2');
+      expect(v.deploymentId).toContain('round8.2');
+    });
   });
 });

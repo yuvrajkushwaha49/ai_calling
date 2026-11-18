@@ -456,7 +456,7 @@ describe('Aria Round 7 — Conversation Intelligence, Project Context Lock, Veri
   // SCENARIO 26: Production version identifier appears in call metadata
   it('Scenario 26: Production version metadata is exposed for call telemetry', () => {
     const versionMeta = getVersionTelemetry();
-    expect(versionMeta.version).toBe('1.7.0');
+    expect(versionMeta.version).toMatch(/^1\.[78]\./);
     expect(versionMeta.commitSha).toBeDefined();
     expect(versionMeta.deploymentId).toBeDefined();
     expect(typeof versionMeta.processPid).toBe('number');

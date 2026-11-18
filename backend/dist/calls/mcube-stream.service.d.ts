@@ -89,6 +89,16 @@ export type McubeSession = {
     heartbeatTimer: NodeJS.Timeout | null;
     watchdogTimer: NodeJS.Timeout | null;
     callerPhone?: string;
+    heartbeatRttMs: number | null;
+    audioGeneratedCount: number;
+    audioGeneratedBytes: number;
+    audioTransmittedCount: number;
+    audioTransmittedBytes: number;
+    audioPlayedCount: number;
+    audioPlayedBytes: number;
+    segmentBytes: Map<string, number>;
+    activeOperationId: string | null;
+    cleanupCompleted: boolean;
 };
 export declare class McubeStreamService {
     private config;
@@ -123,9 +133,16 @@ export declare class McubeStreamService {
         sessionAgeMs: number;
         inboundFrames: number;
         outboundFrames: number;
+        audioGeneratedCount: number;
+        audioGeneratedBytes: number;
+        audioTransmittedCount: number;
+        audioTransmittedBytes: number;
+        audioPlayedCount: number;
+        audioPlayedBytes: number;
         lastInboundAudioAgeMs: number | null;
         lastOutboundAudioAgeMs: number | null;
-        heartbeatStatus: string;
+        heartbeatStatus: "HEALTHY" | "DEGRADED" | "DEAD" | "INITIALIZING";
+        heartbeatRttMs: number | null;
         wsCloseCode: number | null;
         audioPipelineState: string;
         recoveryAttempts: number;

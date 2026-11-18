@@ -638,6 +638,9 @@ If they have not named a project yet, ask ONE short question: which project / pr
                 propertyType: propertyTypePref || null,
                 selectedProjectId,
                 selectedProjectLock,
+                possessionPreference: options.memory?.customer?.possessionPreference ||
+                    options.memory?.confirmedFacts?.possession?.value ||
+                    null,
             })
             : '';
         const isHinglish = String(replyLang) === 'hinglish' ||
@@ -907,6 +910,11 @@ CRITICAL RESPONSE PRIORITY & NATURAL DIALOGUE RULES:
   * If asked how you know their details/budget ("tumko kaise pata chala mera budget..."): Answer directly from history: "Ji, humari pichhli baat-cheet mein aapne bataya tha, usi aadhar par maine options suggest kiye hain. Agar isme koi badlav hai to aap bata sakte hain."
   * If customer asks an incomplete or ambiguous question like "क्या अभी?", "अभी?", "Kya abhi?": Clarify directly what they mean: "Ji, kya aap abhi site visit ke baare mein pooch rahe hain, ya abhi call par details discuss karna chahte hain?" NEVER treat "क्या अभी" as agreement or book an appointment on it!
   * If asked about project details, prices, possession, amenities: Answer from Available Projects & Knowledge first. Mention missing information honestly.
+  * POSSESSION & READY-TO-MOVE ACCURACY (CRITICAL):
+    - If customer specifically asks for ready-to-move / immediate possession / ready flats:
+      * NEVER claim Under-Construction or Pre-Launch projects (Saya Pre-Launch, VVIP Pre-Launch, Future Estate) are Ready-to-Move!
+      * Only offer projects verified as Ready-to-Move or Near-Ready (e.g. Palace Heights 3 towers in 6 months).
+      * If customer asks for ready-to-move 3 BHK and no verified ready project exists, clearly state: "Abhi hamare paas Noida Extension mein mostly under-construction options hain jisme Palace Heights mein 6 months mein possession mil raha hai. Kya aap under-construction dekhna chahenge ya sirf ready-to-move hi chahiye?"
   * If they switch topics or ask something new: Immediately prioritize answering their new query! Never drag them back to site visit scheduling until answered.
   * If they correct information (e.g. "Actually mera budget 90 lakh hai" or "Nahi mujhe ready-to-move chahiye"): Immediately accept and update to their latest preference!
 - PRIORITY 2 (STRICT BUDGET MATCHING, SOURCE FACTS & WHATSAPP RULES):
@@ -1218,36 +1226,43 @@ ${learned ? learned : ''}`;
                 sizes: '1 BHK (700 sq.ft, from ₹60.9L furnished), 2 BHK (1015-1088 sq.ft), 3 BHK (1341-1568 sq.ft), 4 BHK (1841-2285 sq.ft)',
                 club: '30,000 sq.ft clubhouse, 70% green area, 50:50 payment plan, 3 towers possession in 6 months',
                 bsp: '₹8,700/sq.ft',
+                possession: 'Near Possession (3 towers within 6 months, balance under construction)',
             },
             'ncr monarch': {
                 sizes: '1 BHK (720-1010 sq.ft, from ₹64L), 2 BHK (1075-1255 sq.ft), 3 BHK (1345-1810 sq.ft)',
                 club: 'Modern clubhouse & sports facilities',
                 bsp: '₹8,888/sq.ft',
+                possession: 'Under Construction (Possession 2026)',
             },
             'future estate': {
                 sizes: '2 BHK (1110, 1130, 1170, 1240 sq.ft), 2 BHK + Study (1335 sq.ft), 3 BHK (2050 sq.ft), 4 BHK (2500 sq.ft)',
                 club: '7.9 Acres, 9 Towers (G+10/S+22), 2 Clubhouses (32,000 sq.ft + 10,000 sq.ft), SWAMIH/SBI funded',
                 bsp: '₹7,777/sq.ft (Pre-launch Tower DEF ₹9,500/sq.ft)',
+                possession: 'Under Construction (SWAMIH funded, completion 2026)',
             },
             'vvip pre-launch': {
                 sizes: '2 BHK (1250 sq.ft, ~₹90.6L-₹91L), 3 BHK (1800 sq.ft), 4 BHK (2400 sq.ft)',
                 club: '5 Acres, 5 Towers (G+30 floors, 750 units, 4 lifts/floor), 60,000 sq.ft modern clubhouse',
                 bsp: '₹7,250/sq.ft',
+                possession: 'Pre-Launch / Under Construction (Possession 2028-2029)',
             },
             'vvip namah': {
                 sizes: '3 BHK (1635, 1650, 1970, 1980, 2320 sq.ft), 4 BHK + Servant (2950, 3105 sq.ft)',
                 club: '2.75 Acres, 3 Towers (G+23 floors)',
                 bsp: '₹10,040 - ₹10,540/sq.ft',
+                possession: 'Under Construction',
             },
             'saya pre-launch': {
                 sizes: '2 BHK (1000 sq.ft, from ₹69L), 2+S BHK (1200 sq.ft), 3 BHK (1400, 1600, 1800 sq.ft), 4 BHK (2600 sq.ft)',
                 club: '18 Acres, 17-18 Towers (G+22-25, 2200 units), 1,50,000 sq.ft mega luxury clubhouse, 20*5 payment plan',
                 bsp: '₹6,900/sq.ft',
+                possession: 'Pre-Launch / Under Construction (Possession 2028-2029)',
             },
             'aarya heights': {
                 sizes: '3 BHK + 3T (1880, 2065 sq.ft), 4 BHK + 4T (2465 sq.ft)',
                 club: '1.2 Acres, 1 iconic tower (G+27 floors, 160 units)',
                 bsp: '₹5,750/sq.ft',
+                possession: 'Under Construction',
             },
         };
         const getVerifiedMeta = (name) => {
@@ -1350,6 +1365,28 @@ ${learned ? learned : ''}`;
             const lines = [
                 `- ${p.name}${devNotice} [Location: ${p.location}]: ${priceStr}${diffNotice}`,
             ];
+            let possessionStatus = meta?.possession;
+            if (!possessionStatus && p.possessionDate) {
+                const pDate = new Date(p.possessionDate);
+                if (pDate.getTime() <= Date.now()) {
+                    possessionStatus = 'Ready to Move';
+                }
+                else {
+                    possessionStatus = `Under Construction (Possession: ${pDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })})`;
+                }
+            }
+            if (!possessionStatus) {
+                if (/ready/i.test(p.description || '')) {
+                    possessionStatus = 'Ready to Move';
+                }
+                else if (/pre-launch/i.test(p.name)) {
+                    possessionStatus = 'Pre-Launch / Under Construction (Possession 2028-2029)';
+                }
+                else {
+                    possessionStatus = 'Under Construction';
+                }
+            }
+            lines.push(`  * Possession Status: ${possessionStatus}`);
             if (meta?.sizes)
                 lines.push(`  * Verified Unit Sizes: ${meta.sizes}`);
             if (meta?.bsp)
@@ -1373,6 +1410,13 @@ ${learned ? learned : ''}`;
             }
         }
         const sections = [];
+        if (options.possessionPreference) {
+            const isReadyPref = /ready/i.test(options.possessionPreference);
+            if (isReadyPref) {
+                sections.push(`[CUSTOMER POSSESSION PREFERENCE: READY-TO-MOVE / NEAR-READY INVENTORY]\n` +
+                    `(STRICT INSTRUCTION: Customer requested ready-to-move flats. Prioritize near-ready options (such as Palace Heights towers possessing in 6 months). For under-construction or pre-launch projects like Saya Pre-Launch, VVIP Pre-Launch, or Future Estate, NEVER misrepresent them as ready-to-move!)`);
+            }
+        }
         if (customerBudgetRupees && customerBudgetRupees > 0) {
             const budgetLakh = Math.round(customerBudgetRupees / 100000);
             const inBudget = residentialList.filter((p) => p.startingPrice != null && Number(p.startingPrice) <= customerBudgetRupees);
