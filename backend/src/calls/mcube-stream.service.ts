@@ -57,7 +57,7 @@ export type McubeInboundMsg = {
   };
 };
 
-type McubeSession = {
+export type McubeSession = {
   streamId: string;
   callId: string;
   encoding: 'audio/x-mulaw' | 'audio/x-l16';
@@ -68,6 +68,7 @@ type McubeSession = {
   speechStartedAt: number;
   silenceTimer: ReturnType<typeof setTimeout> | null;
   busy: boolean;
+  busySince: number;
   closed: boolean;
   listenAfter: number;
   agentPlaying: boolean;
@@ -92,6 +93,31 @@ type McubeSession = {
   lastAudioChunkSentAt?: number;
   lastAudioChunkSegment?: string;
   actualCancellationConfirmed?: boolean;
+
+  // Round 8.1 Long-Running Telephony & Watchdog Observability
+  sessionStartedAt: number;
+  lastInboundAudioAt: number;
+  lastOutboundAudioAt: number;
+  lastTtsSuccessAt: number;
+  lastMcubeTransmitAt: number;
+  lastReceivedEvent: string;
+  lastTranscript: string;
+  lastTranscriptAt: number;
+  lastLlmAt: number;
+  lastPlaybackCompleteAt: number;
+  wsReadyState: number;
+  wsCloseCode: number | null;
+  wsCloseReason: string | null;
+  heartbeatPingAt: number;
+  heartbeatPongAt: number;
+  missedPings: number;
+  inboundFrameCount: number;
+  outboundFrameCount: number;
+  recoveryAttempts: number;
+  lastFailureCondition: string | null;
+  heartbeatTimer: NodeJS.Timeout | null;
+  watchdogTimer: NodeJS.Timeout | null;
+  callerPhone?: string;
 };
 
 @Injectable()
@@ -99,6 +125,14 @@ export class McubeStreamService {
   private readonly logger = new Logger(McubeStreamService.name);
   private readonly uploadsDir = path.join(process.cwd(), 'uploads', 'audio');
   private readonly activeSessions = new Map<string, McubeSession>();
+  private readonly reconnectCache = new Map<
+    string,
+    {
+      session: McubeSession;
+      disconnectedAt: number;
+      timer: NodeJS.Timeout;
+    }
+  >();
 
   constructor(
     private config: ConfigService,
@@ -123,11 +157,29 @@ export class McubeStreamService {
     callIdHint?: string,
     queryParams?: Record<string, string>,
   ) {
-    const prior = callIdHint ? this.activeSessions.get(callIdHint) : undefined;
-    if (prior) {
-      this.logger.log(`[MCube-Reconnect] Reconnecting existing callId=${callIdHint}, preserving conversation state and facts`);
+    // 1. Separate Active Session vs Disconnected Reconnect Cache
+    let prior: McubeSession | undefined;
+    const cachedReconnect = callIdHint ? this.reconnectCache.get(callIdHint) : undefined;
+    if (cachedReconnect) {
+      clearTimeout(cachedReconnect.timer);
+      this.reconnectCache.delete(callIdHint!);
+      prior = cachedReconnect.session;
+      this.logger.log(
+        `[MCube-Reconnect] Restored disconnected callId=${callIdHint} from 120s reconnect cache (disconnected ${Date.now() - cachedReconnect.disconnectedAt}ms ago)`,
+      );
+    } else if (callIdHint && this.activeSessions.has(callIdHint)) {
+      prior = this.activeSessions.get(callIdHint);
+      if (prior) {
+        if (prior.heartbeatTimer) clearInterval(prior.heartbeatTimer);
+        if (prior.watchdogTimer) clearInterval(prior.watchdogTimer);
+        if (prior.silenceTimer) clearTimeout(prior.silenceTimer);
+      }
+      this.logger.log(
+        `[MCube-Reconnect] Reconnecting existing active callId=${callIdHint}, preserving conversation state and facts`,
+      );
     }
 
+    const now = Date.now();
     const session: McubeSession = {
       streamId: '',
       callId: callIdHint || '',
@@ -139,6 +191,7 @@ export class McubeStreamService {
       speechStartedAt: 0,
       silenceTimer: null,
       busy: false,
+      busySince: 0,
       closed: false,
       listenAfter: 0,
       agentPlaying: false,
@@ -157,11 +210,74 @@ export class McubeStreamService {
       voiceThreshold: prior?.voiceThreshold || 450,
       bargeThreshold: prior?.bargeThreshold || 900,
       filterState: createAudioFilterState(),
+
+      // Round 8.1 Watchdog & Telephony Fields
+      sessionStartedAt: prior?.sessionStartedAt || now,
+      lastInboundAudioAt: prior?.lastInboundAudioAt || 0,
+      lastOutboundAudioAt: prior?.lastOutboundAudioAt || 0,
+      lastTtsSuccessAt: prior?.lastTtsSuccessAt || 0,
+      lastMcubeTransmitAt: prior?.lastMcubeTransmitAt || 0,
+      lastReceivedEvent: 'connect',
+      lastTranscript: prior?.lastTranscript || '',
+      lastTranscriptAt: prior?.lastTranscriptAt || 0,
+      lastLlmAt: prior?.lastLlmAt || 0,
+      lastPlaybackCompleteAt: prior?.lastPlaybackCompleteAt || 0,
+      wsReadyState: ws.readyState,
+      wsCloseCode: null,
+      wsCloseReason: null,
+      heartbeatPingAt: 0,
+      heartbeatPongAt: 0,
+      missedPings: 0,
+      inboundFrameCount: prior?.inboundFrameCount || 0,
+      outboundFrameCount: prior?.outboundFrameCount || 0,
+      recoveryAttempts: prior?.recoveryAttempts || 0,
+      lastFailureCondition: null,
+      heartbeatTimer: null,
+      watchdogTimer: null,
     };
 
     if (session.callId) {
       this.activeSessions.set(session.callId, session);
     }
+
+    // Register WebSocket heartbeat (ping/pong) every 20 seconds to prevent carrier / ALB 60-120s drops
+    const startHeartbeat = () => {
+      if (session.heartbeatTimer) clearInterval(session.heartbeatTimer);
+      session.heartbeatTimer = setInterval(() => {
+        if (session.closed || ws.readyState !== 1) return;
+        session.heartbeatPingAt = Date.now();
+        if (typeof (ws as any).ping === 'function') {
+          try {
+            (ws as any).ping();
+          } catch (err) {
+            this.logger.warn(`[MCube-Heartbeat] Ping failed callId=${session.callId}: ${err}`);
+          }
+        }
+      }, 20000);
+      if (typeof session.heartbeatTimer?.unref === 'function') {
+        session.heartbeatTimer.unref();
+      }
+    };
+
+    if (typeof (ws as any).on === 'function') {
+      (ws as any).on('pong', () => {
+        session.heartbeatPongAt = Date.now();
+        session.missedPings = 0;
+      });
+    }
+    startHeartbeat();
+
+    // Register Long-Running Call Watchdog every 10 seconds
+    const startWatchdog = () => {
+      if (session.watchdogTimer) clearInterval(session.watchdogTimer);
+      session.watchdogTimer = setInterval(() => {
+        this.runSessionWatchdog(ws, session);
+      }, 10000);
+      if (typeof session.watchdogTimer?.unref === 'function') {
+        session.watchdogTimer.unref();
+      }
+    };
+    startWatchdog();
 
     const clearSilence = () => {
       if (session.silenceTimer) {
@@ -235,6 +351,8 @@ export class McubeStreamService {
         } catch {
           return;
         }
+
+        session.lastReceivedEvent = msg.event || 'unknown';
 
         // 1. "start" event
       if (msg.event === 'start' && msg.start) {
@@ -407,7 +525,7 @@ export class McubeStreamService {
                 role: 'assistant',
                 content: initialOpener,
                 timestamp: Date.now(),
-              });
+              }).catch(() => undefined);
             }
 
             const audioBuf = await this.synthesizeForSession(
@@ -430,6 +548,7 @@ export class McubeStreamService {
 
       // 2. "playedStream" event
       if (msg.event === 'playedStream') {
+        session.lastPlaybackCompleteAt = Date.now();
         const segName = msg.name || '';
         if (session.pendingSegments.has(segName)) {
           session.pendingSegments.delete(segName);
@@ -468,6 +587,10 @@ export class McubeStreamService {
           session.streamId = msg.streamId;
         }
 
+        const now = Date.now();
+        session.inboundFrameCount += 1;
+        session.lastInboundAudioAt = now;
+
         const chunk = Buffer.from(msg.media.payload, 'base64');
         const rawPcm =
           session.encoding === 'audio/x-l16'
@@ -477,7 +600,6 @@ export class McubeStreamService {
         // Filter out DC offset and sub-100Hz rumble before measuring energy
         const pcm = filterDcBlockPcm16(rawPcm, session.filterState);
         const energy = pcmEnergy(pcm);
-        const now = Date.now();
 
         // 1. Dynamic Noise Calibration:
         // Sample line noise floor during first 25-30 frames (~500ms) or quiet periods
@@ -545,16 +667,60 @@ export class McubeStreamService {
     }
   });
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
       session.closed = true;
       session.cancelPlay = true;
       session.agentPlaying = false;
       session.flushGen += 1;
       session.rawChunks = [];
       session.pendingSegments.clear();
+      session.wsReadyState = 3;
+      session.wsCloseCode = typeof code === 'number' ? code : null;
+      session.wsCloseReason = reason ? reason.toString() : null;
       clearSilence();
-      this.logger.log(`[MCube] WebSocket closed for callId=${session.callId}`);
+      if (session.heartbeatTimer) {
+        clearInterval(session.heartbeatTimer);
+        session.heartbeatTimer = null;
+      }
+      if (session.watchdogTimer) {
+        clearInterval(session.watchdogTimer);
+        session.watchdogTimer = null;
+      }
+
+      // Condition G: WS_UNEXPECTED_CLOSE check
+      if (code !== 1000 && code !== 1001 && code !== undefined && code !== null) {
+        session.lastFailureCondition = 'WS_UNEXPECTED_CLOSE';
+        this.logger.warn(
+          `[MCube-Watchdog] [Condition G: WS_UNEXPECTED_CLOSE] WebSocket closed unexpectedly with code=${code} reason="${reason}" callId=${session.callId}`,
+        );
+      }
+
+      this.logger.log(`[MCube] WebSocket closed for callId=${session.callId} code=${code} reason=${reason}`);
+      this.logCallMetrics(session);
+
       if (session.callId) {
+        // Active Session Protection: move to 120s reconnect cache instead of instant deletion
+        this.activeSessions.delete(session.callId);
+        const existingCache = this.reconnectCache.get(session.callId);
+        if (existingCache) {
+          clearTimeout(existingCache.timer);
+        }
+        const timer = setTimeout(() => {
+          this.reconnectCache.delete(session.callId);
+          this.logger.log(
+            `[MCube-SessionCache] Reconnect cache expired after 120s for callId=${session.callId}`,
+          );
+        }, 120000);
+        if (typeof timer?.unref === 'function') {
+          timer.unref();
+        }
+
+        this.reconnectCache.set(session.callId, {
+          session,
+          disconnectedAt: Date.now(),
+          timer,
+        });
+
         void this.customerMemory.persistMemoryToDb(session.callId).catch(() => undefined);
         void this.prisma.call
           .updateMany({
@@ -592,7 +758,16 @@ export class McubeStreamService {
 
     ws.on('error', (err) => {
       session.closed = true;
+      session.wsReadyState = 3;
       clearSilence();
+      if (session.heartbeatTimer) {
+        clearInterval(session.heartbeatTimer);
+        session.heartbeatTimer = null;
+      }
+      if (session.watchdogTimer) {
+        clearInterval(session.watchdogTimer);
+        session.watchdogTimer = null;
+      }
       this.logger.warn(`[MCube] WebSocket error: ${err.message}`);
     });
   }
@@ -603,6 +778,7 @@ export class McubeStreamService {
   private async flushTurn(ws: WebSocket, session: McubeSession) {
     if (session.busy || session.closed) return;
     session.busy = true;
+    session.busySince = Date.now();
     const wasInterrupted = session.cancelPlay;
     session.cancelPlay = false;
     const myGen = ++session.flushGen;
@@ -639,6 +815,7 @@ export class McubeStreamService {
 
       if (rawIn.length < minLength) {
         session.busy = false;
+        session.busySince = 0;
         return;
       }
 
@@ -671,8 +848,16 @@ export class McubeStreamService {
       ]);
       const sttDurationMs = Date.now() - sttStart;
 
+      if (rawIn.length >= minLength && (!stt.transcript || !stt.transcript.trim())) {
+        session.lastFailureCondition = 'STT_NO_TRANSCRIPT';
+        this.logger.warn(
+          `[MCube-Watchdog] [Condition B: STT_NO_TRANSCRIPT] STT produced empty transcript for ${rawIn.length}b audio in ${sttDurationMs}ms callId=${session.callId}`,
+        );
+      }
+
       if (aborted()) {
         session.busy = false;
+        session.busySince = 0;
         return;
       }
 
@@ -692,10 +877,13 @@ export class McubeStreamService {
           this.logger.debug(`[MCube] 🔇 Ignored non-speech audio event: "${rawUserMessage}"`);
         }
         session.busy = false;
+        session.busySince = 0;
         return;
       }
 
       const userMessage = cleanUserMessage;
+      session.lastTranscript = userMessage;
+      session.lastTranscriptAt = Date.now();
 
       // Record caller speech in Redis history & extract customer facts (name, bhk, budget, etc.)
       if (session.callId) {
@@ -703,16 +891,20 @@ export class McubeStreamService {
           role: 'user',
           content: userMessage,
           timestamp: Date.now(),
-        });
+        }).catch(() => undefined);
 
         const extracted = this.factExtractor.extractFromUtterance(userMessage, {
           priorAgentText: session.lastAgentText,
         });
         if (extracted && Object.keys(extracted.facts).length > 0) {
-          session.memory = await this.customerMemory.applyExtractedFacts(session.callId, extracted);
-          this.logger.log(
-            `[MCube] 🧠 Extracted customer facts: ${JSON.stringify(extracted.facts)}`,
-          );
+          try {
+            session.memory = await this.customerMemory.applyExtractedFacts(session.callId, extracted);
+            this.logger.log(
+              `[MCube] 🧠 Extracted customer facts: ${JSON.stringify(extracted.facts)}`,
+            );
+          } catch {
+            // ignore memory update failure on Redis blip
+          }
         }
       }
 
@@ -919,9 +1111,18 @@ export class McubeStreamService {
         // Wait for all queued sentence audio to finish playing
         await ttsChain;
 
+        session.lastLlmAt = Date.now();
+        if (rawLlmSentences.length === 0 && !aborted()) {
+          session.lastFailureCondition = 'LLM_NO_RESPONSE';
+          this.logger.warn(
+            `[MCube-Watchdog] [Condition C: LLM_NO_RESPONSE] Gemini LLM produced no sentence for userMessage="${userMessage}" callId=${session.callId}`,
+          );
+        }
+
         if (aborted()) {
           session.cancelPlay = false;
           session.busy = false;
+          session.busySince = 0;
           return;
         }
 
@@ -933,6 +1134,7 @@ export class McubeStreamService {
         if (actuallySentSentences.length === 0 && aborted()) {
           this.logger.log(`[MCube] 🛑 Turn cancelled by barge-in before audio was sent. Not recording un-spoken speech.`);
           session.busy = false;
+          session.busySince = 0;
           session.cancelPlay = false;
           return;
         }
@@ -1028,11 +1230,13 @@ export class McubeStreamService {
           role: 'assistant',
           content: replyText,
           timestamp: Date.now(),
-        });
-        void this.customerMemory.updateCallMemory(session.callId, (st: ConversationState) => {
-          st.lastAssistantResponse = replyText;
-        });
-        void this.customerMemory.persistMemoryToDb(session.callId);
+        }).catch(() => undefined);
+        void Promise.resolve(
+          this.customerMemory.updateCallMemory(session.callId, (st: ConversationState) => {
+            st.lastAssistantResponse = replyText;
+          }),
+        ).catch(() => undefined);
+        void this.customerMemory.persistMemoryToDb(session.callId).catch(() => undefined);
       }
       session.transcript = [
         session.transcript || call?.transcript || '',
@@ -1073,6 +1277,8 @@ export class McubeStreamService {
         session.turnAbortController = null;
       }
       session.busy = false;
+      session.busySince = 0;
+      this.logCallMetrics(session);
     }
   }
 
@@ -1087,6 +1293,7 @@ export class McubeStreamService {
     const lang = settings?.language || session.settings?.language || 'en-IN';
     const spokenText = normalizeTextForSpeech(text, lang);
     try {
+      let buf: Buffer | null = null;
       if (session.encoding === 'audio/x-l16') {
         const tts = await this.voice.textToSpeech({
           text: spokenText,
@@ -1098,7 +1305,7 @@ export class McubeStreamService {
           modelId: 'eleven_flash_v2_5',
           optimizeStreamingLatency: 4,
         });
-        return asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
+        buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
       } else {
         // audio/x-mulaw at 8000Hz
         try {
@@ -1112,7 +1319,7 @@ export class McubeStreamService {
             modelId: 'eleven_flash_v2_5',
             optimizeStreamingLatency: 4,
           });
-          return asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
+          buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
         } catch {
           const tts = await this.voice.textToSpeech({
             text: spokenText,
@@ -1125,11 +1332,25 @@ export class McubeStreamService {
             optimizeStreamingLatency: 4,
           });
           const pcm16k = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
-          return pcm16ToMulaw(downsamplePcm16(pcm16k, 16000, 8000));
+          buf = pcm16ToMulaw(downsamplePcm16(pcm16k, 16000, 8000));
         }
       }
+
+      if (buf && buf.length > 0) {
+        session.lastTtsSuccessAt = Date.now();
+        return buf;
+      }
+
+      session.lastFailureCondition = 'TTS_SYNTHESIS_FAILED';
+      this.logger.warn(
+        `[MCube-Watchdog] [Condition D: TTS_SYNTHESIS_FAILED] ElevenLabs returned empty audio for text="${text.slice(0, 60)}" callId=${session.callId}`,
+      );
+      return null;
     } catch (err) {
-      this.logger.error(`[MCube] TTS failed: ${err instanceof Error ? err.message : err}`);
+      session.lastFailureCondition = 'TTS_SYNTHESIS_FAILED';
+      this.logger.error(
+        `[MCube-Watchdog] [Condition D: TTS_SYNTHESIS_FAILED] TTS failed: ${err instanceof Error ? err.message : err} callId=${session.callId}`,
+      );
       return null;
     }
   }
@@ -1150,6 +1371,12 @@ export class McubeStreamService {
       session.cancelPlay ||
       (expectedGen !== undefined && expectedGen !== session.flushGen)
     ) {
+      if (audioBuffer && audioBuffer.length > 0 && !session.closed) {
+        session.lastFailureCondition = 'TTS_NOT_TRANSMITTED';
+        this.logger.warn(
+          `[MCube-Watchdog] [Condition E: TTS_NOT_TRANSMITTED] Audio chunk (${audioBuffer.length}b) dropped: cancelPlay=${session.cancelPlay}, closed=${session.closed}, genMismatch=${expectedGen !== undefined && expectedGen !== session.flushGen} callId=${session.callId}`,
+        );
+      }
       return;
     }
 
@@ -1179,6 +1406,9 @@ export class McubeStreamService {
 
     session.lastAudioChunkSentAt = Date.now();
     session.lastAudioChunkSegment = segmentName;
+    session.outboundFrameCount++;
+    session.lastOutboundAudioAt = Date.now();
+    session.lastMcubeTransmitAt = Date.now();
 
     this.logger.debug(
       `[MCube-AudioLifecycle] [Step 5: AUDIO_CHUNK_SENT] Sent segment=${segmentName} streamId=${session.streamId} gen=${expectedGen} size=${audioBuffer.length}b`,
@@ -1231,5 +1461,161 @@ export class McubeStreamService {
     };
     ws.send(JSON.stringify(msg));
     this.logger.log(`[MCube] Terminated call streamId=${streamId}`);
+  }
+
+  /**
+   * Safe per-call watchdog observing long-running call health across 8 conditions
+   * and providing self-healing for stalled pipeline states.
+   */
+  runSessionWatchdog(ws: WebSocket, session: McubeSession) {
+    if (session.closed) return;
+    const now = Date.now();
+    session.wsReadyState = ws.readyState;
+
+    // Condition H: Check if active session was prematurely evicted while socket is connected
+    if (ws.readyState === 1 && session.callId && !this.activeSessions.has(session.callId)) {
+      session.lastFailureCondition = 'SESSION_EXPIRED_WHILE_ACTIVE';
+      this.activeSessions.set(session.callId, session);
+      this.logger.error(
+        `[MCube-Watchdog] [Condition H: SESSION_EXPIRED_WHILE_ACTIVE] Active session was missing from map for connected callId=${session.callId}; re-registered.`,
+      );
+    }
+
+    // Condition A: Inbound audio silence or non-reception
+    if (session.inboundFrameCount === 0 && now - session.sessionStartedAt > 30000) {
+      session.lastFailureCondition = 'NO_INBOUND_AUDIO';
+      this.logger.warn(
+        `[MCube-Watchdog] [Condition A: NO_INBOUND_AUDIO] No inbound audio received after ${now - session.sessionStartedAt}ms callId=${session.callId}`,
+      );
+    } else if (
+      session.inboundFrameCount > 0 &&
+      session.lastInboundAudioAt > 0 &&
+      now - session.lastInboundAudioAt > 60000
+    ) {
+      session.lastFailureCondition = 'NO_INBOUND_AUDIO';
+      this.logger.debug(
+        `[MCube-Watchdog] [Condition A: NO_INBOUND_AUDIO] Caller audio inactive for ${now - session.lastInboundAudioAt}ms callId=${session.callId}`,
+      );
+    }
+
+    // Condition F: Unacknowledged MCube playback
+    if (
+      session.pendingSegments.size > 0 &&
+      session.lastAudioChunkSentAt &&
+      now - session.lastAudioChunkSentAt > 20000
+    ) {
+      session.lastFailureCondition = 'MCUBE_PLAYBACK_UNACKNOWLEDGED';
+      this.logger.warn(
+        `[MCube-Watchdog] [Condition F: MCUBE_PLAYBACK_UNACKNOWLEDGED] MCube unacknowledged playback for ${now - session.lastAudioChunkSentAt}ms pending=${session.pendingSegments.size} callId=${session.callId}`,
+      );
+      session.pendingSegments.clear();
+      session.agentPlaying = false;
+    }
+
+    // Self-Healing 1: Reset stuck busy state
+    if (session.busy && session.busySince > 0 && now - session.busySince > 15000) {
+      session.recoveryAttempts++;
+      session.busy = false;
+      session.busySince = 0;
+      if (session.turnAbortController) {
+        session.turnAbortController.abort();
+        session.turnAbortController = null;
+      }
+      this.logger.warn(
+        `[MCube-Watchdog] ⚠️ Pipeline Self-Healing: Reset stuck busy state after ${now - session.busySince}ms for callId=${session.callId}`,
+      );
+    }
+
+    // Self-Healing 2: Reset stuck cancelPlay flag
+    if (
+      session.cancelPlay &&
+      !session.agentPlaying &&
+      now - (session.lastAudioChunkSentAt || session.sessionStartedAt) > 10000
+    ) {
+      session.cancelPlay = false;
+      this.logger.log(
+        `[MCube-Watchdog] 🔄 Pipeline Self-Healing: Reset cancelPlay flag after 10s cooldown callId=${session.callId}`,
+      );
+    }
+
+    // Self-Healing 3: Check heartbeat health
+    if (
+      session.heartbeatPingAt > 0 &&
+      session.heartbeatPongAt > 0 &&
+      session.heartbeatPingAt - session.heartbeatPongAt > 45000
+    ) {
+      session.missedPings++;
+      this.logger.warn(
+        `[MCube-Watchdog] ⚠️ Stale connection detected: ping/pong latency ${session.heartbeatPingAt - session.heartbeatPongAt}ms callId=${session.callId}`,
+      );
+    }
+  }
+
+  /**
+   * Log structured production telephony metrics without leaking PII or secrets.
+   */
+  logCallMetrics(session: McubeSession) {
+    const versionTelemetry = getVersionTelemetry();
+    const now = Date.now();
+    this.logger.log(
+      `[MCube-Metrics] ${JSON.stringify({
+        callId: session.callId,
+        streamId: session.streamId,
+        appVersion: versionTelemetry.version,
+        commitSha: versionTelemetry.commitSha,
+        deploymentId: versionTelemetry.deploymentId,
+        sessionAgeMs: now - session.sessionStartedAt,
+        inboundFrames: session.inboundFrameCount,
+        outboundFrames: session.outboundFrameCount,
+        lastInboundAudioAgeMs: session.lastInboundAudioAt ? now - session.lastInboundAudioAt : null,
+        lastOutboundAudioAgeMs: session.lastOutboundAudioAt ? now - session.lastOutboundAudioAt : null,
+        heartbeatStatus: session.missedPings > 1 ? 'STALE' : 'HEALTHY',
+        wsCloseCode: session.wsCloseCode,
+        audioPipelineState: session.busy ? 'BUSY' : session.agentPlaying ? 'PLAYING' : 'IDLE',
+        recoveryAttempts: session.recoveryAttempts,
+        failureReason: session.lastFailureCondition || 'NONE',
+      })}`,
+    );
+  }
+
+  /**
+   * Public accessor for structured call metrics (observability and automated tests).
+   */
+  getCallMetrics(callId: string) {
+    const session = this.activeSessions.get(callId) || this.reconnectCache.get(callId)?.session;
+    if (!session) return null;
+    const versionTelemetry = getVersionTelemetry();
+    const now = Date.now();
+    return {
+      callId: session.callId,
+      streamId: session.streamId,
+      appVersion: versionTelemetry.version,
+      commitSha: versionTelemetry.commitSha,
+      deploymentId: versionTelemetry.deploymentId,
+      sessionAgeMs: now - session.sessionStartedAt,
+      inboundFrames: session.inboundFrameCount,
+      outboundFrames: session.outboundFrameCount,
+      lastInboundAudioAgeMs: session.lastInboundAudioAt ? now - session.lastInboundAudioAt : null,
+      lastOutboundAudioAgeMs: session.lastOutboundAudioAt ? now - session.lastOutboundAudioAt : null,
+      heartbeatStatus: session.missedPings > 1 ? 'STALE' : 'HEALTHY',
+      wsCloseCode: session.wsCloseCode,
+      audioPipelineState: session.busy ? 'BUSY' : session.agentPlaying ? 'PLAYING' : 'IDLE',
+      recoveryAttempts: session.recoveryAttempts,
+      failureReason: session.lastFailureCondition || 'NONE',
+    };
+  }
+
+  /**
+   * Public accessor for active session (used in testing & diagnostics).
+   */
+  getActiveSession(callId: string): McubeSession | undefined {
+    return this.activeSessions.get(callId);
+  }
+
+  /**
+   * Public accessor for reconnect cache entry (used in testing & diagnostics).
+   */
+  getReconnectCache(callId: string) {
+    return this.reconnectCache.get(callId);
   }
 }

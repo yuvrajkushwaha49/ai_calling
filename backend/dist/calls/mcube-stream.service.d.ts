@@ -30,7 +30,7 @@ export type McubeInboundMsg = {
         payload?: string;
     };
 };
-type McubeSession = {
+export type McubeSession = {
     streamId: string;
     callId: string;
     encoding: 'audio/x-mulaw' | 'audio/x-l16';
@@ -41,6 +41,7 @@ type McubeSession = {
     speechStartedAt: number;
     silenceTimer: ReturnType<typeof setTimeout> | null;
     busy: boolean;
+    busySince: number;
     closed: boolean;
     listenAfter: number;
     agentPlaying: boolean;
@@ -65,6 +66,29 @@ type McubeSession = {
     lastAudioChunkSentAt?: number;
     lastAudioChunkSegment?: string;
     actualCancellationConfirmed?: boolean;
+    sessionStartedAt: number;
+    lastInboundAudioAt: number;
+    lastOutboundAudioAt: number;
+    lastTtsSuccessAt: number;
+    lastMcubeTransmitAt: number;
+    lastReceivedEvent: string;
+    lastTranscript: string;
+    lastTranscriptAt: number;
+    lastLlmAt: number;
+    lastPlaybackCompleteAt: number;
+    wsReadyState: number;
+    wsCloseCode: number | null;
+    wsCloseReason: string | null;
+    heartbeatPingAt: number;
+    heartbeatPongAt: number;
+    missedPings: number;
+    inboundFrameCount: number;
+    outboundFrameCount: number;
+    recoveryAttempts: number;
+    lastFailureCondition: string | null;
+    heartbeatTimer: NodeJS.Timeout | null;
+    watchdogTimer: NodeJS.Timeout | null;
+    callerPhone?: string;
 };
 export declare class McubeStreamService {
     private config;
@@ -79,6 +103,7 @@ export declare class McubeStreamService {
     private readonly logger;
     private readonly uploadsDir;
     private readonly activeSessions;
+    private readonly reconnectCache;
     constructor(config: ConfigService, prisma: PrismaService, ai: AiService, voice: VoiceService, conversation: ConversationService, customerMemory: CustomerMemoryService, factExtractor: FactExtractorService, questionValidator: QuestionValidatorService, appointments: AppointmentsService);
     attachClient(ws: WebSocket, callIdHint?: string, queryParams?: Record<string, string>): void;
     private flushTurn;
@@ -87,5 +112,29 @@ export declare class McubeStreamService {
     sendClearAudio(ws: WebSocket, streamId: string): void;
     sendTransfer(ws: WebSocket, streamId: string, transferTo: string, showOriginalCallerId?: boolean): void;
     sendTerminate(ws: WebSocket, streamId: string): void;
+    runSessionWatchdog(ws: WebSocket, session: McubeSession): void;
+    logCallMetrics(session: McubeSession): void;
+    getCallMetrics(callId: string): {
+        callId: string;
+        streamId: string;
+        appVersion: string;
+        commitSha: string;
+        deploymentId: string;
+        sessionAgeMs: number;
+        inboundFrames: number;
+        outboundFrames: number;
+        lastInboundAudioAgeMs: number | null;
+        lastOutboundAudioAgeMs: number | null;
+        heartbeatStatus: string;
+        wsCloseCode: number | null;
+        audioPipelineState: string;
+        recoveryAttempts: number;
+        failureReason: string;
+    } | null;
+    getActiveSession(callId: string): McubeSession | undefined;
+    getReconnectCache(callId: string): {
+        session: McubeSession;
+        disconnectedAt: number;
+        timer: NodeJS.Timeout;
+    } | undefined;
 }
-export {};
