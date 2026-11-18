@@ -99,6 +99,7 @@ export type McubeSession = {
     segmentBytes: Map<string, number>;
     activeOperationId: string | null;
     cleanupCompleted: boolean;
+    cachedCallContext?: any;
 };
 export declare class McubeStreamService {
     private config;
@@ -114,6 +115,7 @@ export declare class McubeStreamService {
     private readonly uploadsDir;
     private readonly activeSessions;
     private readonly reconnectCache;
+    private readonly ttsCache;
     constructor(config: ConfigService, prisma: PrismaService, ai: AiService, voice: VoiceService, conversation: ConversationService, customerMemory: CustomerMemoryService, factExtractor: FactExtractorService, questionValidator: QuestionValidatorService, appointments: AppointmentsService);
     attachClient(ws: WebSocket, callIdHint?: string, queryParams?: Record<string, string>): void;
     private flushTurn;

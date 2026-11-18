@@ -130,6 +130,7 @@ export type McubeSession = {
   segmentBytes: Map<string, number>;
   activeOperationId: string | null;
   cleanupCompleted: boolean;
+  cachedCallContext?: any;
 };
 
 @Injectable()
@@ -145,6 +146,7 @@ export class McubeStreamService {
       timer: NodeJS.Timeout;
     }
   >();
+  private readonly ttsCache = new Map<string, Buffer>();
 
   constructor(
     private config: ConfigService,
@@ -708,16 +710,16 @@ export class McubeStreamService {
           }
           session.lastVoiceAt = now;
           session.rawChunks.push(chunk);
-          scheduleFlush(420);
+          scheduleFlush(260);
           if (now - session.speechStartedAt > 6500) {
             void this.flushTurn(ws, session);
           }
         } else if (session.speaking) {
-          // Trailing silence buffer (up to 300ms) so end syllables are not chopped
-          if (now - session.lastVoiceAt < 300) {
+          // Trailing silence buffer (up to 200ms) so end syllables are not chopped
+          if (now - session.lastVoiceAt < 200) {
             session.rawChunks.push(chunk);
           }
-          // Do NOT reset silenceTimer here — let the timer started on last voice packet fire after 420ms!
+          // Do NOT reset silenceTimer here — let the timer started on last voice packet fire after 260ms!
         }
         return;
       }
@@ -904,15 +906,20 @@ export class McubeStreamService {
           fileName: 'mcube-in.wav',
           language: session.settings?.language || 'en-IN',
         }),
-        session.callId
-          ? Promise.all([
-              this.prisma.call.findUnique({
-                where: { id: session.callId },
-                include: { lead: { include: { project: true } } },
-              }),
-              this.ai.getSettings(),
-            ])
-          : Promise.resolve([null, null] as const),
+        session.cachedCallContext
+          ? Promise.resolve(session.cachedCallContext)
+          : session.callId
+            ? Promise.all([
+                this.prisma.call.findUnique({
+                  where: { id: session.callId },
+                  include: { lead: { include: { project: true } } },
+                }),
+                this.ai.getSettings(),
+              ]).then((ctx) => {
+                session.cachedCallContext = ctx;
+                return ctx;
+              })
+            : Promise.resolve([null, null] as const),
       ]);
       const sttDurationMs = Date.now() - sttStart;
 
@@ -1085,7 +1092,7 @@ export class McubeStreamService {
         } catch {
           // ignore filler failure
         }
-      }, 1800);
+      }, 800);
 
       try {
         const result = await this.conversation.reply({
@@ -1361,6 +1368,17 @@ export class McubeStreamService {
   ): Promise<Buffer | null> {
     const lang = settings?.language || session.settings?.language || 'en-IN';
     const spokenText = normalizeTextForSpeech(text, lang);
+    const cacheKey = `${session.encoding}:${lang}:${spokenText}`;
+
+    // Fast-path TTS cache (0ms latency for greetings, acknowledgements, fillers)
+    if (this.ttsCache.has(cacheKey)) {
+      const cached = this.ttsCache.get(cacheKey)!;
+      session.lastTtsSuccessAt = Date.now();
+      session.audioGeneratedCount++;
+      session.audioGeneratedBytes += cached.length;
+      return cached;
+    }
+
     try {
       let buf: Buffer | null = null;
       if (session.encoding === 'audio/x-l16') {
@@ -1406,6 +1424,9 @@ export class McubeStreamService {
       }
 
       if (buf && buf.length > 0) {
+        if (this.ttsCache.size < 300 && spokenText.length < 180) {
+          this.ttsCache.set(cacheKey, buf);
+        }
         session.lastTtsSuccessAt = Date.now();
         session.audioGeneratedCount++;
         session.audioGeneratedBytes += buf.length;

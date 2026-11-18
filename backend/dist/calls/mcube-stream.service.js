@@ -77,6 +77,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     uploadsDir = path.join(process.cwd(), 'uploads', 'audio');
     activeSessions = new Map();
     reconnectCache = new Map();
+    ttsCache = new Map();
     constructor(config, prisma, ai, voice, conversation, customerMemory, factExtractor, questionValidator, appointments) {
         this.config = config;
         this.prisma = prisma;
@@ -516,13 +517,13 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         }
                         session.lastVoiceAt = now;
                         session.rawChunks.push(chunk);
-                        scheduleFlush(420);
+                        scheduleFlush(260);
                         if (now - session.speechStartedAt > 6500) {
                             void this.flushTurn(ws, session);
                         }
                     }
                     else if (session.speaking) {
-                        if (now - session.lastVoiceAt < 300) {
+                        if (now - session.lastVoiceAt < 200) {
                             session.rawChunks.push(chunk);
                         }
                     }
@@ -679,15 +680,20 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     fileName: 'mcube-in.wav',
                     language: session.settings?.language || 'en-IN',
                 }),
-                session.callId
-                    ? Promise.all([
-                        this.prisma.call.findUnique({
-                            where: { id: session.callId },
-                            include: { lead: { include: { project: true } } },
-                        }),
-                        this.ai.getSettings(),
-                    ])
-                    : Promise.resolve([null, null]),
+                session.cachedCallContext
+                    ? Promise.resolve(session.cachedCallContext)
+                    : session.callId
+                        ? Promise.all([
+                            this.prisma.call.findUnique({
+                                where: { id: session.callId },
+                                include: { lead: { include: { project: true } } },
+                            }),
+                            this.ai.getSettings(),
+                        ]).then((ctx) => {
+                            session.cachedCallContext = ctx;
+                            return ctx;
+                        })
+                        : Promise.resolve([null, null]),
             ]);
             const sttDurationMs = Date.now() - sttStart;
             if (rawIn.length >= minLength && (!stt.transcript || !stt.transcript.trim())) {
@@ -827,7 +833,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 }
                 catch {
                 }
-            }, 1800);
+            }, 800);
             try {
                 const result = await this.conversation.reply({
                     lead,
@@ -1051,6 +1057,14 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
     async synthesizeForSession(text, session, settings) {
         const lang = settings?.language || session.settings?.language || 'en-IN';
         const spokenText = (0, phone_audio_1.normalizeTextForSpeech)(text, lang);
+        const cacheKey = `${session.encoding}:${lang}:${spokenText}`;
+        if (this.ttsCache.has(cacheKey)) {
+            const cached = this.ttsCache.get(cacheKey);
+            session.lastTtsSuccessAt = Date.now();
+            session.audioGeneratedCount++;
+            session.audioGeneratedBytes += cached.length;
+            return cached;
+        }
         try {
             let buf = null;
             if (session.encoding === 'audio/x-l16') {
@@ -1096,6 +1110,9 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                 }
             }
             if (buf && buf.length > 0) {
+                if (this.ttsCache.size < 300 && spokenText.length < 180) {
+                    this.ttsCache.set(cacheKey, buf);
+                }
                 session.lastTtsSuccessAt = Date.now();
                 session.audioGeneratedCount++;
                 session.audioGeneratedBytes += buf.length;
