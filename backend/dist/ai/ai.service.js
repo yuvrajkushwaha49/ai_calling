@@ -107,12 +107,10 @@ let AiService = class AiService {
                 !/HARD RULE — FRESH WORDING/i.test(cleanedPrompt)) ||
             ((0, sales_agent_prompt_1.isSalesAgentPrompt)(cleanedPrompt) &&
                 !/Banned \/ never reuse these sample phrases/i.test(cleanedPrompt)) ||
-            (normalizedLanguage === 'hinglish' &&
-                /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(cleanedPrompt)) ||
-            (normalizedLanguage === 'hi-IN' &&
+            ((normalizedLanguage === 'hinglish' || normalizedLanguage === 'hi-IN') &&
                 /HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
             (normalizedLanguage === 'en-IN' &&
-                /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
+                /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(cleanedPrompt)) ||
             /natural Indian real-estate phone agent/i.test(cleanedPrompt) ||
             /You are an AI sales calling agent for real estate/i.test(cleanedPrompt) ||
             /calm, friendly real-estate sales caller/i.test(cleanedPrompt) ||
@@ -153,9 +151,9 @@ let AiService = class AiService {
         const playbook = (0, playbook_1.normalizePlaybook)(settings.approvedPlaybook);
         const savedVoice = playbook?.voiceSettings || {};
         const voiceSettings = {
-            stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.45,
+            stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.38,
             similarityBoost: typeof savedVoice.similarityBoost === 'number' ? savedVoice.similarityBoost : 0.80,
-            style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.15,
+            style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.20,
             speed: typeof savedVoice.speed === 'number' ? savedVoice.speed : 1.0,
             useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
         };
@@ -341,21 +339,18 @@ let AiService = class AiService {
         if (languageChanged) {
             resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)(normalizedLang);
         }
-        else if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
-            resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('hinglish');
+        else if ((normalizedLang === 'hinglish' || normalizedLang === 'hi-IN') && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
+            resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)(normalizedLang);
         }
-        else if (normalizedLang === 'hi-IN' && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
-            resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('hi-IN');
-        }
-        else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
+        else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
             resolvedPrompt = (0, sales_agent_prompt_1.buildDefaultSalesAgentPrompt)('en-IN');
         }
         const playbook = (0, playbook_1.normalizePlaybook)(existing.approvedPlaybook);
         const currentVoice = playbook.voiceSettings || existing.voiceSettings || {};
         const updatedVoiceSettings = {
-            stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.45),
+            stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.38),
             similarityBoost: typeof voiceSimilarity === 'number' ? voiceSimilarity : (dtoVoiceSettings?.similarityBoost ?? currentVoice.similarityBoost ?? 0.80),
-            style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.15),
+            style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.20),
             speed: typeof voiceSpeed === 'number' ? voiceSpeed : (dtoVoiceSettings?.speed ?? currentVoice.speed ?? 1.0),
             useSpeakerBoost: typeof voiceSpeakerBoost === 'boolean' ? voiceSpeakerBoost : (dtoVoiceSettings?.useSpeakerBoost ?? currentVoice.useSpeakerBoost ?? true),
         };

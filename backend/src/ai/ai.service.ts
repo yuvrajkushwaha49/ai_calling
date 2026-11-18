@@ -129,12 +129,10 @@ export class AiService {
         !/HARD RULE — FRESH WORDING/i.test(cleanedPrompt)) ||
       (isSalesAgentPrompt(cleanedPrompt) &&
         !/Banned \/ never reuse these sample phrases/i.test(cleanedPrompt)) ||
-      (normalizedLanguage === 'hinglish' &&
-        /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(cleanedPrompt)) ||
-      (normalizedLanguage === 'hi-IN' &&
+      ((normalizedLanguage === 'hinglish' || normalizedLanguage === 'hi-IN') &&
         /HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
       (normalizedLanguage === 'en-IN' &&
-        /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(cleanedPrompt)) ||
+        /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(cleanedPrompt)) ||
       /natural Indian real-estate phone agent/i.test(cleanedPrompt) ||
       /You are an AI sales calling agent for real estate/i.test(cleanedPrompt) ||
       /calm, friendly real-estate sales caller/i.test(cleanedPrompt) ||
@@ -180,9 +178,9 @@ export class AiService {
     const playbook = normalizePlaybook(settings.approvedPlaybook);
     const savedVoice = (playbook as any)?.voiceSettings || {};
     const voiceSettings = {
-      stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.45,
+      stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.38,
       similarityBoost: typeof savedVoice.similarityBoost === 'number' ? savedVoice.similarityBoost : 0.80,
-      style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.15,
+      style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.20,
       speed: typeof savedVoice.speed === 'number' ? savedVoice.speed : 1.0,
       useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
     };
@@ -417,11 +415,9 @@ export class AiService {
     let resolvedPrompt = systemPrompt;
     if (languageChanged) {
       resolvedPrompt = buildDefaultSalesAgentPrompt(normalizedLang);
-    } else if (normalizedLang === 'hinglish' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
-      resolvedPrompt = buildDefaultSalesAgentPrompt('hinglish');
-    } else if (normalizedLang === 'hi-IN' && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
-      resolvedPrompt = buildDefaultSalesAgentPrompt('hi-IN');
-    } else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि|HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
+    } else if ((normalizedLang === 'hinglish' || normalizedLang === 'hi-IN') && systemPrompt && /HINGLISH using ENGLISH ALPHABET/i.test(systemPrompt)) {
+      resolvedPrompt = buildDefaultSalesAgentPrompt(normalizedLang);
+    } else if (normalizedLang === 'en-IN' && systemPrompt && /DEVANAGARI SCRIPT|देवनागरी लिपि/i.test(systemPrompt)) {
       resolvedPrompt = buildDefaultSalesAgentPrompt('en-IN');
     }
 
@@ -429,9 +425,9 @@ export class AiService {
     const currentVoice = playbook.voiceSettings || (existing as any).voiceSettings || {};
 
     const updatedVoiceSettings = {
-      stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.45),
+      stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.38),
       similarityBoost: typeof voiceSimilarity === 'number' ? voiceSimilarity : (dtoVoiceSettings?.similarityBoost ?? currentVoice.similarityBoost ?? 0.80),
-      style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.15),
+      style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.20),
       speed: typeof voiceSpeed === 'number' ? voiceSpeed : (dtoVoiceSettings?.speed ?? currentVoice.speed ?? 1.0),
       useSpeakerBoost: typeof voiceSpeakerBoost === 'boolean' ? voiceSpeakerBoost : (dtoVoiceSettings?.useSpeakerBoost ?? currentVoice.useSpeakerBoost ?? true),
     };

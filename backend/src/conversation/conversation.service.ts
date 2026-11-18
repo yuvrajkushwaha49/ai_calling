@@ -104,10 +104,10 @@ export function pullSpokenSentences(
   }
   rest = text.slice(lastCut);
 
-  // Soft cut ASAP so first TTS can start before full sentence (avoid splitting numbers like 8,888)
-  if (!sentences.length && rest.length >= 24) {
+  // Soft cut for first clause: require at least 38 chars and comma index >= 20 to avoid chopping greetings into 2-word staccato fragments
+  if (!sentences.length && rest.length >= 38) {
     const commaMatch = /(?<!\d)[,，;:](?!\d)[\s]+/.exec(rest);
-    if (commaMatch && commaMatch.index >= 12) {
+    if (commaMatch && commaMatch.index >= 20) {
       const chunk = rest.slice(0, commaMatch.index + 1).trim();
       if (chunk) {
         sentences.push(chunk);

@@ -1149,7 +1149,8 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                     style: voiceStyle,
                     useSpeakerBoost: voiceSpeakerBoost,
                 });
-                buf = (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
+                const pcm16 = (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
+                buf = (0, phone_audio_1.applyTelephonyEQ)(pcm16, 16000);
             }
             else {
                 try {
@@ -1167,7 +1168,10 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         style: voiceStyle,
                         useSpeakerBoost: voiceSpeakerBoost,
                     });
-                    buf = (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
+                    const rawUlaw = (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
+                    const pcm = (0, phone_audio_1.mulawToPcm16)(rawUlaw);
+                    const eqPcm = (0, phone_audio_1.applyTelephonyEQ)(pcm, 8000);
+                    buf = (0, phone_audio_1.pcm16ToMulaw)(eqPcm);
                 }
                 catch {
                     const tts = await this.voice.textToSpeech({
@@ -1184,7 +1188,7 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                         style: voiceStyle,
                         useSpeakerBoost: voiceSpeakerBoost,
                     });
-                    const pcm16k = (0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64'));
+                    const pcm16k = (0, phone_audio_1.applyTelephonyEQ)((0, phone_audio_1.asNodeBuffer)(Buffer.from(tts.audioBase64, 'base64')), 16000);
                     buf = (0, phone_audio_1.pcm16ToMulaw)((0, phone_audio_1.downsamplePcm16)(pcm16k, 16000, 8000));
                 }
             }

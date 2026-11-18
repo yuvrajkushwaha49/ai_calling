@@ -16,6 +16,70 @@ export function boostPcm16(pcm: Buffer, gain: number): Buffer {
   return out;
 }
 
+/**
+ * Telecom presence & clarity equalizer for outbound telephone speech.
+ * 1. High-Pass Filter (~220Hz): Strips low frequency bass boom that muffles telephone earpieces.
+ * 2. Presence Peak Filter (~2.2kHz, +2.5dB): Enhances consonant clarity & vocal intelligibility.
+ * 3. Soft-knee AGC / Normalizer: Ensures clear, warm volume without digital clipping.
+ */
+export function applyTelephonyEQ(pcm: Buffer, sampleRate = 16000): Buffer {
+  const src = asNodeBuffer(pcm);
+  const out = Buffer.alloc(src.length);
+  const n = Math.floor(src.length / 2);
+  if (n === 0) return out;
+
+  // 1. High-pass filter coefficient for ~220Hz
+  const fc = 220;
+  const r = Math.max(0.85, Math.min(0.96, 1 - (2 * Math.PI * fc) / sampleRate));
+
+  let prevIn = 0;
+  let prevOut = 0;
+
+  // 2. Biquad peak filter for 2.2kHz presence boost (+2.5dB)
+  const w0 = (2 * Math.PI * 2200) / sampleRate;
+  const alpha = Math.sin(w0) / (2 * 1.0); // Q = 1.0
+  const A = Math.pow(10, 2.5 / 40); // 2.5dB boost
+  const b0 = 1 + alpha * A;
+  const b1 = -2 * Math.cos(w0);
+  const b2 = 1 - alpha * A;
+  const a0 = 1 + alpha / A;
+  const a1 = -2 * Math.cos(w0);
+  const a2 = 1 - alpha / A;
+
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0;
+
+  for (let i = 0; i + 1 < src.length; i += 2) {
+    const x = src.readInt16LE(i);
+
+    // Stage 1: High-pass DC/rumble cut
+    const yHp = x - prevIn + r * prevOut;
+    prevIn = x;
+    prevOut = yHp;
+
+    // Stage 2: Presence EQ band
+    const yEq =
+      (b0 / a0) * yHp +
+      (b1 / a0) * x1 +
+      (b2 / a0) * x2 -
+      (a1 / a0) * y1 -
+      (a2 / a0) * y2;
+    x2 = x1;
+    x1 = yHp;
+    y2 = y1;
+    y1 = yEq;
+
+    // Stage 3: Soft limiter
+    const sample = Math.round(yEq * 1.08);
+    const clipped = Math.max(-32768, Math.min(32767, sample));
+    out.writeInt16LE(clipped, i);
+  }
+
+  return out;
+}
+
 export function pcmEnergy(buf: Buffer): number {
   let sum = 0;
   const n = Math.floor(buf.length / 2);

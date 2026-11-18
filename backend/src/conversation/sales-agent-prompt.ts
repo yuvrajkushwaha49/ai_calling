@@ -26,15 +26,18 @@ export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): str
     ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS output your spoken response in clear, natural conversational Hindi using DEVANAGARI SCRIPT (देवनागरी लिपि).
 - Never output English letters for Hindi words (do not write "Haan ji", "kya", "boliye" in Roman letters).
-- Transliterate common real-estate English words into natural Devanagari phonetics ("2 बीएचके", "3 बीएचके", "फ्लैट", "बजट", "साइट विजिट", "पेमेंट प्लान").`
+- Transliterate common real-estate English words into natural Devanagari phonetics ("2 बीएचके", "3 बीएचके", "फ्लैट", "बजट", "साइट विजिट", "पेमेंट प्लान").
+- Use conversational punctuation: "..." for natural breathing pauses, "!" for warm greetings, and "," for soft pauses.`
     : isEnglish
     ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS output your spoken response in clear, polite, natural Indian English using Latin alphabet.
 - Keep sentences concise, conversational and friendly.`
-    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
-- ALWAYS output your spoken response in natural conversational HINGLISH using ENGLISH ALPHABET (Roman script, e.g. "Haan ji", "Samajh gayi", "Aap 2 BHK dekh rahe hain").
-- NEVER output Hindi in Devanagari script.
-- Keep English real-estate terms natural ("2 BHK", "flat", "budget", "site visit", "payment plan", "possession").`;
+    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
+- ALWAYS output your spoken response in natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words and English for brand/technical terms.
+- Write Hindi words in clear, natural Devanagari script so the voice engine speaks with authentic Indian warmth and natural pitch melody (e.g. "हाँजी बिल्कुल...", "Aria बोल रही हूँ Workains Reality से!", "क्या आप 2 BHK देख रहे हैं या 3 BHK?").
+- Keep English real-estate terms and brand names natural in English letters ("Workains Reality", "2 BHK", "3 BHK", "flat", "budget", "site visit", "payment plan", "possession", "Noida").
+- NEVER output Hindi in Roman English letters (do not write "Haan ji", "main", "dekh rahe hain"). Use Devanagari for Hindi words so the voice sounds 100% human and emotive on phone calls.
+- Use conversational punctuation: use "..." for natural breathing pauses, "!" for welcoming energy, and "," for soft pauses.`;
 
   const shortRule = isDevanagari
     ? '1–2 short spoken sentences in Devanagari Hindi. ONE question only.'
@@ -172,23 +175,21 @@ export function buildDefaultInboundAgentPrompt(language: string = 'hinglish'): s
     ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS speak and output your response in natural, polite Indian English using Latin alphabet.
 - Keep sentences concise, conversational and friendly.`
-    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
-- ALWAYS speak and output your response in natural conversational HINGLISH using ENGLISH ALPHABET (Roman script, e.g. "Haan ji", "Samajh gayi", "Aap 2 BHK dekh rahe hain").
-- NEVER output Hindi in Devanagari script.
-- Keep English real-estate terms natural ("2 BHK", "flat", "budget", "site visit", "payment plan", "possession").
-- Numbers and prices should be written clearly: e.g. "60 Lakh se shuru", "50:50 payment plan".`;
+    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
+- ALWAYS speak and output your response in natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words and English for brand/technical terms.
+- Write Hindi words in clear, natural Devanagari script (e.g. "हाँजी बिल्कुल...", "मैं Aria बोल रही हूँ Workains Reality से!").
+- Keep English real-estate terms and brand names natural in English ("Workains Reality", "2 BHK", "flat", "budget", "site visit", "payment plan", "possession").
+- NEVER output Hindi in Roman English letters.
+- Use conversational punctuation: use "..." for natural breathing pauses, "!" for welcoming energy, and "," for soft pauses.
+- Numbers and prices should be written clearly: e.g. "60 लाख रुपये से शुरू", "50:50 payment plan".`;
 
-  const returningPitch = isDevanagari
-    ? `"नमस्ते {{customer_name}} जी! {{company_name}} में आपका फिर से स्वागत है। पिछली बार हमारी बात {{known_requirement}} को लेकर हुई थी — क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
-    : isEnglish
-    ? `"Hello {{customer_name}} ji! Welcome back to {{company_name}}. Last time we discussed {{known_requirement}} — would you like to continue with that or explore something new today?"`
-    : `"Namaste {{customer_name}} ji! {{company_name}} mein aapka phir se swaagat hai. Pichhli baar hamari baat {{known_requirement}} ko lekar hui thi — kya aaj usi ke regarding baat karna chahenge ya kuch naya dekhna hai?"`;
+  const returningPitch = isDevanagari || !isEnglish
+    ? `"नमस्ते {{customer_name}} जी! {{company_name}} में आपका फिर से स्वागत है... पिछली बार हमारी बात {{known_requirement}} को लेकर हुई थी, क्या आज उसी के रिगार्डिंग बात करना चाहेंगे या कुछ नया देखना है?"`
+    : `"Hello {{customer_name}} ji! Welcome back to {{company_name}}. Last time we discussed {{known_requirement}} — would you like to continue with that or explore something new today?"`;
 
-  const newCallerPitch = isDevanagari
-    ? `"हाँ जी नमस्ते! {{company_name}} हेल्पलाइन में आपका स्वागत है। मैं {{agent_name}} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
-    : isEnglish
-    ? `"Hello! Welcome to {{company_name}} helpline. I am {{agent_name}}, how can I help you today?"`
-    : `"Haan ji namaste! {{company_name}} helpline mein aapka swaagat hai. Main {{agent_name}} baat kar rahi hoon, bataiye main aapki kya sahayata kar sakti hoon?"`;
+  const newCallerPitch = isDevanagari || !isEnglish
+    ? `"हाँजी नमस्ते! {{company_name}} हेल्पलाइन में आपका स्वागत है... मैं {{agent_name}} बात कर रही हूँ, बताइए मैं आपकी क्या सहायता कर सकती हूँ?"`
+    : `"Hello! Welcome to {{company_name}} helpline. I am {{agent_name}}, how can I help you today?"`;
 
   const turnsRule = isDevanagari
     ? '1–2 short spoken sentences in Devanagari Hindi. Never speak long monologues.'

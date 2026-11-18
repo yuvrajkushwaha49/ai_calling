@@ -58,9 +58,9 @@ export default function AiSettingsPage() {
       systemPrompt: '',
       workingHours: { start: '09:00', end: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'] },
       isActive: true,
-      voiceStability: 0.45,
+      voiceStability: 0.38,
       voiceSimilarity: 0.80,
-      voiceStyle: 0.15,
+      voiceStyle: 0.20,
       voiceSpeed: 1.0,
       voiceSpeakerBoost: true,
     },
@@ -83,9 +83,9 @@ export default function AiSettingsPage() {
           days: hours.days || ['mon', 'tue', 'wed', 'thu', 'fri'],
         },
         isActive: settings.isActive ?? true,
-        voiceStability: (settings as any).voiceStability ?? vSettings.stability ?? 0.45,
+        voiceStability: (settings as any).voiceStability ?? vSettings.stability ?? 0.38,
         voiceSimilarity: (settings as any).voiceSimilarity ?? vSettings.similarityBoost ?? 0.80,
-        voiceStyle: (settings as any).voiceStyle ?? vSettings.style ?? 0.15,
+        voiceStyle: (settings as any).voiceStyle ?? vSettings.style ?? 0.20,
         voiceSpeed: (settings as any).voiceSpeed ?? vSettings.speed ?? 1.0,
         voiceSpeakerBoost: (settings as any).voiceSpeakerBoost ?? vSettings.useSpeakerBoost ?? true,
       });
@@ -95,15 +95,15 @@ export default function AiSettingsPage() {
   const onSubmit = (data: AiSettingsFormData) => {
     updateSettings.mutate({
       ...data,
-      voiceStability: data.voiceStability ?? 0.45,
+      voiceStability: data.voiceStability ?? 0.38,
       voiceSimilarity: data.voiceSimilarity ?? 0.80,
-      voiceStyle: data.voiceStyle ?? 0.15,
+      voiceStyle: data.voiceStyle ?? 0.20,
       voiceSpeed: data.voiceSpeed ?? 1.0,
       voiceSpeakerBoost: data.voiceSpeakerBoost ?? true,
       voiceSettings: {
-        stability: data.voiceStability ?? 0.45,
+        stability: data.voiceStability ?? 0.38,
         similarityBoost: data.voiceSimilarity ?? 0.80,
-        style: data.voiceStyle ?? 0.15,
+        style: data.voiceStyle ?? 0.20,
         speed: data.voiceSpeed ?? 1.0,
         useSpeakerBoost: data.voiceSpeakerBoost ?? true,
       },
@@ -307,7 +307,7 @@ export default function AiSettingsPage() {
                     min="0.10"
                     max="1.00"
                     step="0.05"
-                    value={form.watch('voiceStability') ?? 0.45}
+                    value={form.watch('voiceStability') ?? 0.38}
                     onChange={(e) =>
                       form.setValue('voiceStability', parseFloat(e.target.value), {
                         shouldDirty: true,
@@ -319,13 +319,13 @@ export default function AiSettingsPage() {
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
                     <span>10% (Expressive)</span>
-                    <span className="font-semibold text-blue-600">45% (Recommended)</span>
+                    <span className="font-semibold text-blue-600">38% (Recommended for Live Calls)</span>
                     <span>100% (Steady)</span>
                   </div>
                   <p className="text-xs text-muted-foreground pt-1">
-                    {(form.watch('voiceStability') ?? 0.45) <= 0.40
+                    {(form.watch('voiceStability') ?? 0.38) <= 0.40
                       ? '✨ Highly natural, lively & conversational with emotional pitch variation.'
-                      : (form.watch('voiceStability') ?? 0.45) <= 0.65
+                      : (form.watch('voiceStability') ?? 0.38) <= 0.65
                       ? '⚖️ Balanced natural tone with consistent clarity.'
                       : '🏢 Steady, structured, formal delivery.'}
                   </p>
@@ -336,7 +336,7 @@ export default function AiSettingsPage() {
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">Emotion & Style (उत्साह / भाव)</Label>
                     <Badge variant="secondary" className="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">
-                      {Math.round((form.watch('voiceStyle') ?? 0.15) * 100)}%
+                      {Math.round((form.watch('voiceStyle') ?? 0.20) * 100)}%
                     </Badge>
                   </div>
                   <input
@@ -344,7 +344,7 @@ export default function AiSettingsPage() {
                     min="0.00"
                     max="0.60"
                     step="0.05"
-                    value={form.watch('voiceStyle') ?? 0.15}
+                    value={form.watch('voiceStyle') ?? 0.20}
                     onChange={(e) =>
                       form.setValue('voiceStyle', parseFloat(e.target.value), {
                         shouldDirty: true,
@@ -356,13 +356,13 @@ export default function AiSettingsPage() {
                   />
                   <div className="flex justify-between text-[11px] text-muted-foreground">
                     <span>0% (Neutral)</span>
-                    <span className="font-semibold text-purple-600">15-20% (Warm/Polite)</span>
+                    <span className="font-semibold text-purple-600">20% (Warm & Welcoming)</span>
                     <span>60% (High Energy)</span>
                   </div>
                   <p className="text-xs text-muted-foreground pt-1">
-                    {(form.watch('voiceStyle') ?? 0.15) === 0
+                    {(form.watch('voiceStyle') ?? 0.20) === 0
                       ? '😐 Neutral and straightforward speaking style.'
-                      : (form.watch('voiceStyle') ?? 0.15) <= 0.25
+                      : (form.watch('voiceStyle') ?? 0.20) <= 0.25
                       ? '🌟 Warm, cheerful and welcoming (Best for Aria Hospitality/Sales).'
                       : '🔥 Enthusiastic and dramatic speaking style.'}
                   </p>

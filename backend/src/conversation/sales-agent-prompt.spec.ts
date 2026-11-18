@@ -4,15 +4,15 @@ import {
 } from './sales-agent-prompt';
 
 describe('Sales Agent Prompt Language Generator', () => {
-  it('generates Hinglish Roman script directive by default or when language is hinglish', () => {
+  it('generates Hinglish Hybrid script directive by default or when language is hinglish', () => {
     const prompt = buildDefaultSalesAgentPrompt('hinglish');
-    expect(prompt).toContain('natural conversational HINGLISH using ENGLISH ALPHABET');
-    expect(prompt).toContain('NEVER output Hindi in Devanagari script');
+    expect(prompt).toContain('natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words');
+    expect(prompt).toContain('NEVER output Hindi in Roman English letters');
 
     const inbound = buildDefaultInboundAgentPrompt('hinglish');
-    expect(inbound).toContain('natural conversational HINGLISH using ENGLISH ALPHABET');
-    expect(inbound).toContain('Namaste {{customer_name}} ji!');
-    expect(inbound).toContain('NEVER output Hindi in Devanagari script');
+    expect(inbound).toContain('natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words');
+    expect(inbound).toContain('नमस्ते {{customer_name}} जी!');
+    expect(inbound).toContain('NEVER output Hindi in Roman English letters');
   });
 
   it('generates Devanagari Hindi directive when language is hi-IN', () => {

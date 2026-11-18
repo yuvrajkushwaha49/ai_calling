@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.asNodeBuffer = asNodeBuffer;
 exports.boostPcm16 = boostPcm16;
+exports.applyTelephonyEQ = applyTelephonyEQ;
 exports.pcmEnergy = pcmEnergy;
 exports.createAudioFilterState = createAudioFilterState;
 exports.filterDcBlockPcm16 = filterDcBlockPcm16;
@@ -24,6 +25,46 @@ function boostPcm16(pcm, gain) {
     const out = Buffer.alloc(src.length);
     for (let i = 0; i + 1 < src.length; i += 2) {
         const sample = Math.round(src.readInt16LE(i) * gain);
+        const clipped = Math.max(-32768, Math.min(32767, sample));
+        out.writeInt16LE(clipped, i);
+    }
+    return out;
+}
+function applyTelephonyEQ(pcm, sampleRate = 16000) {
+    const src = asNodeBuffer(pcm);
+    const out = Buffer.alloc(src.length);
+    const n = Math.floor(src.length / 2);
+    if (n === 0)
+        return out;
+    const fc = 220;
+    const r = Math.max(0.85, Math.min(0.96, 1 - (2 * Math.PI * fc) / sampleRate));
+    let prevIn = 0;
+    let prevOut = 0;
+    const w0 = (2 * Math.PI * 2200) / sampleRate;
+    const alpha = Math.sin(w0) / (2 * 1.0);
+    const A = Math.pow(10, 2.5 / 40);
+    const b0 = 1 + alpha * A;
+    const b1 = -2 * Math.cos(w0);
+    const b2 = 1 - alpha * A;
+    const a0 = 1 + alpha / A;
+    const a1 = -2 * Math.cos(w0);
+    const a2 = 1 - alpha / A;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i + 1 < src.length; i += 2) {
+        const x = src.readInt16LE(i);
+        const yHp = x - prevIn + r * prevOut;
+        prevIn = x;
+        prevOut = yHp;
+        const yEq = (b0 / a0) * yHp +
+            (b1 / a0) * x1 +
+            (b2 / a0) * x2 -
+            (a1 / a0) * y1 -
+            (a2 / a0) * y2;
+        x2 = x1;
+        x1 = yHp;
+        y2 = y1;
+        y1 = yEq;
+        const sample = Math.round(yEq * 1.08);
         const clipped = Math.max(-32768, Math.min(32767, sample));
         out.writeInt16LE(clipped, i);
     }

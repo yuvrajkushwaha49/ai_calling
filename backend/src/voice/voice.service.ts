@@ -22,9 +22,9 @@ export class VoiceService {
     speed?: number;
     useSpeakerBoost?: boolean;
   } = {
-    stability: 0.45,
+    stability: 0.38,
     similarityBoost: 0.80,
-    style: 0.15,
+    style: 0.20,
     speed: 1.0,
     useSpeakerBoost: true,
   };
@@ -123,9 +123,9 @@ export class VoiceService {
     const voiceId = /^[a-zA-Z0-9]{20,}$/.test(rawVoiceId) ? rawVoiceId : '';
 
     const active = this.activeVoiceSettings;
-    const stability = options.stability ?? active?.stability ?? 0.45;
+    const stability = options.stability ?? active?.stability ?? 0.38;
     const similarityBoost = options.similarityBoost ?? active?.similarityBoost ?? 0.80;
-    const style = options.style ?? active?.style ?? 0.15;
+    const style = options.style ?? active?.style ?? 0.20;
     const useSpeakerBoost = options.useSpeakerBoost ?? active?.useSpeakerBoost ?? true;
     const pace = options.pace ?? active?.speed ?? 1.0;
 

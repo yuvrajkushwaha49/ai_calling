@@ -64,9 +64,9 @@ function pullSpokenSentences(buffer, options) {
         }
     }
     rest = text.slice(lastCut);
-    if (!sentences.length && rest.length >= 24) {
+    if (!sentences.length && rest.length >= 38) {
         const commaMatch = /(?<!\d)[,，;:](?!\d)[\s]+/.exec(rest);
-        if (commaMatch && commaMatch.index >= 12) {
+        if (commaMatch && commaMatch.index >= 20) {
             const chunk = rest.slice(0, commaMatch.index + 1).trim();
             if (chunk) {
                 sentences.push(chunk);
