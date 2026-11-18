@@ -284,7 +284,7 @@ let ElevenLabsService = ElevenLabsService_1 = class ElevenLabsService {
         const optimize = options.optimizeStreamingLatency != null
             ? Math.max(0, Math.min(4, options.optimizeStreamingLatency))
             : null;
-        this.logger.log(`ElevenLabs TTS voice_id=${voiceId} model=${modelId} format=${outputFormat} lang=${languageCode || '-'} speed=${speed}`);
+        this.logger.log(`ElevenLabs TTS voice_id=${voiceId} model=${modelId} format=${outputFormat} lang=${languageCode || '-'} speed=${speed} stability=${options.stability ?? 'def'} style=${options.style ?? 'def'}`);
         this.logger.debug(`ElevenLabs TTS text: ${text.slice(0, 120)}`);
         const doRequest = async (id) => {
             const qs = new URLSearchParams({
@@ -304,9 +304,9 @@ let ElevenLabsService = ElevenLabsService_1 = class ElevenLabsService {
                 options.useSpeakerBoost != null;
             if (hasCustomVoiceSettings) {
                 body.voice_settings = {
-                    stability: Math.max(0, Math.min(1, options.stability ?? 0.45)),
+                    stability: Math.max(0, Math.min(1, options.stability ?? 0.50)),
                     similarity_boost: Math.max(0, Math.min(1, options.similarityBoost ?? 0.80)),
-                    style: Math.max(0, Math.min(1, options.style ?? 0.15)),
+                    style: Math.max(0, Math.min(1, options.style ?? 0.05)),
                     use_speaker_boost: options.useSpeakerBoost ?? true,
                     speed,
                 };

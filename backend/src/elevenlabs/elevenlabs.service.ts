@@ -326,7 +326,7 @@ export class ElevenLabsService {
         : null;
 
     this.logger.log(
-      `ElevenLabs TTS voice_id=${voiceId} model=${modelId} format=${outputFormat} lang=${languageCode || '-'} speed=${speed}`,
+      `ElevenLabs TTS voice_id=${voiceId} model=${modelId} format=${outputFormat} lang=${languageCode || '-'} speed=${speed} stability=${options.stability ?? 'def'} style=${options.style ?? 'def'}`,
     );
     this.logger.debug(`ElevenLabs TTS text: ${text.slice(0, 120)}`);
 
@@ -352,9 +352,9 @@ export class ElevenLabsService {
 
       if (hasCustomVoiceSettings) {
         body.voice_settings = {
-          stability: Math.max(0, Math.min(1, options.stability ?? 0.45)),
+          stability: Math.max(0, Math.min(1, options.stability ?? 0.50)),
           similarity_boost: Math.max(0, Math.min(1, options.similarityBoost ?? 0.80)),
-          style: Math.max(0, Math.min(1, options.style ?? 0.15)),
+          style: Math.max(0, Math.min(1, options.style ?? 0.05)),
           use_speaker_boost: options.useSpeakerBoost ?? true,
           speed,
         };
