@@ -25,7 +25,10 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', 'backend/.env', '../backend/.env'],
+    }),
     PrismaModule,
     RedisModule,
     MemoryModule,

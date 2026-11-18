@@ -37,7 +37,10 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            config_1.ConfigModule.forRoot({ isGlobal: true }),
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+                envFilePath: ['.env', 'backend/.env', '../backend/.env'],
+            }),
             prisma_module_1.PrismaModule,
             redis_module_1.RedisModule,
             memory_module_1.MemoryModule,
