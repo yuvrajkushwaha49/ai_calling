@@ -560,7 +560,7 @@ export class ExotelStreamService {
       const preferredModel =
         this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
         'eleven_multilingual_v2';
-      const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+      const latencyOpt = 0;
 
       const tts = await this.voice.textToSpeech({
         text: spoken,
@@ -635,7 +635,7 @@ export class ExotelStreamService {
         const preferredModel =
           this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
           'eleven_multilingual_v2';
-        const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+        const latencyOpt = 0;
 
         const tts = await this.voice.textToSpeech({
           text: 'जी।',

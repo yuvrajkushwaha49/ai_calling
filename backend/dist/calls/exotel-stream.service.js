@@ -480,7 +480,7 @@ let ExotelStreamService = ExotelStreamService_1 = class ExotelStreamService {
             const spoken = truncateForPhone(replyText);
             const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
                 'eleven_multilingual_v2';
-            const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+            const latencyOpt = 0;
             const tts = await this.voice.textToSpeech({
                 text: spoken,
                 speaker: settings.agentVoice || 'custom',
@@ -538,7 +538,7 @@ let ExotelStreamService = ExotelStreamService_1 = class ExotelStreamService {
             try {
                 const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
                     'eleven_multilingual_v2';
-                const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+                const latencyOpt = 0;
                 const tts = await this.voice.textToSpeech({
                     text: 'जी।',
                     language: 'hi-IN',

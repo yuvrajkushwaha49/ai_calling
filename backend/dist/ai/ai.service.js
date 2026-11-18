@@ -151,9 +151,9 @@ let AiService = class AiService {
         const playbook = (0, playbook_1.normalizePlaybook)(settings.approvedPlaybook);
         const savedVoice = playbook?.voiceSettings || {};
         const voiceSettings = {
-            stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.38,
+            stability: typeof savedVoice.stability === 'number' ? savedVoice.stability : 0.50,
             similarityBoost: typeof savedVoice.similarityBoost === 'number' ? savedVoice.similarityBoost : 0.80,
-            style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.20,
+            style: typeof savedVoice.style === 'number' ? savedVoice.style : 0.05,
             speed: typeof savedVoice.speed === 'number' ? savedVoice.speed : 1.0,
             useSpeakerBoost: typeof savedVoice.useSpeakerBoost === 'boolean' ? savedVoice.useSpeakerBoost : true,
         };
@@ -348,9 +348,9 @@ let AiService = class AiService {
         const playbook = (0, playbook_1.normalizePlaybook)(existing.approvedPlaybook);
         const currentVoice = playbook.voiceSettings || existing.voiceSettings || {};
         const updatedVoiceSettings = {
-            stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.38),
+            stability: typeof voiceStability === 'number' ? voiceStability : (dtoVoiceSettings?.stability ?? currentVoice.stability ?? 0.50),
             similarityBoost: typeof voiceSimilarity === 'number' ? voiceSimilarity : (dtoVoiceSettings?.similarityBoost ?? currentVoice.similarityBoost ?? 0.80),
-            style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.20),
+            style: typeof voiceStyle === 'number' ? voiceStyle : (dtoVoiceSettings?.style ?? currentVoice.style ?? 0.05),
             speed: typeof voiceSpeed === 'number' ? voiceSpeed : (dtoVoiceSettings?.speed ?? currentVoice.speed ?? 1.0),
             useSpeakerBoost: typeof voiceSpeakerBoost === 'boolean' ? voiceSpeakerBoost : (dtoVoiceSettings?.useSpeakerBoost ?? currentVoice.useSpeakerBoost ?? true),
         };
@@ -407,9 +407,9 @@ let AiService = class AiService {
         if (!text)
             throw new common_1.BadRequestException('Preview text is required');
         const voiceSettings = settings.voiceSettings || {};
-        const stability = typeof options?.stability === 'number' ? options.stability : (voiceSettings.stability ?? 0.45);
+        const stability = typeof options?.stability === 'number' ? options.stability : (voiceSettings.stability ?? 0.50);
         const similarityBoost = typeof options?.similarityBoost === 'number' ? options.similarityBoost : (voiceSettings.similarityBoost ?? 0.80);
-        const style = typeof options?.style === 'number' ? options.style : (voiceSettings.style ?? 0.15);
+        const style = typeof options?.style === 'number' ? options.style : (voiceSettings.style ?? 0.05);
         const pace = typeof options?.speed === 'number' ? options.speed : (voiceSettings.speed ?? 1.0);
         const useSpeakerBoost = typeof options?.useSpeakerBoost === 'boolean' ? options.useSpeakerBoost : (voiceSettings.useSpeakerBoost ?? true);
         const result = await this.voice.textToSpeech({

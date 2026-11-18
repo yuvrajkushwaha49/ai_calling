@@ -29,10 +29,10 @@ export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): str
 - Transliterate common real-estate English words into natural Devanagari phonetics ("2 बीएचके", "3 बीएचके", "फ्लैट", "बजट", "साइट विजिट", "पेमेंट प्लान").
 - Use conversational punctuation: "..." for natural breathing pauses, "!" for warm greetings, and "," for soft pauses.`
     : isEnglish
-    ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
+      ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS output your spoken response in clear, polite, natural Indian English using Latin alphabet.
 - Keep sentences concise, conversational and friendly.`
-    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
+      : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
 - ALWAYS output your spoken response in natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words and English for brand/technical terms.
 - Write Hindi words in clear, natural Devanagari script so the voice engine speaks with authentic Indian warmth and natural pitch melody (e.g. "हाँजी बिल्कुल...", "Aria बोल रही हूँ Workains Reality से!", "क्या आप 2 BHK देख रहे हैं या 3 BHK?").
 - Keep English real-estate terms and brand names natural in English letters ("Workains Reality", "2 BHK", "3 BHK", "flat", "budget", "site visit", "payment plan", "possession", "Noida").
@@ -42,8 +42,8 @@ export function buildDefaultSalesAgentPrompt(language: string = 'hinglish'): str
   const shortRule = isDevanagari
     ? '1–2 short spoken sentences in Devanagari Hindi. ONE question only.'
     : isEnglish
-    ? '1–2 short spoken sentences in English. ONE question only.'
-    : '1–2 short spoken sentences in Hinglish (Roman English letters). ONE question only.';
+      ? '1–2 short spoken sentences in English. ONE question only.'
+      : '1–2 short spoken sentences in Hinglish (Roman English letters). ONE question only.';
 
   return `# AI SALES CALLING AGENT
 
@@ -172,10 +172,10 @@ export function buildDefaultInboundAgentPrompt(language: string = 'hinglish'): s
   * "Possession" -> "पजेशन"
 - Numbers and prices should be written clearly in Hindi words / clean digits: e.g. "60 लाख रुपये से शुरू", "50-50 पेमेंट प्लान".`
     : isEnglish
-    ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
+      ? `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY):
 - ALWAYS speak and output your response in natural, polite Indian English using Latin alphabet.
 - Keep sentences concise, conversational and friendly.`
-    : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
+      : `## CRITICAL SCRIPT & LANGUAGE DIRECTIVE (MANDATORY HYBRID SCRIPT):
 - ALWAYS speak and output your response in natural conversational HINGLISH using DEVANAGARI SCRIPT for Hindi words and English for brand/technical terms.
 - Write Hindi words in clear, natural Devanagari script (e.g. "हाँजी बिल्कुल...", "मैं Aria बोल रही हूँ Workains Reality से!").
 - Keep English real-estate terms and brand names natural in English ("Workains Reality", "2 BHK", "flat", "budget", "site visit", "payment plan", "possession").
@@ -194,8 +194,8 @@ export function buildDefaultInboundAgentPrompt(language: string = 'hinglish'): s
   const turnsRule = isDevanagari
     ? '1–2 short spoken sentences in Devanagari Hindi. Never speak long monologues.'
     : isEnglish
-    ? '1–2 short spoken sentences in English. Never speak long monologues.'
-    : '1–2 short spoken sentences in Hinglish (Roman English letters). Never speak long monologues.';
+      ? '1–2 short spoken sentences in English. Never speak long monologues.'
+      : '1–2 short spoken sentences in Hinglish (Roman English letters). Never speak long monologues.';
 
   return `# AI INBOUND HELPLINE AGENT
 

@@ -24,9 +24,9 @@ let VoiceService = VoiceService_1 = class VoiceService {
         this.elevenlabs = elevenlabs;
     }
     activeVoiceSettings = {
-        stability: 0.38,
+        stability: 0.50,
         similarityBoost: 0.80,
-        style: 0.20,
+        style: 0.05,
         speed: 1.0,
         useSpeakerBoost: true,
     };
@@ -99,9 +99,9 @@ let VoiceService = VoiceService_1 = class VoiceService {
         const rawVoiceId = (this.config.get('ELEVENLABS_DEFAULT_VOICE_ID') || '').trim();
         const voiceId = /^[a-zA-Z0-9]{20,}$/.test(rawVoiceId) ? rawVoiceId : '';
         const active = this.activeVoiceSettings;
-        const stability = options.stability ?? active?.stability ?? 0.38;
+        const stability = options.stability ?? active?.stability ?? 0.50;
         const similarityBoost = options.similarityBoost ?? active?.similarityBoost ?? 0.80;
-        const style = options.style ?? active?.style ?? 0.20;
+        const style = options.style ?? active?.style ?? 0.05;
         const useSpeakerBoost = options.useSpeakerBoost ?? active?.useSpeakerBoost ?? true;
         const pace = options.pace ?? active?.speed ?? 1.0;
         this.logger.log(`TTS via ElevenLabs voice_id=${voiceId || options.speaker || 'default'} lang=${options.language || '-'} format=${options.outputFormat || 'default'} stability=${stability} style=${style} speed=${pace}`);

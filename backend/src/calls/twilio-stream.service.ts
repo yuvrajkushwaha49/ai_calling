@@ -469,7 +469,7 @@ export class TwilioStreamService {
     const preferredModel =
       this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
       'eleven_multilingual_v2';
-    const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+    const latencyOpt = 0;
 
     try {
       const tts = await this.voice.textToSpeech({

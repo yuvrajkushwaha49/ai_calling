@@ -408,7 +408,7 @@ let TwilioStreamService = TwilioStreamService_1 = class TwilioStreamService {
     async ttsToMulaw(text, speaker, language) {
         const preferredModel = this.config.get('ELEVENLABS_MODEL')?.trim() ||
             'eleven_multilingual_v2';
-        const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+        const latencyOpt = 0;
         try {
             const tts = await this.voice.textToSpeech({
                 text,

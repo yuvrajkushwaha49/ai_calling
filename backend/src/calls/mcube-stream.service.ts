@@ -31,7 +31,6 @@ import {
   createAudioFilterState,
   calculateDynamicNoiseThresholds,
   normalizeTextForSpeech,
-  applyTelephonyEQ,
   AudioFilterState,
 } from './phone-audio';
 import { globalLatencyTracker } from './latency-tracker';
@@ -1454,8 +1453,8 @@ export class McubeStreamService {
     const preferredModel =
       this.config.get<string>('ELEVENLABS_MODEL')?.trim() ||
       'eleven_multilingual_v2';
-    // Latency level 2 maintains studio neural resonance and prevents metallic compression artifacts
-    const latencyOpt = preferredModel.includes('multilingual') ? 2 : 3;
+    // Match studio neural resonance (0 latency optimization prevents robotic compression artifacts)
+    const latencyOpt = 0;
 
     const cacheKey = `${session.encoding}:${lang}:${preferredModel}:${voiceStability}:${voiceStyle}:${voiceSimilarity}:${voicePace}:${voiceSpeakerBoost}:${spokenText}`;
 
@@ -1486,10 +1485,9 @@ export class McubeStreamService {
           style: voiceStyle,
           useSpeakerBoost: voiceSpeakerBoost,
         });
-        const pcm16 = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
-        buf = applyTelephonyEQ(pcm16, 16000);
+        buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
       } else {
-        // audio/x-mulaw at 8000Hz: Fetch native μ-law or convert from PCM16 with Telephony EQ (presence boost + rumble cut)
+        // audio/x-mulaw at 8000Hz: Fetch pure native μ-law or convert from PCM16 without artificial DSP distortion
         try {
           const tts = await this.voice.textToSpeech({
             text: spokenText,
@@ -1505,11 +1503,7 @@ export class McubeStreamService {
             style: voiceStyle,
             useSpeakerBoost: voiceSpeakerBoost,
           });
-          const rawUlaw = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
-          // Apply Telephony EQ (rumble cut + 2.2kHz vocal presence boost) to μ-law audio
-          const pcm = mulawToPcm16(rawUlaw);
-          const eqPcm = applyTelephonyEQ(pcm, 8000);
-          buf = pcm16ToMulaw(eqPcm);
+          buf = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
         } catch {
           const tts = await this.voice.textToSpeech({
             text: spokenText,
@@ -1525,7 +1519,7 @@ export class McubeStreamService {
             style: voiceStyle,
             useSpeakerBoost: voiceSpeakerBoost,
           });
-          const pcm16k = applyTelephonyEQ(asNodeBuffer(Buffer.from(tts.audioBase64, 'base64')), 16000);
+          const pcm16k = asNodeBuffer(Buffer.from(tts.audioBase64, 'base64'));
           buf = pcm16ToMulaw(downsamplePcm16(pcm16k, 16000, 8000));
         }
       }
