@@ -28,17 +28,31 @@ import {
 import { aiSettingsSchema, type AiSettingsFormData } from '@/lib/validations';
 import { VOICE_OPTIONS, LANGUAGE_OPTIONS, TONE_OPTIONS, CHATGPT_MODEL_OPTIONS, WORKING_DAYS } from '@/lib/constants';
 
-const PREVIEW_TEXT: Record<string, (name: string) => string> = {
-  'en-IN': (name) =>
-    `Hello, this is ${name} from our real estate team. How can I help you today?`,
-  'hi-IN': (name) =>
-    `नमस्ते, मैं ${name} बोल रहा हूँ, real estate team से। आज कैसे help करूँ?`,
-  hinglish: (name) =>
-    `नमस्ते, मैं ${name} बोल रहा हूँ, real estate team से। आज कैसे help करूँ?`,
-  'mr-IN': (name) =>
-    `नमस्कार, मी ${name} आहे, आमच्या रिअल एस्टेट टीममधून. मी तुम्हाला कशी मदत करू शकतो?`,
-  'gu-IN': (name) =>
-    `નમસ્તે, હું ${name} છું, અમારી રિયલ એસ્ટેટ ટીમ તરફથી. હું તમારી કેવી રીતે મદદ કરી શકું?`,
+const PREVIEW_TEXT: Record<'male' | 'female', Record<string, (name: string) => string>> = {
+  male: {
+    'en-IN': (name) =>
+      `Hello, this is ${name} from our real estate team... How can I help you today?`,
+    'hi-IN': (name) =>
+      `नमस्ते, मैं ${name} बोल रहा हूँ real estate team से... आज आपकी कैसे help कर सकता हूँ?`,
+    hinglish: (name) =>
+      `नमस्ते, मैं ${name} बोल रहा हूँ real estate team से... आज आपकी कैसे help कर सकता हूँ?`,
+    'mr-IN': (name) =>
+      `नमस्कार, मी ${name} बोलत आहे आमच्या रिअल एस्टेट टीममधून... मी तुम्हाला कशी मदत करू शकतो?`,
+    'gu-IN': (name) =>
+      `નમસ્તે, હું ${name} વાત કરી રહ્યો છું રિયલ એસ્ટેટ ટીમ તરફથી... હું તમારી કેવી રીતે મદદ કરી શકું?`,
+  },
+  female: {
+    'en-IN': (name) =>
+      `Hello, this is ${name} from our real estate team... How can I help you today?`,
+    'hi-IN': (name) =>
+      `नमस्ते, मैं ${name} बोल रही हूँ real estate team से... आज आपकी कैसे help कर सकती हूँ?`,
+    hinglish: (name) =>
+      `नमस्ते, मैं ${name} बोल रही हूँ real estate team से... आज आपकी कैसे help कर सकती हूँ?`,
+    'mr-IN': (name) =>
+      `नमस्कार, मी ${name} बोलत आहे आमच्या रिअल एस्टेट टीममधून... मी तुम्हाला कशी मदत करू शकते?`,
+    'gu-IN': (name) =>
+      `નમસ્તે, હું ${name} વાત કરી રહી છું રિયલ એસ્ટેટ ટીમ તરફથી... હું તમારી કેવી રીતે મદદ કરી શકું?`,
+  },
 };
 
 export default function AiSettingsPage() {
@@ -133,11 +147,20 @@ export default function AiSettingsPage() {
     setPreviewError('');
     try {
       const language = form.getValues('language');
-      const agentName = form.getValues('agentName') || 'your AI agent';
+      const agentVoice = form.getValues('agentVoice') || 'custom';
+      const voiceObj = (voiceOptions as any[])?.find((v) => v.value === agentVoice);
+      const gender: 'male' | 'female' =
+        voiceObj?.gender === 'male' || ['darian', 'kellan', 'charlie', 'george', 'callum', 'liam'].includes(agentVoice.toLowerCase())
+          ? 'male'
+          : 'female';
+      const defaultName = gender === 'male' ? 'Aman' : 'Aria';
+      const agentName = form.getValues('agentName') || defaultName;
       const sample =
-        PREVIEW_TEXT[language]?.(agentName) || PREVIEW_TEXT['en-IN'](agentName);
+        PREVIEW_TEXT[gender]?.[language]?.(agentName) ||
+        PREVIEW_TEXT[gender]?.['hi-IN']?.(agentName) ||
+        PREVIEW_TEXT.female['hi-IN'](agentName);
       const result = await previewVoice.mutateAsync({
-        speaker: form.getValues('agentVoice'),
+        speaker: agentVoice,
         language,
         text: sample,
         stability: form.getValues('voiceStability'),
@@ -161,6 +184,13 @@ export default function AiSettingsPage() {
       : VOICE_OPTIONS;
   const ttsProvider =
     (settings as unknown as { ttsProvider?: string })?.ttsProvider || 'elevenlabs';
+
+  const selectedVoice = form.watch('agentVoice') || 'custom';
+  const selectedVoiceObj = (voiceOptions as any[])?.find((v) => v.value === selectedVoice);
+  const selectedGender: 'male' | 'female' =
+    selectedVoiceObj?.gender === 'male' || ['darian', 'kellan', 'charlie', 'george', 'callum', 'liam'].includes(selectedVoice.toLowerCase())
+      ? 'male'
+      : 'female';
 
   return (
     <DashboardLayout title="AI Agent Settings">
@@ -209,6 +239,14 @@ export default function AiSettingsPage() {
                         <Volume2 className="h-4 w-4" />
                       )}
                     </Button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-1 font-medium text-blue-700 dark:text-blue-300">
+                      {selectedGender === 'male' ? '👨 Male Voice (बोल रहा हूँ)' : '👩 Female Voice (बोल रही हूँ)'}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Preview: {selectedGender === 'male' ? 'बोल रहा हूँ' : 'बोल रही हूँ'}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     TTS + STT both use ElevenLabs (Scribe for speech-to-text). Voice ID from ELEVENLABS_DEFAULT_VOICE_ID.

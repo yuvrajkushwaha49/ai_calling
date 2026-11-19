@@ -63,6 +63,10 @@ export class VoiceService {
     return this.elevenlabs.normalizeSpeaker(speaker);
   }
 
+  voiceGender(speaker?: string): 'male' | 'female' {
+    return this.elevenlabs.voiceGender(speaker);
+  }
+
   /** App language tags for CRM / UI. */
   normalizeAppLanguage(language?: string): string {
     const lang = (language || '').toLowerCase().trim();

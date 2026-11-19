@@ -51,6 +51,9 @@ let VoiceService = VoiceService_1 = class VoiceService {
     normalizeSpeaker(speaker) {
         return this.elevenlabs.normalizeSpeaker(speaker);
     }
+    voiceGender(speaker) {
+        return this.elevenlabs.voiceGender(speaker);
+    }
     normalizeAppLanguage(language) {
         const lang = (language || '').toLowerCase().trim();
         if (!lang)

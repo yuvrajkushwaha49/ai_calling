@@ -73,13 +73,13 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const VOICE_OPTIONS = [
-  { value: 'custom', label: 'Custom (zmh5xhBvMzqR4ZlXgcgL)' },
-  { value: 'kellan', label: 'Kellan – Casual Friendly Speaker' },
-  { value: 'darian', label: 'Darian – Warm Grounded Storyteller' },
-  { value: 'elara', label: 'Elara – Crisp Pro Narrator' },
-  { value: 'talia', label: 'Talia – Warm Soft Guide' },
-  { value: 'alicia', label: 'Alicia – Polished Global Anchor' },
-];
+  { value: 'custom', label: 'Shared Voice Lab / Aria (Female)', gender: 'female' },
+  { value: 'kellan', label: 'Kellan – Casual Friendly Speaker (Male)', gender: 'male' },
+  { value: 'darian', label: 'Darian – Warm Grounded Storyteller (Male)', gender: 'male' },
+  { value: 'elara', label: 'Elara – Crisp Pro Narrator (Female)', gender: 'female' },
+  { value: 'talia', label: 'Talia – Warm Soft Guide (Female)', gender: 'female' },
+  { value: 'alicia', label: 'Alicia – Polished Global Anchor (Female)', gender: 'female' },
+] as const;
 
 export const LANGUAGE_OPTIONS = [
   { value: 'en-IN', label: 'English' },

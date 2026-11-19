@@ -396,14 +396,18 @@ let AiService = class AiService {
     }
     async previewVoice(options) {
         const settings = await this.getSettings();
-        const speaker = options?.speaker || settings.agentVoice || 'rachel';
+        const speaker = options?.speaker || settings.agentVoice || 'custom';
         const language = options?.language || settings.language || 'hi-IN';
-        const agentLabel = String(settings.agentName || 'नेहा')
+        const isMale = this.voice.voiceGender(speaker) === 'male';
+        const fallbackName = isMale ? 'अमन' : 'Aria';
+        const agentLabel = String(settings.agentName || fallbackName)
             .split(/[-–—|:/]/)[0]
             .trim()
-            .split(/\s+/)[0] || 'नेहा';
-        const text = options?.text?.trim() ||
-            `नमस्ते, मैं ${agentLabel} बोल रही हूँ। आपकी real estate property enquiry आई थी — क्या दो मिनट बात हो सकती है?`;
+            .split(/\s+/)[0] || fallbackName;
+        const defaultText = isMale
+            ? `नमस्ते, मैं ${agentLabel} बोल रहा हूँ real estate team से... आज आपकी कैसे help कर सकता हूँ?`
+            : `नमस्ते, मैं ${agentLabel} बोल रही हूँ real estate team से... आज आपकी कैसे help कर सकती हूँ?`;
+        const text = options?.text?.trim() || defaultText;
         if (!text)
             throw new common_1.BadRequestException('Preview text is required');
         const voiceSettings = settings.voiceSettings || {};
