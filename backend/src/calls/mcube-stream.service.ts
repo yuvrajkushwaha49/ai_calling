@@ -863,8 +863,8 @@ export class McubeStreamService {
           })
           .catch(() => undefined);
 
-        // Call-end site visit / appointment booking safety check:
-        // Ensures any appointment agreed during the conversation is booked
+        // Call-end site visit / appointment booking safety check & Self-Improvement auto-learn:
+        // Ensures any appointment agreed during the conversation is booked and lessons are recorded
         void (async () => {
           try {
             const finalCall = await this.prisma.call.findUnique({
@@ -883,8 +883,17 @@ export class McubeStreamService {
                 priorTranscript: session.transcript,
               });
             }
+
+            if (session.transcript) {
+              await this.ai.learnFromCompletedCall({
+                callId: session.callId,
+                outcome: String(finalCall?.outcome || CallOutcome.CONNECTED),
+                transcript: session.transcript,
+                interestScore: finalCall?.interestScore,
+              });
+            }
           } catch (err) {
-            this.logger.warn(`[MCube] Close hook appointment check error: ${err}`);
+            this.logger.warn(`[MCube] Close hook error: ${err}`);
           }
         })();
       }

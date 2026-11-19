@@ -659,9 +659,17 @@ let McubeStreamService = McubeStreamService_1 = class McubeStreamService {
                                 priorTranscript: session.transcript,
                             });
                         }
+                        if (session.transcript) {
+                            await this.ai.learnFromCompletedCall({
+                                callId: session.callId,
+                                outcome: String(finalCall?.outcome || client_1.CallOutcome.CONNECTED),
+                                transcript: session.transcript,
+                                interestScore: finalCall?.interestScore,
+                            });
+                        }
                     }
                     catch (err) {
-                        this.logger.warn(`[MCube] Close hook appointment check error: ${err}`);
+                        this.logger.warn(`[MCube] Close hook error: ${err}`);
                     }
                 })();
             }
